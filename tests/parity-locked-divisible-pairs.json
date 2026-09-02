@@ -1,0 +1,96 @@
+{
+ "title": "Parity-locked divisible pairs",
+ "entry_point": "count_locked_pairs",
+ "cases": [
+  {
+   "name": "example_basic",
+   "code": "result = sol.count_locked_pairs([2, 4, 6, 3, 5], 5)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "example_negatives",
+   "code": "result = sol.count_locked_pairs([-1, 1, 6, 4], 5)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_m_one",
+   "code": "result = sol.count_locked_pairs([1, 2, 3], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "empty_and_single",
+   "code": "result = (sol.count_locked_pairs([], 3), sol.count_locked_pairs([5], 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "m_zero_raises",
+   "code": "result = sol.count_locked_pairs([1, 2], 0)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "m_negative_raises",
+   "code": "result = sol.count_locked_pairs([1, 2], -4)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "extremes_and_duplicates",
+   "code": "result = (sol.count_locked_pairs([-10**12, 10**12, 0, 10**12], 10**6),\n          sol.count_locked_pairs([7] * 100, 7),\n          sol.count_locked_pairs([-3, -3, 3, 3, 6], 6),\n          sol.count_locked_pairs([2, -2, 4, -4], 4))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     6,
+     4950,
+     6,
+     2
+    ]
+   }
+  },
+  {
+   "name": "small_batch_various_m",
+   "code": "import random\nrnd = random.Random(5)\nout = []\nfor m in (1, 2, 3, 6, 97):\n    vals = [rnd.randint(-40, 40) for _ in range(120)]\n    out.append(sol.count_locked_pairs(vals, m))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3709,
+     3621,
+     1168,
+     1237,
+     74
+    ]
+   }
+  },
+  {
+   "name": "large_random",
+   "code": "import random\nrnd = random.Random(0)\nvals = [rnd.randint(-10**12, 10**12) for _ in range(1500000)]\nresult = sol.count_locked_pairs(vals, 1000)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 1124966038
+   }
+  },
+  {
+   "name": "large_big_modulus",
+   "code": "vals = [((i * 2654435761) % (2 * 10**12)) - 10**12 for i in range(1200000)]\nresult = sol.count_locked_pairs(vals, 10**6)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 699999
+   }
+  }
+ ]
+}

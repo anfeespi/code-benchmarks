@@ -1,0 +1,347 @@
+{
+ "title": "Category summarizer with indexed validation errors",
+ "entry_point": "summarize_by_category",
+ "cases": [
+  {
+   "name": "example_basic",
+   "code": "result = sol.summarize_by_category([('food', 10, False), ('food', 4, True), ('tech', 99.5, False)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "food",
+       {
+        "__dict__": [
+         [
+          "count",
+          2
+         ],
+         [
+          "gross",
+          14.0
+         ],
+         [
+          "net",
+          10.0
+         ],
+         [
+          "largest",
+          10.0
+         ]
+        ]
+       }
+      ],
+      [
+       "tech",
+       {
+        "__dict__": [
+         [
+          "count",
+          1
+         ],
+         [
+          "gross",
+          99.5
+         ],
+         [
+          "net",
+          99.5
+         ],
+         [
+          "largest",
+          99.5
+         ]
+        ]
+       }
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "types_and_keys",
+   "code": "r = sol.summarize_by_category([('a', 3, False), ('a', 5, True)])\nb = r['a']\nresult = (type(b['gross']).__name__, type(b['net']).__name__, type(b['largest']).__name__,\n          type(b['count']).__name__, sorted(b.keys()), b['gross'], b['net'], b['largest'], b['count'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "float",
+     "float",
+     "float",
+     "int",
+     [
+      "count",
+      "gross",
+      "largest",
+      "net"
+     ],
+     8.0,
+     3.0,
+     5.0,
+     2
+    ]
+   }
+  },
+  {
+   "name": "first_appearance_order",
+   "code": "r = sol.summarize_by_category([('z', 1, False), ('a', 2, False), ('z', 3, True), ('m', 0, False)])\nresult = list(r.keys())",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "z",
+     "a",
+     "m"
+    ]
+   }
+  },
+  {
+   "name": "empty_rows",
+   "code": "result = sol.summarize_by_category([])",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": []
+    }
+   }
+  },
+  {
+   "name": "not_a_list",
+   "code": "try:\n    sol.summarize_by_category(('a', 1, False))\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'rows must be a list' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "TypeError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "row_shape_errors",
+   "code": "cases = [[('a', 1)], [['a', 1, False]], [('a', 1, False, 2)], ['abc']]\nout = []\nfor rows in cases:\n    try:\n        sol.summarize_by_category(rows)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'row 0' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "field_errors_in_order",
+   "code": "cases = [[('', 1, False)], [(5, 1, False)], [('a', True, False)], [('a', '1', False)],\n         [('a', -1, False)], [('a', 1, 0)], [('a', 1, None)]]\nout = []\nfor rows in cases:\n    try:\n        sol.summarize_by_category(rows)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'row 0' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "check_precedence_within_row",
+   "code": "cases = [[('', True, 1)], [('a', True, 1)], [('a', -1, 1)]]\nout = []\nfor rows in cases:\n    try:\n        sol.summarize_by_category(rows)\n        out.append('no error')\n    except Exception as e:\n        out.append(type(e).__name__)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     "TypeError",
+     "ValueError"
+    ]
+   }
+  },
+  {
+   "name": "first_bad_row_index",
+   "code": "try:\n    sol.summarize_by_category([('a', 1, False), ('b', -0.5, False), ('c', None, False)])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'row 1' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "purity_no_import_no_global",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\ngnl = any(isinstance(n, (ast.Global, ast.Nonlocal)) for n in ast.walk(tree))\nresult = (imports, gnl)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "no_mutation_repeatable",
+   "code": "rows = [('a', 1, False), ('b', 2, True), ('a', 3, False)]\nsnapshot = list(rows)\nr1 = sol.summarize_by_category(rows)\nr2 = sol.summarize_by_category(rows)\nresult = (rows == snapshot, r1 == r2, r1 is not r2, r1['a'] is not r2['a'], r1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     true,
+     true,
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "count",
+           2
+          ],
+          [
+           "gross",
+           4.0
+          ],
+          [
+           "net",
+           4.0
+          ],
+          [
+           "largest",
+           3.0
+          ]
+         ]
+        }
+       ],
+       [
+        "b",
+        {
+         "__dict__": [
+          [
+           "count",
+           1
+          ],
+          [
+           "gross",
+           2.0
+          ],
+          [
+           "net",
+           0.0
+          ],
+          [
+           "largest",
+           2.0
+          ]
+         ]
+        }
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "rows = []\nfor i in range(300):\n    rows.append(('cat%d' % (i % 7), i * 0.5, i % 3 == 0))\nr = sol.summarize_by_category(rows)\nresult = (list(r.keys()), [(k, v['count'], v['gross'], v['net'], v['largest']) for k, v in r.items()])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "cat0",
+      "cat1",
+      "cat2",
+      "cat3",
+      "cat4",
+      "cat5",
+      "cat6"
+     ],
+     [
+      [
+       "cat0",
+       43,
+       3160.5,
+       2058.0,
+       147.0
+      ],
+      [
+       "cat1",
+       43,
+       3182.0,
+       2121.5,
+       147.5
+      ],
+      [
+       "cat2",
+       43,
+       3203.5,
+       2185.0,
+       148.0
+      ],
+      [
+       "cat3",
+       43,
+       3225.0,
+       2100.0,
+       148.5
+      ],
+      [
+       "cat4",
+       43,
+       3246.5,
+       2165.0,
+       149.0
+      ],
+      [
+       "cat5",
+       43,
+       3268.0,
+       2228.5,
+       149.5
+      ],
+      [
+       "cat6",
+       42,
+       3139.5,
+       2142.0,
+       146.5
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

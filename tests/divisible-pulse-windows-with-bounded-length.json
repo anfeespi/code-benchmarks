@@ -1,0 +1,89 @@
+{
+ "title": "Divisible pulse windows with bounded length",
+ "entry_point": "count_pulses",
+ "cases": [
+  {
+   "name": "example_band",
+   "code": "result = sol.count_pulses([2, 1, 3, 4], 3, 2, 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_negatives",
+   "code": "result = sol.count_pulses([-1, 1, -3], 3, 1, 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_single",
+   "code": "result = sol.count_pulses([5], 5, 1, 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "bad_lo_raises",
+   "code": "result = sol.count_pulses([1, 2, 3], 2, 0, 2)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "lo_gt_hi_raises",
+   "code": "result = sol.count_pulses([1, 2, 3], 2, 3, 2)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "hi_gt_len_raises",
+   "code": "result = sol.count_pulses([1, 2, 3], 2, 1, 4)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "small_exhaustive",
+   "code": "import random\nrnd = random.Random(3)\nxs = [rnd.randint(-20, 20) for _ in range(60)]\nresult = [sol.count_pulses(xs, k, lo, hi)\n          for k in (1, 4, 7, 10**9)\n          for lo, hi in ((1, 60), (1, 1), (30, 45), (60, 60))]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1830,
+     60,
+     376,
+     1,
+     443,
+     21,
+     91,
+     0,
+     250,
+     6,
+     53,
+     0,
+     10,
+     0,
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "name": "large_band",
+   "code": "import random\nrnd = random.Random(0)\ndeltas = [rnd.randint(-10**6, 10**6) for _ in range(1200000)]\nresult = sol.count_pulses(deltas, 1000, 100000, 350000)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 243739985
+   }
+  },
+  {
+   "name": "large_full_range_progression",
+   "code": "deltas = [((i * i) % 2001) - 1000 for i in range(1000000)]\nresult = sol.count_pulses(deltas, 7, 1, 1000000)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 71428218645
+   }
+  }
+ ]
+}

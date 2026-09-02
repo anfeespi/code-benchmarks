@@ -1,0 +1,110 @@
+{
+ "title": "Overflow safe Euclidean norm",
+ "entry_point": "vector_norm",
+ "cases": [
+  {
+   "name": "basic",
+   "code": "result = sol.vector_norm([3.0, 4.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5.0
+   }
+  },
+  {
+   "name": "huge_no_overflow",
+   "code": "result = sol.vector_norm([3e200, -4e200])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4.9999999999999995e+200
+   }
+  },
+  {
+   "name": "tiny_no_underflow",
+   "code": "result = sol.vector_norm([3e-200, 4e-200]) / 1e-200",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5.0
+   }
+  },
+  {
+   "name": "empty_is_zero",
+   "code": "result = sol.vector_norm([])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0.0
+   }
+  },
+  {
+   "name": "all_zero",
+   "code": "result = sol.vector_norm([0.0, 0.0, 0.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0.0
+   }
+  },
+  {
+   "name": "zero_returns_float",
+   "code": "result = [type(sol.vector_norm([])).__name__, type(sol.vector_norm([0.0, 0.0])).__name__]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "float",
+     "float"
+    ]
+   }
+  },
+  {
+   "name": "negatives",
+   "code": "result = (sol.vector_norm([-3.0, -4.0]), sol.vector_norm([-7.5]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5.0,
+     7.5
+    ]
+   }
+  },
+  {
+   "name": "mixed_scales",
+   "code": "result = sol.vector_norm([1e-200, 1.0, 1e200]) / 1e200",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1.0
+   }
+  },
+  {
+   "name": "huge_with_zeros",
+   "code": "result = sol.vector_norm([0.0, 5e300, 0.0, -1.0]) / 1e300",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5.0
+   }
+  },
+  {
+   "name": "nan_raises",
+   "code": "result = sol.vector_norm([1.0, float('nan')])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "inf_raises",
+   "code": "result = sol.vector_norm([float('inf'), 1.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "neg_inf_raises",
+   "code": "result = sol.vector_norm([1.0, float('-inf')])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "vals = [float(i) if i % 2 else -float(i) for i in range(1, 101)]\nresult = sol.vector_norm(vals)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 581.6786054171153
+   }
+  }
+ ]
+}

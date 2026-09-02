@@ -1,0 +1,429 @@
+{
+ "title": "Duration string parser under a no-import contract",
+ "entry_point": "parse_duration",
+ "cases": [
+  {
+   "name": "worked_examples",
+   "code": "result = (sol.parse_duration('2h30m15s'), sol.parse_duration('45m'), sol.parse_duration('90s'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     9015,
+     2700,
+     90
+    ]
+   }
+  },
+  {
+   "name": "more_valid_forms",
+   "code": "vals = ['0s', '007m', '90m', '1h1s', '1h', '10h20m', '5m30s', '000h000m000s', '1h0m0s']\nresult = [(v, sol.parse_duration(v)) for v in vals]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "0s",
+      0
+     ],
+     [
+      "007m",
+      420
+     ],
+     [
+      "90m",
+      5400
+     ],
+     [
+      "1h1s",
+      3601
+     ],
+     [
+      "1h",
+      3600
+     ],
+     [
+      "10h20m",
+      37200
+     ],
+     [
+      "5m30s",
+      330
+     ],
+     [
+      "000h000m000s",
+      0
+     ],
+     [
+      "1h0m0s",
+      3600
+     ]
+    ]
+   }
+  },
+  {
+   "name": "returns_int",
+   "code": "r = sol.parse_duration('2h')\nresult = (type(r).__name__, r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "int",
+     7200
+    ]
+   }
+  },
+  {
+   "name": "type_errors",
+   "code": "out = []\nfor bad in [b'5m', 5, None, ['5m'], 1.5]:\n    try:\n        sol.parse_duration(bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'expected str' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_duration",
+   "code": "out = []\nfor bad in ['', '   ', '\\t']:\n    try:\n        sol.parse_duration(bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'empty duration' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "malformed_durations",
+   "code": "bad = ['5m3h', '1h1h', '5', 'h', '1 h', ' 1h', '1h ', '-5s', '+5s', '1.5h', '5S', '1H',\n       '1h2x', '1hh', 'm5', '1s1s', 'h1', '1m1h', 'abc', '1h30', '30x']\nout = []\nfor t in bad:\n    try:\n        sol.parse_duration(t)\n        out.append((t, 'no error'))\n    except Exception as e:\n        out.append((t, type(e).__name__, 'malformed duration' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "5m3h",
+      "ValueError",
+      true
+     ],
+     [
+      "1h1h",
+      "ValueError",
+      true
+     ],
+     [
+      "5",
+      "ValueError",
+      true
+     ],
+     [
+      "h",
+      "ValueError",
+      true
+     ],
+     [
+      "1 h",
+      "ValueError",
+      true
+     ],
+     [
+      " 1h",
+      "ValueError",
+      true
+     ],
+     [
+      "1h ",
+      "ValueError",
+      true
+     ],
+     [
+      "-5s",
+      "ValueError",
+      true
+     ],
+     [
+      "+5s",
+      "ValueError",
+      true
+     ],
+     [
+      "1.5h",
+      "ValueError",
+      true
+     ],
+     [
+      "5S",
+      "ValueError",
+      true
+     ],
+     [
+      "1H",
+      "ValueError",
+      true
+     ],
+     [
+      "1h2x",
+      "ValueError",
+      true
+     ],
+     [
+      "1hh",
+      "ValueError",
+      true
+     ],
+     [
+      "m5",
+      "ValueError",
+      true
+     ],
+     [
+      "1s1s",
+      "ValueError",
+      true
+     ],
+     [
+      "h1",
+      "ValueError",
+      true
+     ],
+     [
+      "1m1h",
+      "ValueError",
+      true
+     ],
+     [
+      "abc",
+      "ValueError",
+      true
+     ],
+     [
+      "1h30",
+      "ValueError",
+      true
+     ],
+     [
+      "30x",
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ascii_digits_only",
+   "code": "bad = [chr(0x0661) + 'h', chr(0xFF11) + 'h', '1' + chr(0x0662) + 'h', chr(0x00B2) + 'h',\n       chr(0x0966) + 'm']\nout = []\nfor t in bad:\n    try:\n        out.append(('no error', sol.parse_duration(t)))\n    except Exception as e:\n        out.append((type(e).__name__, 'malformed duration' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "order_type_before_empty",
+   "code": "try:\n    sol.parse_duration(b'')\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'expected str' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "TypeError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "unbounded_values",
+   "code": "result = (sol.parse_duration('999999999999h'), sol.parse_duration('123456789012345m1s'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3599999999996400,
+     7407407340740701
+    ]
+   }
+  },
+  {
+   "name": "no_import_no_dynamic_exec",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nbanned = set()\nfor n in ast.walk(tree):\n    if isinstance(n, ast.Name) and n.id in ('__import__', 'eval', 'exec'):\n        banned.add(n.id)\nresult = (imports, sorted(banned))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     []
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "out = []\nfor h in range(0, 40, 7):\n    for m in range(0, 60, 13):\n        for s in range(0, 60, 17):\n            out.append(sol.parse_duration('%dh%dm%ds' % (h, m, s)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     17,
+     34,
+     51,
+     780,
+     797,
+     814,
+     831,
+     1560,
+     1577,
+     1594,
+     1611,
+     2340,
+     2357,
+     2374,
+     2391,
+     3120,
+     3137,
+     3154,
+     3171,
+     25200,
+     25217,
+     25234,
+     25251,
+     25980,
+     25997,
+     26014,
+     26031,
+     26760,
+     26777,
+     26794,
+     26811,
+     27540,
+     27557,
+     27574,
+     27591,
+     28320,
+     28337,
+     28354,
+     28371,
+     50400,
+     50417,
+     50434,
+     50451,
+     51180,
+     51197,
+     51214,
+     51231,
+     51960,
+     51977,
+     51994,
+     52011,
+     52740,
+     52757,
+     52774,
+     52791,
+     53520,
+     53537,
+     53554,
+     53571,
+     75600,
+     75617,
+     75634,
+     75651,
+     76380,
+     76397,
+     76414,
+     76431,
+     77160,
+     77177,
+     77194,
+     77211,
+     77940,
+     77957,
+     77974,
+     77991,
+     78720,
+     78737,
+     78754,
+     78771,
+     100800,
+     100817,
+     100834,
+     100851,
+     101580,
+     101597,
+     101614,
+     101631,
+     102360,
+     102377,
+     102394,
+     102411,
+     103140,
+     103157,
+     103174,
+     103191,
+     103920,
+     103937,
+     103954,
+     103971,
+     126000,
+     126017,
+     126034,
+     126051,
+     126780,
+     126797,
+     126814,
+     126831,
+     127560,
+     127577,
+     127594,
+     127611,
+     128340,
+     128357,
+     128374,
+     128391,
+     129120,
+     129137,
+     129154,
+     129171
+    ]
+   }
+  }
+ ]
+}

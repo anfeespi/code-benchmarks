@@ -5,6 +5,7 @@
   {
    "name": "falsy_override_wins",
    "code": "result = sol.merge_settings({'a': True, 'b': 1}, {'a': False, 'b': 0})",
+   "timeout_s": 5,
    "expected": {
     "value": {
      "__dict__": [
@@ -23,6 +24,7 @@
   {
    "name": "nested_merge",
    "code": "result = sol.merge_settings({'x': {'p': 1, 'q': 2}}, {'x': {'q': 3}})",
+   "timeout_s": 5,
    "expected": {
     "value": {
      "__dict__": [
@@ -48,6 +50,7 @@
   {
    "name": "none_override",
    "code": "result = sol.merge_settings({'a': 5}, {'a': None})",
+   "timeout_s": 5,
    "expected": {
     "value": {
      "__dict__": [
@@ -62,6 +65,7 @@
   {
    "name": "dict_replaces_scalar",
    "code": "result = sol.merge_settings({'a': 1}, {'a': {'z': 0}})",
+   "timeout_s": 5,
    "expected": {
     "value": {
      "__dict__": [
@@ -81,8 +85,28 @@
    }
   },
   {
+   "name": "scalar_replaces_dict",
+   "code": "result = sol.merge_settings({'a': {'z': 1}, 'b': {'y': 2}}, {'a': 7, 'b': None})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       7
+      ],
+      [
+       "b",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
    "name": "inputs_untouched",
    "code": "d={'a': {'b': 1}}; o={'a': {'c': 2}}; r=sol.merge_settings(d,o); result=(d, o, r)",
+   "timeout_s": 5,
    "expected": {
     "value": [
      {
@@ -140,6 +164,7 @@
   {
    "name": "empty",
    "code": "result = (sol.merge_settings({}, {}), sol.merge_settings({'k': []}, {}))",
+   "timeout_s": 5,
    "expected": {
     "value": [
      {
@@ -154,6 +179,215 @@
       ]
      }
     ]
+   }
+  },
+  {
+   "name": "all_falsy_kinds_nested",
+   "code": "result = sol.merge_settings({'db': {'host': 'prod', 'pool': 5, 'opts': {'ssl': True, 'name': 'x'}}, 'keep': 1}, {'db': {'pool': 0, 'opts': {'ssl': False, 'name': ''}}})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "db",
+       {
+        "__dict__": [
+         [
+          "host",
+          "prod"
+         ],
+         [
+          "pool",
+          0
+         ],
+         [
+          "opts",
+          {
+           "__dict__": [
+            [
+             "ssl",
+             false
+            ],
+            [
+             "name",
+             ""
+            ]
+           ]
+          }
+         ]
+        ]
+       }
+      ],
+      [
+       "keep",
+       1
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "falsy_keys_only_in_overrides_are_added",
+   "code": "result = sol.merge_settings({'a': 1}, {'b': {'c': 2}, 'c': [], 'd': '', 'e': 0, 'f': False, 'g': None})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       {
+        "__dict__": [
+         [
+          "c",
+          2
+         ]
+        ]
+       }
+      ],
+      [
+       "c",
+       []
+      ],
+      [
+       "d",
+       ""
+      ],
+      [
+       "e",
+       0
+      ],
+      [
+       "f",
+       false
+      ],
+      [
+       "g",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "empty_dict_override_merges_recursively",
+   "code": "result = (sol.merge_settings({'a': {'b': 1}}, {'a': {}}), sol.merge_settings({'a': 1}, {'a': {}}), sol.merge_settings({'a': {'b': 1}}, {'a': []}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": []
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        []
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "returns_new_dict_not_an_input",
+   "code": "d = {'a': 1}; o = {'b': 2}\nr = sol.merge_settings(d, o)\nr['zz'] = 9\nresult = (r is d, r is o, d, o, sorted(r))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     false,
+     {
+      "__dict__": [
+       [
+        "a",
+        1
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "b",
+        2
+       ]
+      ]
+     },
+     [
+      "a",
+      "b",
+      "zz"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "deep_three_levels_and_list_replacement",
+   "code": "result = sol.merge_settings({'a': {'b': {'c': {'d': 1, 'e': 2}}}, 'l': [1, 2, 3]}, {'a': {'b': {'c': {'d': 0}}}, 'l': []})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       {
+        "__dict__": [
+         [
+          "b",
+          {
+           "__dict__": [
+            [
+             "c",
+             {
+              "__dict__": [
+               [
+                "d",
+                0
+               ],
+               [
+                "e",
+                2
+               ]
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        ]
+       }
+      ],
+      [
+       "l",
+       []
+      ]
+     ]
+    }
    }
   }
  ]

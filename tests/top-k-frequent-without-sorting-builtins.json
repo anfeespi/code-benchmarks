@@ -1,0 +1,295 @@
+{
+ "title": "Top-k frequent without sorting builtins",
+ "entry_point": "top_k_frequent",
+ "cases": [
+  {
+   "name": "worked_examples",
+   "code": "result = (sol.top_k_frequent(['a', 'b', 'a', 'c', 'b', 'a'], 2),\n          sol.top_k_frequent([1, 2, 2, 1], 5),\n          sol.top_k_frequent([], 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "a",
+       3
+      ],
+      [
+       "b",
+       2
+      ]
+     ],
+     [
+      [
+       1,
+       2
+      ],
+      [
+       2,
+       2
+      ]
+     ],
+     []
+    ]
+   }
+  },
+  {
+   "name": "shape_is_list_of_tuples",
+   "code": "r = sol.top_k_frequent(['a', 'b', 'a'], 2)\nresult = (type(r).__name__, [type(x).__name__ for x in r], [len(x) for x in r])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "list",
+     [
+      "tuple",
+      "tuple"
+     ],
+     [
+      2,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "k_zero_and_k_larger",
+   "code": "result = (sol.top_k_frequent(['a', 'b'], 0),\n          sol.top_k_frequent(['a', 'b', 'b'], 1),\n          sol.top_k_frequent(['a', 'b', 'b'], 99))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     [
+      [
+       "b",
+       2
+      ]
+     ],
+     [
+      [
+       "b",
+       2
+      ],
+      [
+       "a",
+       1
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ties_by_first_occurrence",
+   "code": "result = (sol.top_k_frequent(['c', 'a', 'b', 'a', 'b', 'c'], 3),\n          sol.top_k_frequent(['z', 'y', 'x'], 3),\n          sol.top_k_frequent([3, 1, 2, 1, 3, 2, 3], 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "c",
+       2
+      ],
+      [
+       "a",
+       2
+      ],
+      [
+       "b",
+       2
+      ]
+     ],
+     [
+      [
+       "z",
+       1
+      ],
+      [
+       "y",
+       1
+      ],
+      [
+       "x",
+       1
+      ]
+     ],
+     [
+      [
+       3,
+       3
+      ],
+      [
+       1,
+       2
+      ],
+      [
+       2,
+       2
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mixed_hashables",
+   "code": "items = ['a', (1, 2), None, 'a', (1, 2), 'a', 'b']\nresult = sol.top_k_frequent(items, 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      3
+     ],
+     [
+      [
+       1,
+       2
+      ],
+      2
+     ],
+     [
+      null,
+      1
+     ],
+     [
+      "b",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "items_not_mutated",
+   "code": "items = ['a', 'b', 'a']\nsnapshot = list(items)\nr1 = sol.top_k_frequent(items, 2)\nr2 = sol.top_k_frequent(items, 2)\nresult = (items == snapshot, r1 == r2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "items_not_a_list",
+   "code": "out = []\nfor bad in ['abc', ('a', 'b'), None, {'a': 1}]:\n    try:\n        sol.top_k_frequent(bad, 1)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'items must be a list' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "bad_k",
+   "code": "out = []\nfor bad in [True, False, 1.0, '1', None]:\n    try:\n        sol.top_k_frequent(['a'], bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'k must be an int' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "negative_k_and_order",
+   "code": "out = []\ntry:\n    sol.top_k_frequent(['a'], -1)\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'k must be >= 0' in str(e)))\ntry:\n    sol.top_k_frequent('ab', True)\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'items must be a list' in str(e)))\ntry:\n    sol.top_k_frequent(['a'], False)\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'k must be an int' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_sorting_builtins",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nnames = set()\nattrs = set()\nfor n in ast.walk(tree):\n    if isinstance(n, ast.Name):\n        names.add(n.id)\n    elif isinstance(n, ast.Attribute):\n        attrs.add(n.attr)\n    elif isinstance(n, ast.arg):\n        names.add(n.arg)\n    elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):\n        names.add(n.name)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nresult = ('sorted' in names, 'min' in names, 'max' in names, 'sort' in attrs, imports)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "items = []\nfor i in range(600):\n    items.append('v%d' % (i % 23))\nitems = items + ['v5'] * 4 + ['v19'] * 4\nresult = (sol.top_k_frequent(items, 6), len(sol.top_k_frequent(items, 100)))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "v5",
+       30
+      ],
+      [
+       "v19",
+       30
+      ],
+      [
+       "v0",
+       27
+      ],
+      [
+       "v1",
+       27
+      ],
+      [
+       "v2",
+       26
+      ],
+      [
+       "v3",
+       26
+      ]
+     ],
+     23
+    ]
+   }
+  }
+ ]
+}

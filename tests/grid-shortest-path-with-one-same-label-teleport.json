@@ -1,0 +1,100 @@
+{
+ "title": "Grid shortest path with one same-label teleport",
+ "entry_point": "min_steps",
+ "cases": [
+  {
+   "name": "example_teleport_only",
+   "code": "result = sol.min_steps([[0, -1], [-1, 0]], 7)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 7
+   }
+  },
+  {
+   "name": "example_walk_only",
+   "code": "result = sol.min_steps([[1, 2], [3, 4]], 100)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_mixed_walk_and_teleport",
+   "code": "result = sol.min_steps([[5, -1, 5], [0, -1, 0]], 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "blocked_endpoints",
+   "code": "result = (sol.min_steps([[-1, 0], [0, 0]], 1), sol.min_steps([[0, 0], [0, -1]], 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -1,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "single_cell",
+   "code": "result = (sol.min_steps([[3]], 4), sol.min_steps([[-1]], 4))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "unreachable_distinct_labels",
+   "code": "result = sol.min_steps([[0, -1], [-1, 1]], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "free_teleport",
+   "code": "result = sol.min_steps([[5, -1], [-1, 5]], 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "walk_beats_expensive_teleport",
+   "code": "result = sol.min_steps([[7, 7, 7], [7, 7, 7], [7, 7, 7]], 10)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "teleport_beats_long_walk",
+   "code": "result = sol.min_steps([[7, 7, 7], [7, 7, 7], [7, 7, 7]], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "single_row_corridor",
+   "code": "result = sol.min_steps([[1, 2, 3, 2, 1]], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "large_uniform_label_grid",
+   "code": "R = C = 300\ngrid = [[1] * C for _ in range(R)]\nresult = sol.min_steps(grid, 1000)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 598
+   }
+  }
+ ]
+}

@@ -1,0 +1,229 @@
+{
+ "title": "Recursive deep_get with loop ban",
+ "entry_point": "deep_get",
+ "cases": [
+  {
+   "name": "worked_examples",
+   "code": "result = (sol.deep_get({'a': {'b': [10, 20]}}, 'a.b.1'),\n          sol.deep_get([{'x': 1}], '0.x'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     20,
+     1
+    ]
+   }
+  },
+  {
+   "name": "index_forms",
+   "code": "data = {'l': [0, 1, 2, 3, 4, 5, 6, 7, 8]}\nresult = (sol.deep_get(data, 'l.3'), sol.deep_get(data, 'l.-1'), sol.deep_get(data, 'l.07'),\n          sol.deep_get(data, 'l.-9'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     8,
+     7,
+     0
+    ]
+   }
+  },
+  {
+   "name": "returns_any_value",
+   "code": "data = {'a': {'b': None, 'c': [], 'd': {'e': False}}}\nresult = (sol.deep_get(data, 'a.b'), sol.deep_get(data, 'a.c'), sol.deep_get(data, 'a.d'),\n          sol.deep_get(data, 'a.d.e'), sol.deep_get(data, 'a') is data['a'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     null,
+     [],
+     {
+      "__dict__": [
+       [
+        "e",
+        false
+       ]
+      ]
+     },
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "path_type_and_empty",
+   "code": "out = []\nfor bad in [None, 5, ['a']]:\n    try:\n        sol.deep_get({'a': 1}, bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'path must be a string' in str(e)))\ntry:\n    sol.deep_get({'a': 1}, '')\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'path must not be empty' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_segment_up_front",
+   "code": "out = []\nfor data, path in [({'z': 1}, 'q..r'), ({'a': 1}, '.a'), ({'a': 1}, 'a.'), ({'a': 1}, '.'),\n                   ({'a': {'b': 1}}, 'a..b')]:\n    try:\n        sol.deep_get(data, path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'empty segment' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "missing_dict_key",
+   "code": "try:\n    sol.deep_get({'a': {'b': 1}}, 'a.zz')\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'zz' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "KeyError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "invalid_list_index",
+   "code": "out = []\nfor path in ['0.+3', '0.x', '0.-', '0.1_0', '0. 1', '0.1e0']:\n    try:\n        sol.deep_get([[1, 2, 3]], path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'invalid index' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "index_out_of_range",
+   "code": "out = []\nfor seg in ['5', '-4', '3']:\n    try:\n        sol.deep_get({'l': [1, 2, 3]}, 'l.' + seg)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, seg in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "IndexError",
+      true
+     ],
+     [
+      "IndexError",
+      true
+     ],
+     [
+      "IndexError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "cannot_descend",
+   "code": "out = []\nfor data, path in [({'a': 1}, 'a.b'), ({'a': 'str'}, 'a.b'), ({'a': (1, 2)}, 'a.0'),\n                   ({'a': None}, 'a.b')]:\n    try:\n        sol.deep_get(data, path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'cannot descend' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "recursion_required_no_loops",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\ndefs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]\nnames = set(d.name for d in defs)\ngraph = {}\nfor d in defs:\n    calls = set()\n    for x in ast.walk(d):\n        if isinstance(x, ast.Call) and isinstance(x.func, ast.Name) and x.func.id in names:\n            calls.add(x.func.id)\n    graph.setdefault(d.name, set()).update(calls)\ncyclic = False\nfor start in graph:\n    seen = set()\n    stack = [start]\n    while stack:\n        cur = stack.pop()\n        for nxt in graph.get(cur, ()):\n            if nxt == start:\n                cyclic = True\n            if nxt not in seen:\n                seen.add(nxt)\n                stack.append(nxt)\nloops = any(isinstance(n, (ast.For, ast.AsyncFor, ast.While)) for n in ast.walk(tree))\ncomps = any(isinstance(n, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp))\n            for n in ast.walk(tree))\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nresult = (cyclic, loops, comps, imports)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "deep_path_deterministic",
+   "code": "data = 'leaf'\nfor i in range(100):\n    data = {'k%d' % i: data}\npath = '.'.join('k%d' % i for i in range(99, -1, -1))\nresult = sol.deep_get(data, path)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "leaf"
+   }
+  },
+  {
+   "name": "mixed_structure",
+   "code": "data = {'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}]}\nresult = (sol.deep_get(data, 'users.0.name'), sol.deep_get(data, 'users.-1.name'),\n          sol.deep_get(data, 'users.0.tags.1'), sol.deep_get(data, 'users.1.tags'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ana",
+     "bob",
+     "y",
+     []
+    ]
+   }
+  }
+ ]
+}

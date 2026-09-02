@@ -1,0 +1,88 @@
+{
+ "title": "Smallest solution of congruences with non-coprime moduli",
+ "entry_point": "solve_congruences",
+ "cases": [
+  {
+   "name": "example_coprime",
+   "code": "result = sol.solve_congruences([(2, 3), (3, 5), (2, 7)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 23
+   }
+  },
+  {
+   "name": "example_shared_factor_consistent",
+   "code": "result = sol.solve_congruences([(2, 4), (2, 6)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_inconsistent",
+   "code": "result = sol.solve_congruences([(1, 2), (2, 4)])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "empty_returns_zero",
+   "code": "result = sol.solve_congruences([])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "modulus_one",
+   "code": "result = (sol.solve_congruences([(5, 1)]), sol.solve_congruences([(5, 1), (3, 7)]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     3
+    ]
+   }
+  },
+  {
+   "name": "negative_residues",
+   "code": "result = sol.solve_congruences([(-1, 5), (2, 3)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 14
+   }
+  },
+  {
+   "name": "residue_not_reduced",
+   "code": "result = (sol.solve_congruences([(9, 4)]), sol.solve_congruences([(13, 5), (22, 7)]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     8
+    ]
+   }
+  },
+  {
+   "name": "non_coprime_chain",
+   "code": "result = sol.solve_congruences([(2, 4), (2, 6), (8, 9)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 26
+   }
+  },
+  {
+   "name": "inconsistent_parity",
+   "code": "result = sol.solve_congruences([(1, 6), (4, 10)])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "twenty_large_moduli",
+   "code": "import random\nrnd = random.Random(0)\nx0 = 987654321987654321\nmods = [rnd.randrange(2, 1000000000) for _ in range(20)]\npairs = [(x0 % m, m) for m in mods]\nresult = sol.solve_congruences(pairs)",
+   "timeout_s": 20,
+   "expected": {
+    "value": 987654321987654321
+   }
+  }
+ ]
+}

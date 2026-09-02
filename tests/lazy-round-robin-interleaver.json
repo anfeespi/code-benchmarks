@@ -1,0 +1,175 @@
+{
+ "title": "Lazy round robin interleaver",
+ "entry_point": "round_robin",
+ "cases": [
+  {
+   "name": "mixed_example",
+   "code": "result = list(sol.round_robin([[1, 2, 3], 'ab', [10]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     "a",
+     10,
+     2,
+     "b",
+     3
+    ]
+   }
+  },
+  {
+   "name": "empties_mixed_in",
+   "code": "result = list(sol.round_robin([[], [1, 2], []]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "empty_input_list",
+   "code": "result = list(sol.round_robin([]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "all_empty",
+   "code": "result = list(sol.round_robin([[], [], '']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "infinite_islice",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([itertools.count(0), itertools.count(100)]), 4))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     100,
+     1,
+     101
+    ]
+   }
+  },
+  {
+   "name": "iterator_protocol",
+   "code": "it = sol.round_robin([[1, 2]])\nresult = (iter(it) is it, hasattr(it, '__next__'), next(it), next(it))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "lazy_not_drained_up_front",
+   "code": "class Rec:\n    def __init__(self, n):\n        self.n = n\n        self.i = 0\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.i >= self.n:\n            raise StopIteration\n        self.i += 1\n        return self.i\na = Rec(100)\nb = Rec(100)\nit = sol.round_robin([a, b])\nfirst = [next(it), next(it), next(it)]\nresult = (first, a.i, b.i)\n",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      1,
+      2
+     ],
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "no_over_advance",
+   "code": "class Fuse:\n    def __init__(self, limit):\n        self.limit = limit\n        self.calls = 0\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.calls >= self.limit:\n            raise RuntimeError('over-advanced')\n        self.calls += 1\n        return self.calls * 10\nimport itertools\nf = Fuse(3)\nresult = list(itertools.islice(sol.round_robin([f]), 3))\n",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     10,
+     20,
+     30
+    ]
+   }
+  },
+  {
+   "name": "drop_out_keeps_order",
+   "code": "result = list(sol.round_robin([[1], [2, 3, 4], [5, 6]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     5,
+     3,
+     6,
+     4
+    ]
+   }
+  },
+  {
+   "name": "duplicates_preserved",
+   "code": "result = list(sol.round_robin([[1, 1], [1], [1, 1, 1]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "one_shot_generators",
+   "code": "gens = [(x for x in range(3)), (x for x in 'xy')]\nresult = list(sol.round_robin(gens))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     "x",
+     1,
+     "y",
+     2
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "result = list(sol.round_robin([list(range(0, 10)), list(range(100, 103)), list(range(200, 207)), []]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     100,
+     200,
+     1,
+     101,
+     201,
+     2,
+     102,
+     202,
+     3,
+     203,
+     4,
+     204,
+     5,
+     205,
+     6,
+     206,
+     7,
+     8,
+     9
+    ]
+   }
+  }
+ ]
+}

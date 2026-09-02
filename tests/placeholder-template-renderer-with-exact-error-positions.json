@@ -1,0 +1,194 @@
+{
+ "title": "Placeholder template renderer with exact error positions",
+ "entry_point": "render_template",
+ "cases": [
+  {
+   "name": "worked_examples",
+   "code": "result = (sol.render_template('Hi {name}!', {'name': 'Ana'}),\n          sol.render_template('{{x}} = {x}', {'x': 5}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "Hi Ana!",
+     "{x} = 5"
+    ]
+   }
+  },
+  {
+   "name": "escapes_and_plain_text",
+   "code": "result = (sol.render_template('', {}),\n          sol.render_template('no placeholders', {}),\n          sol.render_template('{{}}', {}),\n          sol.render_template('{{{{', {}),\n          sol.render_template('}}}}', {}),\n          sol.render_template('a{{b}}c', {}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "",
+     "no placeholders",
+     "{}",
+     "{{",
+     "}}",
+     "a{b}c"
+    ]
+   }
+  },
+  {
+   "name": "str_conversion_and_multiple",
+   "code": "result = (sol.render_template('{a}-{b}-{c}', {'a': 5, 'b': None, 'c': [1, 2]}),\n          sol.render_template('{a}{a}', {'a': 'x'}),\n          sol.render_template('{A_1}', {'A_1': True}),\n          type(sol.render_template('{a}', {'a': 1})).__name__)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "5-None-[1, 2]",
+     "xx",
+     "True",
+     "str"
+    ]
+   }
+  },
+  {
+   "name": "unclosed_placeholder",
+   "code": "out = []\nfor t, p in [('abc {name', 4), ('{', 0), ('x {ab', 2)]:\n    try:\n        sol.render_template(t, {'name': 1, 'ab': 2})\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('unclosed placeholder at position %d' % p) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "invalid_placeholder",
+   "code": "out = []\nfor t, p in [('a {na-me}', 2), ('{ x}', 0), ('ab {n me}', 3)]:\n    try:\n        sol.render_template(t, {})\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('invalid placeholder at position %d' % p) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_placeholder",
+   "code": "out = []\nfor t, p in [('x {} y', 2), ('{}', 0)]:\n    try:\n        sol.render_template(t, {})\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('empty placeholder at position %d' % p) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stray_brace",
+   "code": "out = []\nfor t, p in [('a } b', 2), ('}', 0), ('{a} }', 4)]:\n    try:\n        sol.render_template(t, {'a': 1})\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, (\"stray '}' at position %d\" % p) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "missing_key",
+   "code": "try:\n    sol.render_template('Hi {who}!', {'name': 'Ana'})\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'who' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "KeyError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "first_problem_in_scan_order",
+   "code": "out = []\ntry:\n    sol.render_template('{a} {', {})\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'a' in str(e)))\ntry:\n    sol.render_template('} {a}', {})\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, \"stray '}' at position 0\" in str(e)))\ntry:\n    sol.render_template('{a} {b-c}', {'a': 1})\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'invalid placeholder at position 4' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "KeyError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "argument_type_errors",
+   "code": "out = []\ntry:\n    sol.render_template(5, 'not a dict')\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'template must be a string' in str(e)))\ntry:\n    sol.render_template('x', ['a'])\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'context must be a dict' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_import_no_format",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nattrs = set()\ncalls = set()\nfor n in ast.walk(tree):\n    if isinstance(n, ast.Attribute) and n.attr in ('format', 'format_map'):\n        attrs.add(n.attr)\n    if isinstance(n, ast.Name) and n.id in ('format', 'eval', 'exec'):\n        calls.add(n.id)\nresult = (imports, sorted(attrs), sorted(calls))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "parts = []\nctx = {}\nfor i in range(120):\n    ctx['k%d' % i] = i * i\n    parts.append('{{lit%d}} {k%d} }} ' % (i, i))\nresult = sol.render_template(''.join(parts), ctx)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "{lit0} 0 } {lit1} 1 } {lit2} 4 } {lit3} 9 } {lit4} 16 } {lit5} 25 } {lit6} 36 } {lit7} 49 } {lit8} 64 } {lit9} 81 } {lit10} 100 } {lit11} 121 } {lit12} 144 } {lit13} 169 } {lit14} 196 } {lit15} 225 } {lit16} 256 } {lit17} 289 } {lit18} 324 } {lit19} 361 } {lit20} 400 } {lit21} 441 } {lit22} 484 } {lit23} 529 } {lit24} 576 } {lit25} 625 } {lit26} 676 } {lit27} 729 } {lit28} 784 } {lit29} 841 } {lit30} 900 } {lit31} 961 } {lit32} 1024 } {lit33} 1089 } {lit34} 1156 } {lit35} 1225 } {lit36} 1296 } {lit37} 1369 } {lit38} 1444 } {lit39} 1521 } {lit40} 1600 } {lit41} 1681 } {lit42} 1764 } {lit43} 1849 } {lit44} 1936 } {lit45} 2025 } {lit46} 2116 } {lit47} 2209 } {lit48} 2304 } {lit49} 2401 } {lit50} 2500 } {lit51} 2601 } {lit52} 2704 } {lit53} 2809 } {lit54} 2916 } {lit55} 3025 } {lit56} 3136 } {lit57} 3249 } {lit58} 3364 } {lit59} 3481 } {lit60} 3600 } {lit61} 3721 } {lit62} 3844 } {lit63} 3969 } {lit64} 4096 } {lit65} 4225 } {lit66} 4356 } {lit67} 4489 } {lit68} 4624 } {lit69} 4761 } {lit70} 4900 } {lit71} 5041 } {lit72} 5184 } {lit73} 5329 } {lit74} 5476 } {lit75} 5625 } {lit76} 5776 } {lit77} 5929 } {lit78} 6084 } {lit79} 6241 } {lit80} 6400 } {lit81} 6561 } {lit82} 6724 } {lit83} 6889 } {lit84} 7056 } {lit85} 7225 } {lit86} 7396 } {lit87} 7569 } {lit88} 7744 } {lit89} 7921 } {lit90} 8100 } {lit91} 8281 } {lit92} 8464 } {lit93} 8649 } {lit94} 8836 } {lit95} 9025 } {lit96} 9216 } {lit97} 9409 } {lit98} 9604 } {lit99} 9801 } {lit100} 10000 } {lit101} 10201 } {lit102} 10404 } {lit103} 10609 } {lit104} 10816 } {lit105} 11025 } {lit106} 11236 } {lit107} 11449 } {lit108} 11664 } {lit109} 11881 } {lit110} 12100 } {lit111} 12321 } {lit112} 12544 } {lit113} 12769 } {lit114} 12996 } {lit115} 13225 } {lit116} 13456 } {lit117} 13689 } {lit118} 13924 } {lit119} 14161 } "
+   }
+  }
+ ]
+}

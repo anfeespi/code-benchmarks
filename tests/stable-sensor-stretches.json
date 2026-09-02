@@ -1,0 +1,92 @@
+{
+ "title": "Stable sensor stretches",
+ "entry_point": "count_stable_windows",
+ "cases": [
+  {
+   "name": "example_basic",
+   "code": "result = sol.count_stable_windows([1, 3, 2, 6], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 7
+   }
+  },
+  {
+   "name": "example_all_equal",
+   "code": "result = sol.count_stable_windows([5, 5, 5], 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 6
+   }
+  },
+  {
+   "name": "example_empty",
+   "code": "result = sol.count_stable_windows([], 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "single_and_tol_zero",
+   "code": "result = (sol.count_stable_windows([9], 0),\n          sol.count_stable_windows([1, 2, 3, 4], 0),\n          sol.count_stable_windows([1, 1, 2, 2, 2], 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     4,
+     9
+    ]
+   }
+  },
+  {
+   "name": "negatives_and_wide_tol",
+   "code": "result = (sol.count_stable_windows([-5, -1, -3, 0], 4),\n          sol.count_stable_windows([-10**9, 10**9], 2 * 10**9),\n          sol.count_stable_windows([-10**9, 10**9], 2 * 10**9 - 1),\n          sol.count_stable_windows([3, 1, 4, 1, 5, 9, 2, 6], 10**9))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     9,
+     3,
+     2,
+     36
+    ]
+   }
+  },
+  {
+   "name": "random_small_batch",
+   "code": "import random\nrnd = random.Random(4)\nout = []\nfor tol in (0, 1, 5, 50):\n    xs = [rnd.randint(-30, 30) for _ in range(120)]\n    out.append(sol.count_stable_windows(xs, tol))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     122,
+     125,
+     145,
+     1079
+    ]
+   }
+  },
+  {
+   "name": "large_random_walk",
+   "code": "import random\nrnd = random.Random(0)\nxs = []\nv = 0\nfor _ in range(500000):\n    v += rnd.randint(-3, 3)\n    xs.append(v)\nresult = sol.count_stable_windows(xs, 1000)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 43993543366
+   }
+  },
+  {
+   "name": "large_all_equal",
+   "code": "result = sol.count_stable_windows([42] * 500000, 0)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 125000250000
+   }
+  },
+  {
+   "name": "large_sawtooth",
+   "code": "xs = [(i * 37) % 100003 for i in range(500000)]\nresult = sol.count_stable_windows(xs, 50000)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 507043940
+   }
+  }
+ ]
+}

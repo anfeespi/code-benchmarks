@@ -1,0 +1,194 @@
+{
+ "title": "Recurring values over many windows",
+ "entry_point": "recurring_counts",
+ "cases": [
+  {
+   "name": "example_basic",
+   "code": "result = sol.recurring_counts([1, 2, 1, 2, 3], [(0, 5), (1, 4), (2, 5)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "example_triple",
+   "code": "result = sol.recurring_counts([7, 7, 7], [(0, 3), (1, 3), (2, 2)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "example_empty_data",
+   "code": "result = sol.recurring_counts([], [(0, 0)])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "no_queries",
+   "code": "result = sol.recurring_counts([1, 1, 2], [])",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "empty_slices_and_full_range",
+   "code": "data = [4, -4, 4, 0, 0, -4]\nresult = [sol.recurring_counts(data, [(i, i) for i in range(len(data) + 1)]),\n          sol.recurring_counts(data, [(0, len(data)), (0, 3), (3, 6), (1, 5)])]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      3,
+      1,
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "all_ranges_small",
+   "code": "import random\nrnd = random.Random(9)\ndata = [rnd.randint(0, 6) for _ in range(40)]\nqs = [(l, r) for l in range(0, 41, 3) for r in range(l, 41, 5)]\nresult = sol.recurring_counts(data, qs)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     2,
+     5,
+     6,
+     6,
+     6,
+     7,
+     7,
+     0,
+     1,
+     3,
+     5,
+     6,
+     6,
+     6,
+     7,
+     0,
+     0,
+     3,
+     5,
+     5,
+     6,
+     7,
+     0,
+     1,
+     3,
+     5,
+     6,
+     6,
+     7,
+     0,
+     1,
+     3,
+     5,
+     5,
+     6,
+     0,
+     2,
+     3,
+     5,
+     5,
+     6,
+     0,
+     1,
+     3,
+     4,
+     6,
+     0,
+     2,
+     4,
+     5,
+     0,
+     1,
+     2,
+     6,
+     0,
+     2,
+     4,
+     0,
+     1,
+     3,
+     0,
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "repeated_and_reordered_queries",
+   "code": "data = [1, 2, 3, 1, 2, 3, 1]\nqs = [(0, 7), (4, 7), (0, 7), (2, 4), (0, 4), (0, 7)]\nresult = sol.recurring_counts(data, qs)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     0,
+     3,
+     0,
+     1,
+     3
+    ]
+   }
+  },
+  {
+   "name": "large_wide_queries",
+   "code": "import random\nrnd = random.Random(0)\ndata = [rnd.randint(0, 30000) for _ in range(150000)]\nqs = []\nfor _ in range(60000):\n    l = rnd.randint(0, 100000)\n    qs.append((l, min(150000, l + rnd.randint(20000, 80000))))\nres = sol.recurring_counts(data, qs)\nresult = [len(res), sum(res), min(res), max(res), res[0], res[-1], sum(res[::997])]",
+   "timeout_s": 6,
+   "expected": {
+    "value": [
+     60000,
+     849083096,
+     4243,
+     22448,
+     20512,
+     7682,
+     896775
+    ]
+   }
+  },
+  {
+   "name": "large_dense_duplicates",
+   "code": "import random\nrnd = random.Random(2)\ndata = [rnd.randint(0, 400) for _ in range(150000)]\nqs = [(i * 2, min(150000, i * 2 + 50000)) for i in range(60000)]\nres = sol.recurring_counts(data, qs)\nresult = [len(res), sum(res), min(res), max(res), res[0], res[-1], sum(res[::997])]",
+   "timeout_s": 6,
+   "expected": {
+    "value": [
+     60000,
+     24060000,
+     401,
+     401,
+     401,
+     401,
+     24461
+    ]
+   }
+  }
+ ]
+}

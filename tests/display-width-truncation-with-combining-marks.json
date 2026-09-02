@@ -1,0 +1,102 @@
+{
+ "title": "Display width truncation with combining marks",
+ "entry_point": "truncate_display",
+ "cases": [
+  {
+   "name": "accent_stays_with_base",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "café"
+   }
+  },
+  {
+   "name": "two_marks_one_unit",
+   "code": "result = sol.truncate_display('a\\u0300\\u0316b', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "à̖"
+   }
+  },
+  {
+   "name": "width_beyond_units",
+   "code": "result = sol.truncate_display('hello', 10)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "hello"
+   }
+  },
+  {
+   "name": "width_equals_units",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 5)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "cafés"
+   }
+  },
+  {
+   "name": "width_zero",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": ""
+   }
+  },
+  {
+   "name": "empty_string",
+   "code": "result = (sol.truncate_display('', 5), sol.truncate_display('', 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "",
+     ""
+    ]
+   }
+  },
+  {
+   "name": "negative_width_raises",
+   "code": "result = sol.truncate_display('abc', -1)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "leading_combining_marks",
+   "code": "result = sol.truncate_display('\\u0301\\u0302abc', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "́̂a"
+   }
+  },
+  {
+   "name": "astral_counts_one",
+   "code": "result = sol.truncate_display('a\\U0001F600b\\U0001F1E6', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "a😀"
+   }
+  },
+  {
+   "name": "mc_and_me_categories",
+   "code": "result = (sol.truncate_display('\\u0915\\u093e\\u0916', 1), sol.truncate_display('a\\u0488b', 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "का",
+     "a҈"
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "s = ''.join(c + '\\u0301\\u0308' for c in 'abcdefghijklmnopqrstuvwxyz')\nresult = (sol.truncate_display(s, 10), len(sol.truncate_display(s, 10)), sol.truncate_display(s, 26) == s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "á̈b́̈ć̈d́̈é̈f́̈ǵ̈h́̈í̈j́̈",
+     30,
+     true
+    ]
+   }
+  }
+ ]
+}

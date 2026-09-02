@@ -1,0 +1,201 @@
+{
+ "title": "Even chunking of arbitrary iterables",
+ "entry_point": "chunk_evenly",
+ "cases": [
+  {
+   "name": "list_uneven",
+   "code": "result = sol.chunk_evenly([1, 2, 3, 4, 5], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      2,
+      3
+     ],
+     [
+      4,
+      5
+     ]
+    ]
+   }
+  },
+  {
+   "name": "one_shot_generator",
+   "code": "result = sol.chunk_evenly((x for x in 'abcd'), 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b"
+     ],
+     [
+      "c"
+     ],
+     [
+      "d"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_input",
+   "code": "result = sol.chunk_evenly([], 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "fewer_than_n",
+   "code": "result = sol.chunk_evenly([7], 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      7
+     ],
+     [],
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "n_equals_one",
+   "code": "result = sol.chunk_evenly([1, 2, 3], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      2,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "exact_division",
+   "code": "result = sol.chunk_evenly([1, 2, 3, 4, 5, 6], 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      2
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      5,
+      6
+     ]
+    ]
+   }
+  },
+  {
+   "name": "tuple_gives_lists",
+   "code": "result = sol.chunk_evenly(('a', 'b', 'c'), 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b"
+     ],
+     [
+      "c"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_generator",
+   "code": "result = sol.chunk_evenly((x for x in []), 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "n_zero_raises",
+   "code": "result = sol.chunk_evenly([1, 2], 0)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "n_negative_raises",
+   "code": "result = sol.chunk_evenly([1, 2], -2)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "mixed_types_and_duplicates",
+   "code": "result = sol.chunk_evenly([None, 'a', None, 3.5, 'a'], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      null,
+      "a",
+      null
+     ],
+     [
+      3.5,
+      "a"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "chunks = sol.chunk_evenly((i * i for i in range(101)), 8)\nresult = ([len(c) for c in chunks], [c[0] for c in chunks if c], [c[-1] for c in chunks if c])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      13,
+      13,
+      13,
+      13,
+      13,
+      12,
+      12,
+      12
+     ],
+     [
+      0,
+      169,
+      676,
+      1521,
+      2704,
+      4225,
+      5929,
+      7921
+     ],
+     [
+      144,
+      625,
+      1444,
+      2601,
+      4096,
+      5776,
+      7744,
+      10000
+     ]
+    ]
+   }
+  }
+ ]
+}

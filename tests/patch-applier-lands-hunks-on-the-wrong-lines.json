@@ -1,0 +1,193 @@
+{
+ "title": "Patch applier lands hunks on the wrong lines",
+ "entry_point": "apply_hunks",
+ "cases": [
+  {
+   "name": "later_hunk_after_growing_edit",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(1, 1, ['X', 'Y']), (3, 1, ['Z'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "a",
+     "X",
+     "Y",
+     "c",
+     "Z"
+    ]
+   }
+  },
+  {
+   "name": "later_hunk_after_shrinking_edit",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd', 'e'], [(0, 2, []), (3, 1, ['W'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "c",
+     "W",
+     "e"
+    ]
+   }
+  },
+  {
+   "name": "hunks_supplied_out_of_order",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd', 'e'], [(4, 1, ['E2']), (0, 1, ['A1', 'A2']), (2, 0, ['ins'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "A1",
+     "A2",
+     "b",
+     "ins",
+     "c",
+     "d",
+     "E2"
+    ]
+   }
+  },
+  {
+   "name": "delete_to_end_example",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c'], [(0, 2, ['K']), (2, 1, [])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "K"
+    ]
+   }
+  },
+  {
+   "name": "touching_ranges_not_conflicting",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(0, 2, ['X']), (2, 2, ['Y', 'Z'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "X",
+     "Y",
+     "Z"
+    ]
+   }
+  },
+  {
+   "name": "append_at_end_and_empty_document",
+   "code": "result = (sol.apply_hunks(['a', 'b'], [(2, 0, ['c'])]), sol.apply_hunks([], [(0, 0, ['a', 'b'])]), sol.apply_hunks([], []))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b",
+      "c"
+     ],
+     [
+      "a",
+      "b"
+     ],
+     []
+    ]
+   }
+  },
+  {
+   "name": "empty_hunks_returns_copy",
+   "code": "src = ['a', 'b']\nr = sol.apply_hunks(src, [])\nresult = (r, r is src)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b"
+     ],
+     false
+    ]
+   }
+  },
+  {
+   "name": "no_mutation_of_inputs",
+   "code": "lines = ['a', 'b', 'c', 'd']\nhunks = [(2, 1, ['P']), (0, 1, [])]\nr = sol.apply_hunks(lines, hunks)\nresult = (r, lines, hunks, len(hunks))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "b",
+      "P",
+      "d"
+     ],
+     [
+      "a",
+      "b",
+      "c",
+      "d"
+     ],
+     [
+      [
+       2,
+       1,
+       [
+        "P"
+       ]
+      ],
+      [
+       0,
+       1,
+       []
+      ]
+     ],
+     2
+    ]
+   }
+  },
+  {
+   "name": "duplicate_start_pure_insertions_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(1, 0, ['X']), (1, 0, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "duplicate_start_with_deletes_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c'], [(0, 1, ['X']), (0, 2, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "overlapping_delete_ranges_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(0, 3, ['X']), (2, 1, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_start_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(-1, 1, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "delete_past_end_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(1, 5, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "insert_past_end_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(3, 0, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "many_hunks_all_shift",
+   "code": "lines = ['l%d' % i for i in range(10)]\nhunks = [(1, 2, ['A']), (5, 0, ['B', 'C']), (7, 3, []), (4, 1, ['D', 'E', 'F'])]\nresult = sol.apply_hunks(lines, hunks)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "l0",
+     "A",
+     "l3",
+     "D",
+     "E",
+     "F",
+     "B",
+     "C",
+     "l5",
+     "l6"
+    ]
+   }
+  }
+ ]
+}

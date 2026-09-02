@@ -1,0 +1,437 @@
+{
+ "title": "Clamp list values without min/max",
+ "entry_point": "clamp_values",
+ "cases": [
+  {
+   "name": "example_ints",
+   "code": "result = sol.clamp_values([1, 9, 5], 2, 6)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     6,
+     5
+    ]
+   }
+  },
+  {
+   "name": "example_floats",
+   "code": "r = sol.clamp_values([-1.5, 0.5, 2.5], -1, 1)\nresult = (r, [type(x).__name__ for x in r])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      -1,
+      0.5,
+      1
+     ],
+     [
+      "int",
+      "float",
+      "int"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "kept_elements_are_same_objects",
+   "code": "a = [10 ** 20, 5.5, -3.25]\nr = sol.clamp_values(a, -(10 ** 30), 10 ** 30)\nresult = (r is not a, r[0] is a[0], r[1] is a[1], r[2] is a[2], a == [10 ** 20, 5.5, -3.25])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "new_list_even_when_untouched",
+   "code": "a = [1, 2, 3]\nr = sol.clamp_values(a, 0, 10)\nresult = (r is not a, r == [1, 2, 3], a == [1, 2, 3], sol.clamp_values([], 0, 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     true,
+     []
+    ]
+   }
+  },
+  {
+   "name": "values_not_a_list",
+   "code": "try:\n    sol.clamp_values((1, 2), 0, 1)\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'values must be a list' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "TypeError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "bad_bounds",
+   "code": "cases = [(True, 1), (1, False), ('a', 1), (1, None), (1, [2])]\nout = []\nfor low, high in cases:\n    try:\n        sol.clamp_values([1], low, high)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'bounds must be numbers' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "low_exceeds_high",
+   "code": "try:\n    sol.clamp_values([1, 2], 5, 1)\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'low must not exceed high' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "order_bounds_before_elements",
+   "code": "try:\n    sol.clamp_values(['x'], 5, 1)\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'low must not exceed high' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "order_values_check_first",
+   "code": "try:\n    sol.clamp_values('xyz', True, 1)\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'values must be a list' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "TypeError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "bad_element_index",
+   "code": "cases = [([1, 'a', 2], 1), ([1, True, 2], 1), ([None, 1], 0), ([1, 2, [3]], 2), ([1, 2, 'x', 'y'], 2)]\nout = []\nfor vals, idx in cases:\n    try:\n        sol.clamp_values(vals, 0, 10)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('index %d' % idx) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_min_max_no_import",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nnames = set()\nfor n in ast.walk(tree):\n    if isinstance(n, ast.Name):\n        names.add(n.id)\n    elif isinstance(n, ast.Attribute):\n        names.add(n.attr)\n    elif isinstance(n, ast.arg):\n        names.add(n.arg)\n    elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):\n        names.add(n.name)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nresult = ('min' in names, 'max' in names, imports)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "vals = [i * 3 - 40 for i in range(200)] + [i / 4.0 for i in range(50)]\nresult = sol.clamp_values(vals, -5, 100)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -5,
+     -4,
+     -1,
+     2,
+     5,
+     8,
+     11,
+     14,
+     17,
+     20,
+     23,
+     26,
+     29,
+     32,
+     35,
+     38,
+     41,
+     44,
+     47,
+     50,
+     53,
+     56,
+     59,
+     62,
+     65,
+     68,
+     71,
+     74,
+     77,
+     80,
+     83,
+     86,
+     89,
+     92,
+     95,
+     98,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     100,
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0,
+     1.25,
+     1.5,
+     1.75,
+     2.0,
+     2.25,
+     2.5,
+     2.75,
+     3.0,
+     3.25,
+     3.5,
+     3.75,
+     4.0,
+     4.25,
+     4.5,
+     4.75,
+     5.0,
+     5.25,
+     5.5,
+     5.75,
+     6.0,
+     6.25,
+     6.5,
+     6.75,
+     7.0,
+     7.25,
+     7.5,
+     7.75,
+     8.0,
+     8.25,
+     8.5,
+     8.75,
+     9.0,
+     9.25,
+     9.5,
+     9.75,
+     10.0,
+     10.25,
+     10.5,
+     10.75,
+     11.0,
+     11.25,
+     11.5,
+     11.75,
+     12.0,
+     12.25
+    ]
+   }
+  }
+ ]
+}

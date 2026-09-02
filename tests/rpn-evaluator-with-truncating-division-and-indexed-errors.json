@@ -1,0 +1,240 @@
+{
+ "title": "RPN evaluator with truncating division and indexed errors",
+ "entry_point": "eval_rpn",
+ "cases": [
+  {
+   "name": "truncating_division",
+   "code": "vals = [['7', '2', '/'], ['-7', '2', '/'], ['7', '-2', '/'], ['-1', '2', '/'],\n        ['-7', '-2', '/'], ['6', '3', '/'], ['-6', '3', '/']]\nout = [sol.eval_rpn(v) for v in vals]\nresult = (out, [type(x).__name__ for x in out])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      3,
+      -3,
+      -3,
+      0,
+      3,
+      2,
+      -2
+     ],
+     [
+      "int",
+      "int",
+      "int",
+      "int",
+      "int",
+      "int",
+      "int"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "operators_and_literals",
+   "code": "result = (sol.eval_rpn(['2', '3', '+', '4', '*']),\n          sol.eval_rpn(['5']),\n          sol.eval_rpn(['+5', '3', '+']),\n          sol.eval_rpn(['007', '3', '-']),\n          sol.eval_rpn(['-0', '2', '*']),\n          sol.eval_rpn(['2', '3', '4', '*', '-']),\n          sol.eval_rpn(['10', '2', '-', '3', '/']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     20,
+     5,
+     8,
+     4,
+     0,
+     -10,
+     2
+    ]
+   }
+  },
+  {
+   "name": "unbounded_integers",
+   "code": "big = str(10 ** 40)\nresult = (sol.eval_rpn([big, '3', '*']),\n          sol.eval_rpn([big, '7', '/']),\n          sol.eval_rpn(['-' + big, '7', '/']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     30000000000000000000000000000000000000000,
+     1428571428571428571428571428571428571428,
+     -1428571428571428571428571428571428571428
+    ]
+   }
+  },
+  {
+   "name": "tokens_not_a_list",
+   "code": "out = []\nfor bad in ['2 3 +', ('2', '3', '+'), None]:\n    try:\n        sol.eval_rpn(bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'tokens must be a list' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_expression",
+   "code": "try:\n    sol.eval_rpn([])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'empty expression' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "non_string_token",
+   "code": "out = []\nfor toks, i in [(['2', 3, '+'], 1), ([1, '2', '+'], 0), (['2', '3', '+', None], 3)]:\n    try:\n        sol.eval_rpn(toks)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('token %d' % i) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "unknown_token",
+   "code": "out = []\nfor toks, i in [(['2', '--4', '+'], 1), (['2', '1.5', '+'], 1), (['', '2', '+'], 0),\n                (['2', ' 3', '+'], 1), (['2', '3a', '+'], 1), (['2', '3', '%'], 2),\n                (['2', '+3.0', '+'], 1)]:\n    try:\n        sol.eval_rpn(toks)\n        out.append('no error')\n    except Exception as e:\n        msg = str(e)\n        out.append((type(e).__name__, 'unknown token' in msg, ('token %d' % i) in msg))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stack_underflow",
+   "code": "out = []\nfor toks, i in [(['2', '+'], 1), (['+'], 0), (['2', '3', '+', '*'], 3)]:\n    try:\n        sol.eval_rpn(toks)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('stack underflow at token %d' % i) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "division_by_zero",
+   "code": "out = []\nfor toks, i in [(['5', '0', '/'], 2), (['1', '2', '3', '0', '/', '+'], 4), (['0', '0', '/'], 2)]:\n    try:\n        sol.eval_rpn(toks)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, ('token %d' % i) in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ZeroDivisionError",
+      true
+     ],
+     [
+      "ZeroDivisionError",
+      true
+     ],
+     [
+      "ZeroDivisionError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "leftover_and_scan_order",
+   "code": "out = []\ntry:\n    sol.eval_rpn(['1', '2'])\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'leftover operands' in str(e)))\ntry:\n    sol.eval_rpn(['2', 'x', 'y'])\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'token 1' in str(e)))\ntry:\n    sol.eval_rpn(['2', '+', '/'])\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'stack underflow at token 1' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_import_no_eval",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nbanned = set()\nfor n in ast.walk(tree):\n    if isinstance(n, ast.Name) and n.id in ('eval', 'exec', 'compile', '__import__'):\n        banned.add(n.id)\nresult = (imports, sorted(banned))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     []
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "toks = ['1']\nfor i in range(1, 200):\n    toks.append(str(i))\n    toks.append('+' if i % 3 else '*')\nresult = sol.eval_rpn(toks)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 134206767125026710043621645357092411099645932360689625236693125248599458217808062467204392036675642446205321728640821821947443
+   }
+  }
+ ]
+}

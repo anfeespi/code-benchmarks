@@ -1,0 +1,242 @@
+{
+ "title": "Memoization decorator returns results for the wrong keyword arguments",
+ "entry_point": "memoize",
+ "cases": [
+  {
+   "name": "keyword_variants_are_separate_entries",
+   "code": "calls = []\n@sol.memoize\ndef pow_(b, e=2):\n    calls.append((b, e))\n    return b ** e\nout = [pow_(3), pow_(3, e=3), pow_(3)]\nresult = (out, pow_.hits, pow_.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      9,
+      27,
+      9
+     ],
+     1,
+     2,
+     [
+      [
+       3,
+       2
+      ],
+      [
+       3,
+       3
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "keyword_order_does_not_matter",
+   "code": "calls = []\n@sol.memoize\ndef g(a=0, b=0):\n    calls.append((a, b))\n    return a * 10 + b\nout = [g(a=1, b=2), g(b=2, a=1)]\nresult = (out, g.hits, g.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      12,
+      12
+     ],
+     1,
+     1,
+     [
+      [
+       1,
+       2
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "explicit_keyword_vs_default_differ",
+   "code": "calls = []\n@sol.memoize\ndef f(b, e=2):\n    calls.append((b, e))\n    return b ** e\nout = [f(3), f(3, e=2), f(3, 2)]\nresult = (out, f.hits, f.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      9,
+      9,
+      9
+     ],
+     0,
+     3,
+     [
+      [
+       3,
+       2
+      ],
+      [
+       3,
+       2
+      ],
+      [
+       3,
+       2
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "positional_vs_keyword_differ",
+   "code": "calls = []\n@sol.memoize\ndef f(x):\n    calls.append(x)\n    return x + 1\nout = [f(1), f(x=1), f(1), f(x=1)]\nresult = (out, f.hits, f.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      2,
+      2,
+      2,
+      2
+     ],
+     2,
+     2,
+     [
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "counters_start_at_zero",
+   "code": "@sol.memoize\ndef f(x):\n    return x\nresult = (f.hits, f.misses)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "independent_caches_and_counters",
+   "code": "@sol.memoize\ndef f(x):\n    return ('f', x)\n@sol.memoize\ndef g(x):\n    return ('g', x)\nout = [f(1), f(1), g(1)]\nresult = (out, f.hits, f.misses, g.hits, g.misses)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "f",
+       1
+      ],
+      [
+       "f",
+       1
+      ],
+      [
+       "g",
+       1
+      ]
+     ],
+     1,
+     1,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "exception_propagates_not_cached_counts_as_miss",
+   "code": "calls = []\n@sol.memoize\ndef f(x):\n    calls.append(x)\n    if len(calls) < 2:\n        raise ValueError('boom')\n    return x * 2\ncaught = None\ntry:\n    f(1)\nexcept Exception as e:\n    caught = type(e).__name__\nsecond = f(1)\nthird = f(1)\nresult = (caught, second, third, f.hits, f.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ValueError",
+     2,
+     2,
+     1,
+     2,
+     [
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "cached_result_object_reused",
+   "code": "@sol.memoize\ndef f(n):\n    return [n]\na = f(1)\nb = f(1)\nresult = (a is b, a, f.hits, f.misses)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     [
+      1
+     ],
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "mixed_args_and_kwargs_sequence",
+   "code": "calls = []\n@sol.memoize\ndef h(a, b=0, c=0):\n    calls.append((a, b, c))\n    return (a, b, c)\nout = [h(1, b=2, c=3), h(1, c=3, b=2), h(1, 2, c=3), h(1, b=2, c=4)]\nresult = (out, h.hits, h.misses, calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       1,
+       2,
+       4
+      ]
+     ],
+     1,
+     3,
+     [
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       1,
+       2,
+       4
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_args_and_repeated_calls",
+   "code": "calls = []\n@sol.memoize\ndef k():\n    calls.append(1)\n    return 42\nout = [k(), k(), k()]\nresult = (out, k.hits, k.misses, len(calls))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      42,
+      42,
+      42
+     ],
+     2,
+     1,
+     1
+    ]
+   }
+  }
+ ]
+}

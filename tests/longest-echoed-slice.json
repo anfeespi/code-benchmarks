@@ -1,0 +1,81 @@
+{
+ "title": "Longest echoed slice",
+ "entry_point": "longest_echo",
+ "cases": [
+  {
+   "name": "example_banana",
+   "code": "result = sol.longest_echo('banana')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_abcabc",
+   "code": "result = sol.longest_echo('abcabc')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_aaaa",
+   "code": "result = sol.longest_echo('aaaa')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_none",
+   "code": "result = sol.longest_echo('abcd')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "tiny_inputs",
+   "code": "result = (sol.longest_echo(''), sol.longest_echo('a'), sol.longest_echo('aa'), sol.longest_echo('ab'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_small_batch",
+   "code": "import random\nrnd = random.Random(11)\nresult = [sol.longest_echo(''.join(rnd.choice('abc') for _ in range(n))) for n in (5, 12, 30, 80, 200)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     3,
+     5,
+     6,
+     9
+    ]
+   }
+  },
+  {
+   "name": "large_planted_block",
+   "code": "import random\nrnd = random.Random(0)\nalpha = 'abcdefghijklmnopqrstuvwxyz'\nblock = ''.join(rnd.choice(alpha) for _ in range(400))\nnoise = ''.join(rnd.choice(alpha) for _ in range(149200))\ns = block + noise[:74600] + block + noise[74600:]\nresult = sol.longest_echo(s)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 400
+   }
+  },
+  {
+   "name": "large_doubled_string",
+   "code": "import random\nrnd = random.Random(1)\nt = ''.join(rnd.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(75000))\nresult = sol.longest_echo(t + t)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 75000
+   }
+  }
+ ]
+}

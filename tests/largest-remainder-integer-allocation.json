@@ -1,0 +1,185 @@
+{
+ "title": "Largest remainder integer allocation",
+ "entry_point": "allocate_shares",
+ "cases": [
+  {
+   "name": "equal_thirds",
+   "code": "result = sol.allocate_shares(100, [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     34,
+     33,
+     33
+    ]
+   }
+  },
+  {
+   "name": "quota_example",
+   "code": "result = sol.allocate_shares(7, [3, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     2
+    ]
+   }
+  },
+  {
+   "name": "zero_weight_parties",
+   "code": "result = sol.allocate_shares(5, [0, 2, 0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     5,
+     0
+    ]
+   }
+  },
+  {
+   "name": "total_zero",
+   "code": "result = sol.allocate_shares(0, [1, 2, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "single_party",
+   "code": "result = sol.allocate_shares(13, [4])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     13
+    ]
+   }
+  },
+  {
+   "name": "tie_break_lower_index",
+   "code": "result = (sol.allocate_shares(1, [1, 1]), sol.allocate_shares(2, [1, 1, 1]), sol.allocate_shares(1, [1, 1, 1, 1]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1,
+      0
+     ],
+     [
+      1,
+      0,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "float_weights",
+   "code": "result = sol.allocate_shares(100, [0.5, 0.25, 0.25])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     50,
+     25,
+     25
+    ]
+   }
+  },
+  {
+   "name": "shares_are_ints",
+   "code": "result = [type(x).__name__ for x in sol.allocate_shares(7, [3, 1])]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "int",
+     "int"
+    ]
+   }
+  },
+  {
+   "name": "negative_total_raises",
+   "code": "result = sol.allocate_shares(-1, [1, 1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "empty_weights_raises",
+   "code": "result = sol.allocate_shares(5, [])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_weight_raises",
+   "code": "result = sol.allocate_shares(5, [1, -1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "zero_sum_raises",
+   "code": "result = sol.allocate_shares(5, [0, 0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "weights = [(i * 7) % 11 for i in range(37)]\nshares = sol.allocate_shares(1000003, weights)\nresult = (shares, sum(shares), len(shares), min(shares))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5406,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5405,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5405,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054
+     ],
+     1000003,
+     37,
+     0
+    ]
+   }
+  }
+ ]
+}

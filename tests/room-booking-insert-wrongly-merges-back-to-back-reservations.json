@@ -1,0 +1,215 @@
+{
+ "title": "Room booking insert wrongly merges back-to-back reservations",
+ "entry_point": "insert_booking",
+ "cases": [
+  {
+   "name": "touching_after_stays_separate",
+   "code": "result = sol.insert_booking([(1, 3)], (3, 5))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      5
+     ]
+    ]
+   }
+  },
+  {
+   "name": "touching_before_stays_separate",
+   "code": "result = sol.insert_booking([(3, 5)], (1, 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      5
+     ]
+    ]
+   }
+  },
+  {
+   "name": "touching_on_both_sides",
+   "code": "result = sol.insert_booking([(0, 2), (4, 6)], (2, 4))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      4,
+      6
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merges_overlapping_group",
+   "code": "result = sol.insert_booking([(1, 3), (5, 7)], (2, 6))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      7
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_overlap_inserted_in_gap",
+   "code": "result = sol.insert_booking([(0, 2), (8, 10)], (4, 5))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      2
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      8,
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "touching_neighbour_but_overlapping_next",
+   "code": "result = sol.insert_booking([(0, 2), (2, 4)], (2, 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "name": "covers_everything",
+   "code": "result = sol.insert_booking([(1, 2), (3, 4), (5, 6)], (0, 10))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_schedule_and_edges",
+   "code": "result = (sol.insert_booking([], (1, 2)), sol.insert_booking([(5, 6)], (0, 1)), sol.insert_booking([(5, 6)], (9, 10)))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       1,
+       2
+      ]
+     ],
+     [
+      [
+       0,
+       1
+      ],
+      [
+       5,
+       6
+      ]
+     ],
+     [
+      [
+       5,
+       6
+      ],
+      [
+       9,
+       10
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "float_bounds",
+   "code": "result = sol.insert_booking([(1.0, 2.5), (2.5, 3.0)], (2.4, 2.6))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1.0,
+      3.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "returns_new_list_of_tuples_without_mutation",
+   "code": "bookings = [(1, 3), (5, 7)]\nr = sol.insert_booking(bookings, (2, 6))\nresult = (r, bookings, r is bookings, isinstance(r, list), [type(x).__name__ for x in r])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       1,
+       7
+      ]
+     ],
+     [
+      [
+       1,
+       3
+      ],
+      [
+       5,
+       7
+      ]
+     ],
+     false,
+     true,
+     [
+      "tuple"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_interval_raises",
+   "code": "result = sol.insert_booking([], (5, 5))",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "reversed_interval_raises",
+   "code": "result = sol.insert_booking([(1, 2)], (6, 5))",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  }
+ ]
+}

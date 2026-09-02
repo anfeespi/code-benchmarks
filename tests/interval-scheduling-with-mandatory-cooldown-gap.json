@@ -1,0 +1,89 @@
+{
+ "title": "Interval scheduling with mandatory cooldown gap",
+ "entry_point": "max_sessions",
+ "cases": [
+  {
+   "name": "example_no_gap",
+   "code": "result = sol.max_sessions([(1, 10), (2, 3), (4, 5)], 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_gap_one",
+   "code": "result = sol.max_sessions([(0, 2), (2, 4), (4, 6)], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_empty",
+   "code": "result = sol.max_sessions([], 5)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "duplicates",
+   "code": "result = sol.max_sessions([(1, 2), (1, 2), (1, 2)], 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "single_interval",
+   "code": "result = sol.max_sessions([(5, 7)], 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "huge_gap_allows_one",
+   "code": "result = sol.max_sessions([(0, 1), (1, 2), (2, 3)], 1000000000)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "equality_boundary_allowed",
+   "code": "result = (sol.max_sessions([(0, 2), (3, 5)], 1), sol.max_sessions([(0, 2), (3, 5)], 2))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "nested_intervals",
+   "code": "result = sol.max_sessions([(1, 10), (2, 3), (4, 5), (6, 7)], 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "unsorted_input",
+   "code": "result = sol.max_sessions([(8, 9), (0, 1), (4, 6), (2, 3), (0, 100)], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "large_seeded",
+   "code": "import random\nrnd = random.Random(0)\nivs = []\nfor _ in range(100000):\n    s = rnd.randrange(0, 1000000000)\n    ivs.append((s, s + rnd.randrange(1, 5000)))\nresult = sol.max_sessions(ivs, 1000)",
+   "timeout_s": 20,
+   "expected": {
+    "value": 74675
+   }
+  }
+ ]
+}

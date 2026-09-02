@@ -1,0 +1,105 @@
+{
+ "title": "Lower weighted median with tolerance",
+ "entry_point": "weighted_median",
+ "cases": [
+  {
+   "name": "odd_uniform",
+   "code": "result = sol.weighted_median([3, 1, 2], [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "even_uniform_exact_half",
+   "code": "result = sol.weighted_median([1, 2, 3, 4], [1, 1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "zero_weight_ignored",
+   "code": "result = sol.weighted_median([10, 20], [0.0, 5.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 20
+   }
+  },
+  {
+   "name": "single_pair",
+   "code": "result = sol.weighted_median([7.5], [3.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 7.5
+   }
+  },
+  {
+   "name": "all_identical_values",
+   "code": "result = sol.weighted_median([5, 5, 5], [1, 2, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5
+   }
+  },
+  {
+   "name": "negative_values",
+   "code": "result = sol.weighted_median([-5, -1, -3], [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": -3
+   }
+  },
+  {
+   "name": "trailing_zero_weight",
+   "code": "result = sol.weighted_median([1, 2, 3], [1.0, 1.0, 0.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "tolerance_just_under_half",
+   "code": "result = sol.weighted_median([1, 2], [0.9999999999, 1.0000000001])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "length_mismatch_raises",
+   "code": "result = sol.weighted_median([1, 2], [1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "empty_raises",
+   "code": "result = sol.weighted_median([], [])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "all_zero_weights_raises",
+   "code": "result = sol.weighted_median([1, 2], [0.0, 0.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_weight_raises",
+   "code": "result = sol.weighted_median([1, 2], [1.0, -1.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "values = [((i * 37) % 101) - 50 for i in range(101)]\nweights = [1.0] * 101\nresult = (sol.weighted_median(values, weights), sol.weighted_median(values, [float(i % 3) for i in range(101)]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     2
+    ]
+   }
+  }
+ ]
+}

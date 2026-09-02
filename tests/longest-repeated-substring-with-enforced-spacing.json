@@ -1,0 +1,92 @@
+{
+ "title": "Longest repeated substring with enforced spacing",
+ "entry_point": "longest_spaced_repeat",
+ "cases": [
+  {
+   "name": "example_touching_ok",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_gap_one",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "example_overlapping_run",
+   "code": "result = sol.longest_spaced_repeat('aaaa', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "example_gap_too_large",
+   "code": "result = sol.longest_spaced_repeat('xy', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "empty_and_single",
+   "code": "result = (sol.longest_spaced_repeat('', 0), sol.longest_spaced_repeat('a', 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "aaaa_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('aaaa', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "no_repeat_at_all",
+   "code": "result = sol.longest_spaced_repeat('abcdef', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "gap_pushes_answer_to_zero",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "distant_repeat_with_spacing",
+   "code": "result = sol.longest_spaced_repeat('abcdxxxxxxabcd', 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "large_seeded",
+   "code": "import random\nrnd = random.Random(0)\ns = ''.join(rnd.choice('abc') for _ in range(1000))\nresult = (sol.longest_spaced_repeat(s, 0), sol.longest_spaced_repeat(s, 50))",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     11,
+     11
+    ]
+   }
+  }
+ ]
+}

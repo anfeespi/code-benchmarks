@@ -1,0 +1,93 @@
+{
+ "title": "Bounty scheduling with slot capacity",
+ "entry_point": "max_bounty",
+ "cases": [
+  {
+   "name": "example_cap1",
+   "code": "result = sol.max_bounty([(1, 10), (1, 20), (2, 30)], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 50
+   }
+  },
+  {
+   "name": "example_cap2",
+   "code": "result = sol.max_bounty([(1, 10), (1, 20), (2, 30)], 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 60
+   }
+  },
+  {
+   "name": "example_two_of_three",
+   "code": "result = sol.max_bounty([(2, 5), (2, 7), (2, 9)], 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 16
+   }
+  },
+  {
+   "name": "empty_jobs",
+   "code": "result = (sol.max_bounty([], 1), sol.max_bounty([], 8))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "cap_zero_raises",
+   "code": "result = sol.max_bounty([(1, 5), (2, 7)], 0)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "cap_negative_raises",
+   "code": "result = sol.max_bounty([(3, 5)], -2)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "duplicates_and_far_deadline",
+   "code": "result = (sol.max_bounty([(1, 7), (1, 7), (1, 7)], 2),\n          sol.max_bounty([(10**9, 1000)] * 10, 1),\n          sol.max_bounty([(1, 1), (1, 1000000)], 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     14,
+     10000,
+     1000000
+    ]
+   }
+  },
+  {
+   "name": "scarce_slots_medium",
+   "code": "import random\nrnd = random.Random(7)\njobs = [(rnd.randint(1, 20), rnd.randint(1, 1000)) for _ in range(400)]\nresult = (sol.max_bounty(jobs, 1), sol.max_bounty(jobs, 3), sol.max_bounty(jobs, 8))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     19618,
+     55690,
+     125453
+    ]
+   }
+  },
+  {
+   "name": "large_narrow_band",
+   "code": "import random\nrnd = random.Random(0)\njobs = [(rnd.randint(1, 60000), rnd.randint(1, 10**6)) for _ in range(500000)]\nresult = sol.max_bounty(jobs, 3)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 147612849333
+   }
+  },
+  {
+   "name": "large_cap_one_progression",
+   "code": "jobs = [((i % 50000) + 1, (i * 7919) % 1000000 + 1) for i in range(500000)]\nresult = sol.max_bounty(jobs, 1)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 47492716172
+   }
+  }
+ ]
+}

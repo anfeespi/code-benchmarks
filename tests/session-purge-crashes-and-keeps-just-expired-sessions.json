@@ -1,0 +1,212 @@
+{
+ "title": "Session purge crashes and keeps just-expired sessions",
+ "entry_point": "purge_expired",
+ "cases": [
+  {
+   "name": "purges_in_place_without_crashing",
+   "code": "s = {'a': 5, 'b': 20, 'c': 5}\nsame = s\nr = sol.purge_expired(s, 10)\nresult = (r, s, s is same)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "c"
+     ],
+     {
+      "__dict__": [
+       [
+        "b",
+        20
+       ]
+      ]
+     },
+     true
+    ]
+   }
+  },
+  {
+   "name": "expiry_equal_to_now_is_expired",
+   "code": "s = {'a': 5}\nr = sol.purge_expired(s, 5)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a"
+     ],
+     {
+      "__dict__": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "nothing_expired",
+   "code": "s = {'a': 9, 'b': 10.5}\nr = sol.purge_expired(s, 3)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     {
+      "__dict__": [
+       [
+        "a",
+        9
+       ],
+       [
+        "b",
+        10.5
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "all_expired",
+   "code": "s = {'a': 1, 'b': 2, 'c': 3}\nr = sol.purge_expired(s, 3)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b",
+      "c"
+     ],
+     {
+      "__dict__": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "empty_dict",
+   "code": "s = {}\nr = sol.purge_expired(s, 0)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     {
+      "__dict__": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "insertion_order_preserved_in_result",
+   "code": "s = {'z': 1, 'y': 100, 'x': 1, 'w': 2, 'v': 100}\nr = sol.purge_expired(s, 2)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "z",
+      "x",
+      "w"
+     ],
+     {
+      "__dict__": [
+       [
+        "y",
+        100
+       ],
+       [
+        "v",
+        100
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "float_expiries_and_boundary",
+   "code": "s = {'a': 2.5, 'b': 2.5000001, 'c': 2.0}\nr = sol.purge_expired(s, 2.5)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "c"
+     ],
+     {
+      "__dict__": [
+       [
+        "b",
+        2.5000001
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "large_store_no_runtime_error",
+   "code": "s = {('k%03d' % i): (i % 10) for i in range(500)}\nr = sol.purge_expired(s, 4)\nresult = (len(r), r[:6], len(s), sorted(set(s.values())))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     250,
+     [
+      "k000",
+      "k001",
+      "k002",
+      "k003",
+      "k004",
+      "k010"
+     ],
+     250,
+     [
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    ]
+   }
+  },
+  {
+   "name": "first_entry_expired_rest_survive",
+   "code": "s = {'a': 0, 'b': 50, 'c': 60}\nr = sol.purge_expired(s, 10)\nresult = (r, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a"
+     ],
+     {
+      "__dict__": [
+       [
+        "b",
+        50
+       ],
+       [
+        "c",
+        60
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "repeated_purges_are_stable",
+   "code": "s = {'a': 1, 'b': 5, 'c': 9}\nfirst = sol.purge_expired(s, 5)\nsecond = sol.purge_expired(s, 5)\nthird = sol.purge_expired(s, 9)\nresult = (first, second, third, s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b"
+     ],
+     [],
+     [
+      "c"
+     ],
+     {
+      "__dict__": []
+     }
+    ]
+   }
+  }
+ ]
+}

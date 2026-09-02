@@ -1,0 +1,203 @@
+{
+ "title": "Competition ranks with ties and NaN guard",
+ "entry_point": "rank_scores",
+ "cases": [
+  {
+   "name": "basic_distinct",
+   "code": "result = sol.rank_scores([50, 90, 70])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "ties_skip_ranks",
+   "code": "result = sol.rank_scores([10, 20, 20, 5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     1,
+     1,
+     4
+    ]
+   }
+  },
+  {
+   "name": "empty",
+   "code": "result = sol.rank_scores([])",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "single",
+   "code": "result = sol.rank_scores([5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "all_equal_negative",
+   "code": "result = sol.rank_scores([-1.0, -1.0, -1.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "negative_zero_equals_zero",
+   "code": "result = sol.rank_scores([-0.0, 0.0, 1, -1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     2,
+     1,
+     4
+    ]
+   }
+  },
+  {
+   "name": "int_equals_float",
+   "code": "result = sol.rank_scores([2, 2.0, 1, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     2,
+     4,
+     1
+    ]
+   }
+  },
+  {
+   "name": "infinities",
+   "code": "result = sol.rank_scores([float('inf'), 0, float('-inf'), float('inf'), -2.5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     3,
+     5,
+     1,
+     4
+    ]
+   }
+  },
+  {
+   "name": "nan_raises",
+   "code": "result = sol.rank_scores([1.0, float('nan'), 2.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "nan_first_raises",
+   "code": "result = sol.rank_scores([float('nan')])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "input_not_mutated",
+   "code": "xs = [3, 1, 2, 1]\nr = sol.rank_scores(xs)\nresult = (xs, r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      3,
+      1,
+      2,
+      1
+     ],
+     [
+      1,
+      3,
+      2,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "scores = [((i * i) % 17) - 8 for i in range(60)]\nresult = sol.rank_scores(scores)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     57,
+     50,
+     36,
+     22,
+     1,
+     29,
+     43,
+     8,
+     15,
+     15,
+     8,
+     43,
+     29,
+     1,
+     22,
+     36,
+     50,
+     57,
+     50,
+     36,
+     22,
+     1,
+     29,
+     43,
+     8,
+     15,
+     15,
+     8,
+     43,
+     29,
+     1,
+     22,
+     36,
+     50,
+     57,
+     50,
+     36,
+     22,
+     1,
+     29,
+     43,
+     8,
+     15,
+     15,
+     8,
+     43,
+     29,
+     1,
+     22,
+     36,
+     50,
+     57,
+     50,
+     36,
+     22,
+     1,
+     29,
+     43,
+     8,
+     15
+    ]
+   }
+  }
+ ]
+}

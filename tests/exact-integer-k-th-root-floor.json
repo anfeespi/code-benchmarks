@@ -1,0 +1,241 @@
+{
+ "title": "Exact integer k-th root floor",
+ "entry_point": "kth_root_floor",
+ "cases": [
+  {
+   "name": "cube_exact",
+   "code": "result = sol.kth_root_floor(27, 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "cube_below",
+   "code": "result = sol.kth_root_floor(26, 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "big_exact_cube",
+   "code": "result = sol.kth_root_floor(10**60, 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 100000000000000000000
+   }
+  },
+  {
+   "name": "big_off_by_one",
+   "code": "result = (sol.kth_root_floor(10**60 - 1, 3), sol.kth_root_floor(10**60 + 1, 3))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     99999999999999999999,
+     100000000000000000000
+    ]
+   }
+  },
+  {
+   "name": "k_one_identity",
+   "code": "result = (sol.kth_root_floor(10**30 + 7, 1), sol.kth_root_floor(0, 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1000000000000000000000000000007,
+     0
+    ]
+   }
+  },
+  {
+   "name": "zero_and_one",
+   "code": "result = (sol.kth_root_floor(0, 5), sol.kth_root_floor(1, 7), sol.kth_root_floor(0, 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "k_larger_than_bits",
+   "code": "result = (sol.kth_root_floor(2, 1000), sol.kth_root_floor(2**100 - 1, 100), sol.kth_root_floor(2**100, 100))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "negative_n_raises",
+   "code": "result = sol.kth_root_floor(-1, 2)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "k_zero_raises",
+   "code": "result = sol.kth_root_floor(8, 0)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "k_negative_raises",
+   "code": "result = sol.kth_root_floor(8, -3)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "perfect_power_boundaries",
+   "code": "result = [sol.kth_root_floor(n, 4) for n in (15, 16, 17, 80, 81, 82, 624, 625, 626)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     4,
+     5,
+     5
+    ]
+   }
+  },
+  {
+   "name": "larger_deterministic",
+   "code": "result = [sol.kth_root_floor(n, k) for k in (2, 3, 5) for n in range(0, 40)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+     6,
+     6,
+     6,
+     6,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2
+    ]
+   }
+  }
+ ]
+}

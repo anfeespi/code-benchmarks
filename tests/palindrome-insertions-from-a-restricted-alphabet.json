@@ -1,0 +1,98 @@
+{
+ "title": "Palindrome insertions from a restricted alphabet",
+ "entry_point": "min_insertions",
+ "cases": [
+  {
+   "name": "example_race",
+   "code": "result = sol.min_insertions('race', 'acer')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "example_abcb",
+   "code": "result = sol.min_insertions('abcb', 'ab')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "example_impossible_empty_alphabet",
+   "code": "result = sol.min_insertions('ab', '')",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "empty_and_single",
+   "code": "result = (sol.min_insertions('', ''), sol.min_insertions('z', ''))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "already_palindrome_no_alphabet",
+   "code": "result = (sol.min_insertions('abcba', ''), sol.min_insertions('abba', ''))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "allowed_as_set",
+   "code": "result = sol.min_insertions('abcb', set(['a', 'b']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "allowed_as_list",
+   "code": "result = sol.min_insertions('race', ['a', 'c', 'e', 'r'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "restricted_alphabet_impossible",
+   "code": "result = sol.min_insertions('abc', 'a')",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "partial_alphabet_possible",
+   "code": "result = (sol.min_insertions('aab', 'b'), sol.min_insertions('aab', 'a'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "large_seeded",
+   "code": "import random\nrnd = random.Random(0)\ns = ''.join(rnd.choice('abc') for _ in range(300))\nresult = (sol.min_insertions(s, 'abc'), sol.min_insertions(s, 'ab'))",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     83,
+     131
+    ]
+   }
+  }
+ ]
+}

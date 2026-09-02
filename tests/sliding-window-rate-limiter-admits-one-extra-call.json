@@ -1,0 +1,277 @@
+{
+ "title": "Sliding window rate limiter admits one extra call",
+ "entry_point": "RateLimiter",
+ "cases": [
+  {
+   "name": "limit_two_burst",
+   "code": "rl = sol.RateLimiter(2, 10)\nresult = [rl.allow(0), rl.allow(1), rl.allow(2), rl.allow(3)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "expiry_at_exactly_window",
+   "code": "rl = sol.RateLimiter(2, 10)\nout = [rl.allow(0), rl.allow(1), rl.allow(2), rl.allow(10)]\nresult = (out, rl.calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      true,
+      true,
+      false,
+      true
+     ],
+     [
+      1,
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "limit_one_sequence",
+   "code": "rl = sol.RateLimiter(1, 5)\nresult = [rl.allow(0), rl.allow(4), rl.allow(5)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "denied_calls_never_count",
+   "code": "rl = sol.RateLimiter(1, 10)\nout = [rl.allow(0), rl.allow(1), rl.allow(2), rl.allow(9), rl.allow(10)]\nresult = (out, rl.calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      true,
+      false,
+      false,
+      false,
+      true
+     ],
+     [
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "public_attributes_after_construction",
+   "code": "rl = sol.RateLimiter(3, 7)\nresult = (rl.max_calls, rl.window, rl.calls, type(rl.calls).__name__)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     7,
+     [],
+     "list"
+    ]
+   }
+  },
+  {
+   "name": "calls_invariant_step_by_step",
+   "code": "rl = sol.RateLimiter(2, 5)\nsteps = []\nfor t in [0, 1, 2, 3, 5, 6, 7, 11]:\n    ok = rl.allow(t)\n    steps.append((t, ok, list(rl.calls), type(rl.calls).__name__))\nresult = steps",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      true,
+      [
+       0
+      ],
+      "list"
+     ],
+     [
+      1,
+      true,
+      [
+       0,
+       1
+      ],
+      "list"
+     ],
+     [
+      2,
+      false,
+      [
+       0,
+       1
+      ],
+      "list"
+     ],
+     [
+      3,
+      false,
+      [
+       0,
+       1
+      ],
+      "list"
+     ],
+     [
+      5,
+      true,
+      [
+       1,
+       5
+      ],
+      "list"
+     ],
+     [
+      6,
+      true,
+      [
+       5,
+       6
+      ],
+      "list"
+     ],
+     [
+      7,
+      false,
+      [
+       5,
+       6
+      ],
+      "list"
+     ],
+     [
+      11,
+      true,
+      [
+       11
+      ],
+      "list"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "float_window_and_timestamps",
+   "code": "rl = sol.RateLimiter(2, 1.5)\nout = [rl.allow(0.0), rl.allow(0.5), rl.allow(1.0), rl.allow(1.5), rl.allow(2.0)]\nresult = (out, rl.calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      true,
+      true,
+      false,
+      true,
+      true
+     ],
+     [
+      1.5,
+      2.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "limit_of_one_repeated_timestamp",
+   "code": "rl = sol.RateLimiter(1, 3)\nout = [rl.allow(0), rl.allow(0), rl.allow(0), rl.allow(3), rl.allow(3)]\nresult = (out, rl.calls)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      true,
+      false,
+      false,
+      true,
+      false
+     ],
+     [
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "instances_are_independent",
+   "code": "a = sol.RateLimiter(1, 10)\nb = sol.RateLimiter(1, 10)\nout = [a.allow(0), b.allow(0), a.allow(1), b.allow(1)]\nresult = (out, a.calls, b.calls, a.max_calls, b.window)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      true,
+      true,
+      false,
+      false
+     ],
+     [
+      0
+     ],
+     [
+      0
+     ],
+     1,
+     10
+    ]
+   }
+  },
+  {
+   "name": "higher_limit_sliding",
+   "code": "rl = sol.RateLimiter(3, 10)\nout = []\nfor t in [0, 2, 4, 6, 9, 10, 12, 14, 20]:\n    out.append((t, rl.allow(t), len(rl.calls)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      true,
+      1
+     ],
+     [
+      2,
+      true,
+      2
+     ],
+     [
+      4,
+      true,
+      3
+     ],
+     [
+      6,
+      false,
+      3
+     ],
+     [
+      9,
+      false,
+      3
+     ],
+     [
+      10,
+      true,
+      3
+     ],
+     [
+      12,
+      true,
+      3
+     ],
+     [
+      14,
+      true,
+      3
+     ],
+     [
+      20,
+      true,
+      3
+     ]
+    ]
+   }
+  }
+ ]
+}

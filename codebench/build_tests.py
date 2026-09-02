@@ -1,0 +1,58 @@
+"""Compute `expected` for a tests file from the canonical solution, and print the
+problem prompt/canonical for authoring.
+
+Usage:
+  python -m codebench.build_tests show <slug|category>       # print prompt + canonical (+ existing tests)
+  python -m codebench.build_tests expect <slug> [...]        # fill expected values in tests/<slug>.json
+  python -m codebench.build_tests expect --all
+  python -m codebench.build_tests list                       # slugs, categories, n_tests, has-tests
+"""
+import json
+import sys
+
+from .harness import TESTS_DIR, load_problems, load_tests, build_expected, score_candidate
+
+
+def main(argv):
+    probs = load_problems()
+    cmd = argv[0] if argv else "list"
+    if cmd == "list":
+        for p in probs:
+            t = load_tests(p["slug"])
+            print("%-16s %-60s n_tests=%-2s tests=%s" % (p["category"], p["slug"], p["n_tests"], len(t["cases"]) if t else "-"))
+        return
+    if cmd == "show":
+        key = argv[1]
+        for p in probs:
+            if p["slug"] == key or p["category"] == key:
+                print("=" * 100)
+                print("SLUG:", p["slug"], "| ENTRY_POINT:", p["entry_point"], "| CATEGORY:", p["category"], "| n_tests(original):", p["n_tests"])
+                print("-" * 40, "PROMPT")
+                print(p["prompt"])
+                print("-" * 40, "CANONICAL")
+                print(p["canonical_solution"])
+                t = load_tests(p["slug"])
+                if t:
+                    print("-" * 40, "EXISTING TESTS")
+                    print(json.dumps(t, indent=1)[:3000])
+        return
+    if cmd == "expect":
+        slugs = [p["slug"] for p in probs] if "--all" in argv else argv[1:]
+        for p in probs:
+            if p["slug"] not in slugs:
+                continue
+            t = load_tests(p["slug"])
+            if t is None:
+                print("no tests:", p["slug"])
+                continue
+            build_expected(p, t)
+            (TESTS_DIR / (p["slug"] + ".json")).write_text(json.dumps(t, indent=1, ensure_ascii=False))
+            # sanity: canonical must pass its own tests
+            s = score_candidate(p, p["canonical_solution"], t)
+            print("%-55s cases=%-2d canonical pass=%s" % (p["slug"], len(t["cases"]), s["pass"]))
+        return
+    print(__doc__)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

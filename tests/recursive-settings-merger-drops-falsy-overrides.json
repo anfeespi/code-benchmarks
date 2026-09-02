@@ -1,0 +1,160 @@
+{
+ "title": "Recursive settings merger drops falsy overrides",
+ "entry_point": "merge_settings",
+ "cases": [
+  {
+   "name": "falsy_override_wins",
+   "code": "result = sol.merge_settings({'a': True, 'b': 1}, {'a': False, 'b': 0})",
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       false
+      ],
+      [
+       "b",
+       0
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "nested_merge",
+   "code": "result = sol.merge_settings({'x': {'p': 1, 'q': 2}}, {'x': {'q': 3}})",
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "x",
+       {
+        "__dict__": [
+         [
+          "p",
+          1
+         ],
+         [
+          "q",
+          3
+         ]
+        ]
+       }
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "none_override",
+   "code": "result = sol.merge_settings({'a': 5}, {'a': None})",
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "dict_replaces_scalar",
+   "code": "result = sol.merge_settings({'a': 1}, {'a': {'z': 0}})",
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       {
+        "__dict__": [
+         [
+          "z",
+          0
+         ]
+        ]
+       }
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "inputs_untouched",
+   "code": "d={'a': {'b': 1}}; o={'a': {'c': 2}}; r=sol.merge_settings(d,o); result=(d, o, r)",
+   "expected": {
+    "value": [
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "c",
+           2
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ],
+          [
+           "c",
+           2
+          ]
+         ]
+        }
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "empty",
+   "code": "result = (sol.merge_settings({}, {}), sol.merge_settings({'k': []}, {}))",
+   "expected": {
+    "value": [
+     {
+      "__dict__": []
+     },
+     {
+      "__dict__": [
+       [
+        "k",
+        []
+       ]
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

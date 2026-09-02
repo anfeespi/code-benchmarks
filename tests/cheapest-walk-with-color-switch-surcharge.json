@@ -1,0 +1,56 @@
+{
+ "title": "Cheapest walk with color-switch surcharge",
+ "entry_point": "min_cost_route",
+ "cases": [
+  {
+   "name": "example_avoid_cheap_red_edge",
+   "code": "result = sol.min_cost_route(4, [(0,1,1,'red'), (0,2,2,'blue'), (2,1,1,'blue'), (1,3,1,'blue')], 0, 3, 10)",
+   "timeout_s": 5
+  },
+  {
+   "name": "example_forced_switch",
+   "code": "result = sol.min_cost_route(3, [(0,1,2,'r'), (1,2,3,'g')], 0, 2, 5)",
+   "timeout_s": 5
+  },
+  {
+   "name": "example_unreachable",
+   "code": "result = sol.min_cost_route(2, [], 0, 1, 3)",
+   "timeout_s": 5
+  },
+  {
+   "name": "source_equals_target",
+   "code": "result = (sol.min_cost_route(1, [], 0, 0, 4), sol.min_cost_route(3, [(0,1,7,'a')], 1, 1, 0))",
+   "timeout_s": 5
+  },
+  {
+   "name": "zero_switch_cost",
+   "code": "result = sol.min_cost_route(4, [(0,1,1,'red'), (0,2,2,'blue'), (2,1,1,'blue'), (1,3,1,'blue')], 0, 3, 0)",
+   "timeout_s": 5
+  },
+  {
+   "name": "parallel_edges_and_self_loop",
+   "code": "result = sol.min_cost_route(3, [(0,1,5,'a'), (0,1,1,'b'), (0,0,1,'a'), (1,2,1,'b')], 0, 2, 10)",
+   "timeout_s": 5
+  },
+  {
+   "name": "two_switches_charged",
+   "code": "result = sol.min_cost_route(4, [(0,1,1,'a'), (1,2,1,'b'), (2,3,1,'a')], 0, 3, 100)",
+   "timeout_s": 5
+  },
+  {
+   "name": "undirected_edges_usable_backwards",
+   "code": "result = sol.min_cost_route(3, [(2,1,4,'x'), (1,0,4,'x')], 0, 2, 9)",
+   "timeout_s": 5
+  },
+  {
+   "name": "detour_cheaper_than_switching",
+   "code": "result = sol.min_cost_route(5, [(0,1,1,'p'), (1,4,1,'q'), (0,2,2,'q'), (2,3,2,'q'), (3,4,2,'q')], 0, 4, 50)",
+   "timeout_s": 5
+  },
+  {
+   "name": "large_random_graph",
+   "code": "import random\nrnd = random.Random(0)\nn = 400\nedges = []\nfor i in range(n - 1):\n    edges.append((i, i + 1, rnd.randrange(1, 20), 'c%d' % rnd.randrange(3)))\nfor _ in range(1200):\n    edges.append((rnd.randrange(n), rnd.randrange(n), rnd.randrange(1, 50), 'c%d' % rnd.randrange(3)))\nresult = sol.min_cost_route(n, edges, 0, n - 1, 7)",
+   "timeout_s": 10
+  }
+ ]
+}

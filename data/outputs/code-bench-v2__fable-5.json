@@ -1,0 +1,914 @@
+[
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "flatten_depth",
+  "code": "def flatten_depth(nested, max_depth):\n    # --- Validation (in the required order) ---\n    if not isinstance(nested, list):\n        raise TypeError(\"nested must be a list\")\n    if isinstance(max_depth, bool) or not isinstance(max_depth, int):\n        raise TypeError(\"max_depth must be an int\")\n    if max_depth < 0:\n        raise ValueError(\"max_depth must be >= 0\")\n\n    result = []\n\n    # Explicit stack of (item, depth) pairs.\n    # Items are pushed in reverse so popping yields left-to-right order.\n    stack = [(item, 0) for item in reversed(nested)]\n\n    while stack:\n        item, depth = stack.pop()\n        if isinstance(item, list) and depth < max_depth:\n            # Expand this list one level deeper.\n            for sub in reversed(item):\n                stack.append((sub, depth + 1))\n        else:\n            # Atom, or a list too deep to flatten: pass through by reference.\n            result.append(item)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 45.91,
+   "model": "claude-fable-5",
+   "tokens_in": 641,
+   "tokens_out": 1426
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "eval_rpn",
+  "code": "def eval_rpn(tokens):\n    if not isinstance(tokens, list):\n        raise TypeError(\"tokens must be a list\")\n    if tokens == []:\n        raise ValueError(\"empty expression\")\n\n    OPERATORS = (\"+\", \"-\", \"*\", \"/\")\n    DIGITS = \"0123456789\"\n\n    def is_valid_literal(s):\n        # optional single leading sign, then one or more ASCII digits\n        body = s\n        if body and (body[0] == \"+\" or body[0] == \"-\"):\n            body = body[1:]\n        if not body:\n            return False\n        for ch in body:\n            if ch not in DIGITS:\n                return False\n        return True\n\n    stack = []\n    for i, tok in enumerate(tokens):\n        if not isinstance(tok, str):\n            raise TypeError(\"token {} is not a string\".format(i))\n        if tok in OPERATORS:\n            if len(stack) < 2:\n                raise ValueError(\"stack underflow at token {}\".format(i))\n            right = stack.pop()\n            left = stack.pop()\n            if tok == \"+\":\n                stack.append(left + right)\n            elif tok == \"-\":\n                stack.append(left - right)\n            elif tok == \"*\":\n                stack.append(left * right)\n            else:  # \"/\"\n                if right == 0:\n                    raise ZeroDivisionError(\n                        \"division by zero at token {}\".format(i)\n                    )\n                q = left // right\n                # Python floor division rounds toward negative infinity;\n                # adjust to truncate toward zero.\n                if q < 0 and q * right != left:\n                    q += 1\n                stack.append(q)\n        elif is_valid_literal(tok):\n            stack.append(int(tok))\n        else:\n            raise ValueError(\"unknown token at token {}\".format(i))\n\n    if len(stack) != 1:\n        raise ValueError(\"leftover operands on stack\")\n    return stack[0]",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 15.56,
+   "model": "claude-fable-5",
+   "tokens_in": 844,
+   "tokens_out": 1180
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "summarize_by_category",
+  "code": "def summarize_by_category(rows):\n    if not isinstance(rows, list):\n        raise TypeError(\"rows must be a list\")\n\n    result = {}\n\n    for i, row in enumerate(rows):\n        # a. must be a tuple of exactly 3 elements\n        if not isinstance(row, tuple) or len(row) != 3:\n            raise TypeError(\n                \"row {i}: each row must be a tuple of exactly 3 elements\".format(i=i)\n            )\n\n        category, amount, refunded = row\n\n        # b. category must be a non-empty str\n        if not isinstance(category, str) or category == \"\":\n            raise ValueError(\n                \"row {i}: category must be a non-empty str\".format(i=i)\n            )\n\n        # c. amount must be int or float, but not bool\n        if isinstance(amount, bool) or not isinstance(amount, (int, float)):\n            raise TypeError(\n                \"row {i}: amount must be an int or float (not bool)\".format(i=i)\n            )\n\n        # d. amount must be non-negative\n        if amount < 0:\n            raise ValueError(\n                \"row {i}: amount must be >= 0\".format(i=i)\n            )\n\n        # e. refunded must be a bool\n        if not isinstance(refunded, bool):\n            raise TypeError(\n                \"row {i}: refunded must be a bool\".format(i=i)\n            )\n\n        amount = float(amount)\n\n        if category not in result:\n            result[category] = {\n                \"count\": 0,\n                \"gross\": 0.0,\n                \"net\": 0.0,\n                \"largest\": amount,\n            }\n\n        summary = result[category]\n        summary[\"count\"] += 1\n        summary[\"gross\"] += amount\n        if not refunded:\n            summary[\"net\"] += amount\n        if amount > summary[\"largest\"]:\n            summary[\"largest\"] = amount\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 13.43,
+   "model": "claude-fable-5",
+   "tokens_in": 882,
+   "tokens_out": 957
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "render_template",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 3.07,
+   "model": "claude-fable-5",
+   "tokens_in": 804,
+   "tokens_out": 3
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "deep_get",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 4.32,
+   "model": "claude-fable-5",
+   "tokens_in": 725,
+   "tokens_out": 7
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "top_k_frequent",
+  "code": "```python\ndef top_k_frequent(items, k):\n    # --- Validation (in exact order) ---\n    if not isinstance(items, list):\n        raise TypeError(\"items must be a list\")\n    if isinstance(k, bool) or not isinstance(k, int):\n        raise TypeError(\"k must be an int\")\n    if k < 0:\n        raise ValueError(\"k must be >= 0\")\n\n    # --- Count values and record first-occurrence order ---\n    counts = {}\n    first_index = {}\n    for i, value in enumerate(items):\n        if value in counts:\n            counts[value] += 1\n        else:\n            counts[value] = 1\n            first_index[value] = i\n\n    # Distinct values in first-occurrence order (",
+  "scores": {
+   "checker": 0,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 6.81,
+   "model": "claude-fable-5",
+   "tokens_in": 577,
+   "tokens_out": 392
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "clamp_values",
+  "code": "def clamp_values(values, low, high):\n    # 1. values must be a list\n    if not isinstance(values, list):\n        raise TypeError(\"values must be a list\")\n\n    # 2. bounds must be numbers (bool explicitly rejected)\n    for bound in (low, high):\n        if isinstance(bound, bool) or not isinstance(bound, (int, float)):\n            raise TypeError(\"bounds must be numbers\")\n\n    # 3. low must not exceed high\n    if low > high:\n        raise ValueError(\"low must not exceed high\")\n\n    # 4. scan elements, clamp with manual comparisons\n    result = []\n    for i, item in enumerate(values):\n        if isinstance(item, bool) or not isinstance(item, (int, float)):\n            raise TypeError(\"invalid element at index {}\".format(i))\n        if item < low:\n            result.append(low)\n        elif item > high:\n            result.append(high)\n        else:\n            result.append(item)\n    return result",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 9.92,
+   "model": "claude-fable-5",
+   "tokens_in": 603,
+   "tokens_out": 623
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "max_bounty",
+  "code": "```python\nimport heapq\n\n\ndef max_bounty(jobs: list[tuple[int, int]], cap: int) -> int:\n    \"\"\"\n    Maximize total bounty of unit-length jobs scheduled into",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 18.2,
+   "model": "claude-fable-5",
+   "tokens_in": 631,
+   "tokens_out": 1352
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "count_dominant_pairs",
+  "code": "## Solution\n\nThe naive O(n²) check is too slow, so I use a **merge-sort-based counting** approach (same technique as the classic \"reverse pairs\" problem), which runs in O(n log n):\n\n1. Recursively sort the left and right halves.\n2. Before merging, count cross pairs: for each element `x` in the sorted left half, advance a pointer `j` over the sorted right half while `x > 3 * right[j]`. Since both halves are sorted, the pointer only moves forward, giving O(n) counting per merge level.\n3. Merge the halves (I let `sorted()` do it — Timsort merges two sorted runs in linear time).\n\nAll arithmetic is exact Python integer arithmetic, so negatives and large values are handled correctly (e.g. `-2 > 3 * (-1) = -3` counts).\n\n```python\ndef count_dominant_pairs(seq: list[int]) -> int:\n    n = len(seq)\n    if n < 2:\n        return 0\n\n    count = 0\n\n    def sort_and_count(arr: list[int]) -> list[int]:\n        nonlocal count\n        m = len(arr)\n        if m <= 1:",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 21.71,
+   "model": "claude-fable-5",
+   "tokens_in": 459,
+   "tokens_out": 1371
+  }
+ },
+ {
+  "title": null,
+  "category": "spec_compliance",
+  "entry_point": "parse_duration",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "cost_usd": null,
+   "latency_s": 2.63,
+   "model": "claude-fable-5",
+   "tokens_in": 605,
+   "tokens_out": 3
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "count_locked_pairs",
+  "code": "## Solution\n\n**Key insight:** `values[i]` and `values[j]` have the same parity **if and only if** their sum is even. So the two conditions together are equivalent to:\n\n> `values[i] + values[j]` is divisible by `lcm(m, 2)`\n\n- If `m` is even, `lcm(m, 2) = m` (divisibility by `m` already forces the sum to be even).\n- If `m` is odd, `lcm(m, 2) = 2m`.\n\nThis reduces the problem to the classic \"count pairs whose residues sum to 0 mod L\" problem, solvable in O(n + L) with a residue histogram — no O(n²) pair enumeration needed.\n\n```python\nfrom collections import Counter\n\n\ndef count_locked_pairs(values: list[int], m: int) -> int:\n    if m < 1:\n        raise ValueError(\"m must be >= 1\")\n\n    # Same parity  <=>  sum is even, so combine both conditions into one modulus.",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 25.66,
+   "model": "claude-fable-5",
+   "tokens_in": 591,
+   "tokens_out": 2046
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "count_pulses",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 3.58,
+   "model": "claude-fable-5",
+   "tokens_in": 658,
+   "tokens_out": 2
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "recurring_counts",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 3.32,
+   "model": "claude-fable-5",
+   "tokens_in": 642,
+   "tokens_out": 2
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "allocate_shares",
+  "code": "from fractions import Fraction\n\n\ndef allocate_shares(total: int, weights: list) -> list[int]:\n    \"\"\"\n    Split an integer `total` into integer shares proportional to `weights`,\n    using the largest-remainder (Hamilton) method. Ties in remainders are\n    broken in favor of the lower index. The result always sums to `total`.\n    \"\"\"\n    # --- Validation ---------------------------------------------------\n    if total < 0:\n        raise ValueError(\"total must be >= 0\")\n    if not weights:\n        raise ValueError(\"weights must be a non-empty list\")\n    if any(w < 0 for w in weights):\n        raise ValueError(\"weights must all be >= 0\")\n\n    # Use exact rational arithmetic to avoid float rounding issues.\n    # Fraction() accepts ints, floats, and Decimals exactly.\n    fw = [Fraction(w) for w in weights]\n    W = sum(fw)\n    if W == 0:\n        raise ValueError(\"sum of weights must be > 0\")\n\n    n = len(weights)\n\n    # --- Floors and remainders (exact quotas) -------------------------\n    shares = []\n    remainders = []\n    for w in fw:\n        quota = Fraction(total) * w / W\n        base = quota.numerator // quota.denominator  # floor of a nonneg Fraction\n        shares.append(base)\n        remainders.append(quota - base)\n\n    # --- Distribute the leftover units by largest remainder -----------\n    leftover = total - sum(shares)\n\n    # Sort by remainder descending; ties broken by lower index.\n    order = sorted(range(n), key=lambda i: (-remainders[i], i))\n    for i in order[:leftover]:\n        shares[i] += 1\n\n    return shares",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 18.19,
+   "model": "claude-fable-5",
+   "tokens_in": 558,
+   "tokens_out": 1560
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "longest_echo",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 2.55,
+   "model": "claude-fable-5",
+   "tokens_in": 393,
+   "tokens_out": 5
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "round_robin",
+  "code": "from collections import deque\n\n\ndef round_robin(iterables: list) -> \"iterator\":\n    \"\"\"Lazily interleave values from a list of iterables, round-robin style.\n\n    Yields the first item of each iterable in order, then the second of each,\n    etc. Exhausted iterables drop out; remaining ones keep their relative\n    order. Never drains inputs ahead of what the output requires, so infinite\n    iterators are safe when consuming only a finite prefix of the result.\n    \"\"\"\n    # Wrap each input in an iterator without consuming any items.\n    active = deque(iter(it) for it in iterables)\n    while active:\n        current = active.popleft()\n        try:\n            item = next(current)\n        except StopIteration:\n            # This iterable is exhausted; drop it from the rotation.\n            continue\n        yield item\n        active.append(current)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 15.35,
+   "model": "claude-fable-5",
+   "tokens_in": 667,
+   "tokens_out": 941
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "peak_load",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 3.24,
+   "model": "claude-fable-5",
+   "tokens_in": 579,
+   "tokens_out": 10
+  }
+ },
+ {
+  "title": null,
+  "category": "optimization",
+  "entry_point": "count_stable_windows",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "cost_usd": null,
+   "latency_s": 2.53,
+   "model": "claude-fable-5",
+   "tokens_in": 436,
+   "tokens_out": 5
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "weighted_median",
+  "code": "def weighted_median(values: list, weights: list) -> float:\n    \"\"\"\n    Return the lower weighted median of the dataset.\n\n    Raises ValueError if:\n      - values and weights have different lengths,\n      - any weight is negative,\n      - the total weight is not positive (empty input or all-zero weights).\n    \"\"\"\n    if len(values) != len(weights):\n        raise ValueError(\"values and weights must have the same length\")\n\n    if any(w < 0 for w in weights):\n        raise ValueError(\"weights must be non-negative\")\n\n    total = sum(weights)\n    if not values or total <= 0:\n        raise ValueError(\"total weight must be positive\")\n\n    # Zero-weight entries contribute nothing and never shift the result,\n    # so we can safely drop them before sorting.\n    pairs = sorted((v, w) for v, w in zip(values, weights) if w > 0)\n\n    threshold = total / 2 - 1e-9\n    cumulative = 0.0\n    for value, weight in pairs:\n        cumulative += weight\n        if cumulative >= threshold:\n            return value\n\n    # Fallback for pathological floating-point rounding: return largest value.\n    return pairs[-1][0]",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 21.41,
+   "model": "claude-fable-5",
+   "tokens_in": 579,
+   "tokens_out": 1700
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "kth_root_floor",
+  "code": "def kth_root_floor(n: int, k: int) -> int:\n    \"\"\"Return floor(n ** (1/k)) exactly, using only integer arithmetic.\n\n    Returns the largest integer r >= 0 such that r ** k <= n.\n    Raises ValueError if n < 0 or k < 1.\n    \"\"\"\n    if n < 0:\n        raise ValueError(\"n must be nonnegative\")\n    if k < 1:\n        raise ValueError(\"k must be at least 1\")\n\n    if k == 1 or n < 2:\n        return n\n\n    # Upper bound: if r ** k <= n then r < 2 ** (ceil(bit_length / k)),\n    # so hi = 2 ** (bit_length // k + 1) safely satisfies hi ** k > n.\n    hi = 1 << (n.bit_length() // k + 1)\n    lo = 0  # invariant: lo ** k <= n < hi ** k\n\n    while hi - lo > 1:\n        mid = (lo + hi) // 2\n        if mid ** k <= n:\n            lo = mid\n        else:\n            hi = mid\n\n    return lo",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 13.2,
+   "model": "claude-fable-5",
+   "tokens_in": 438,
+   "tokens_out": 973
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "MergeLedger",
+  "code": "class MergeLedger:\n    \"\"\"\n    A disjoint-set (union-find) structure with per-component value sums and\n    LIFO undo of successful merges.\n\n    Implementation notes:\n    - Union by size, NO path compression (so the tree structure is stable and\n      merges can be reversed by simply detaching the recorded child root).\n    - Every node stores the sum of values in its subtree (`_subsum`), so a\n      component's total is the root's subtree sum.  `add_value` walks the\n      (O(log n)-deep) path to the root, updating subtree sums along the way,\n      which keeps aggregates correct even across later undos.\n    - Undo is LIFO: when a merge is undone, every merge performed after it has\n      already been undone, so the two trees look exactly as they did right\n      after that merge (except for value updates and unrelated new elements,\n      which must be preserved).  Detaching the recorded child root and\n      subtracting its current size/sum from the parent root restores exactly\n      the two original components.\n    \"\"\"\n\n    def __init__(self):\n        self._parent = {}   # node -> parent (root points to itself)\n        self._size = {}     # root -> component size (valid at roots)\n        self._subsum = {}   # node -> sum of values in its subtree\n        self._value = {}    # node -> its own value\n        self._history = []  # stack of child-roots attached by True merges\n        self._ncomp = 0\n\n    # ---------- internal ----------\n\n    def _check(self, x):\n        if x not in self._parent:\n            raise KeyError(x)\n\n    def _find(self, x):\n        self._check(x)\n        while self._parent[x] != x:\n            x = self._parent[x]\n        return x\n\n    # ---------- public API ----------\n\n    def add(self, x, value=0):\n        \"\"\"Create element x as a new singleton component.\"\"\"\n        if x in self._parent:\n            raise ValueError(f\"element {x!r} already exists\")\n        self._parent[x] = x\n        self._size[x] = 1\n        self._subsum[x] = value\n        self._value[x] = value\n        self._ncomp += 1\n\n    def merge(self, a, b):\n        \"\"\"Unite the components of a and b. True iff two components united.\"\"\"\n        ra, rb = self._find(a), self._find(b)\n        if ra == rb:\n            return False\n        # union by size: attach smaller root under larger root\n        if self._size[ra] < self._size[rb]:\n            ra, rb = rb, ra\n        self._parent[rb] = ra\n        self._size[ra] += self._size[rb]\n        self._subsum[ra] += self._subsum[rb]\n        self._history.append(rb)\n        self._ncomp -= 1\n        return True\n\n    def same(self, a, b):\n        \"\"\"Are a and b in the same component?\"\"\"\n        return self._find(a) == self._find(b)\n\n    def component_size(self, x):\n        \"\"\"Number of elements in x's component.\"\"\"\n        return self._size[self._find(x)]\n\n    def component_value(self, x):\n        \"\"\"Sum of current values of all elements in x's component.\"\"\"\n        return self._subsum[self._find(x)]\n\n    def add_value(self, x, delta):\n        \"\"\"Add delta to element x's own value.\"\"\"\n        self._check(x)\n        self._value[x] += delta\n        # propagate to subtree sums up to the root\n        node = x\n        while True:\n            self._subsum[node] += delta\n            if self._parent[node] == node:\n                break\n            node = self._parent[node]\n\n    def components(self):\n        \"\"\"Current number of components.\"\"\"\n        return self._ncomp\n\n    def undo(self):\n        \"\"\"Reverse the most recent not-yet-undone successful merge.\"\"\"\n        if not self._history:\n            raise RuntimeError(\"no merge to undo\")\n        child = self._history.pop()\n        parent = self._parent[child]\n        self._parent[child] = child\n        self._size[parent] -= self._size[child]\n        self._subsum[parent] -= self._subsum[child]\n        self._ncomp += 1\n\n\nif __name__ == \"__main__\":\n    # Example 1\n    ml = MergeLedger()\n    for name in [\"a\", \"b\", \"c\", \"d\"]:\n        ml.add(name, 1)\n    assert ml.merge(\"a\", \"b\") is True\n    assert ml.merge(\"c\", \"d\") is True\n    assert ml.merge(\"b\", \"d\") is True\n    assert ml.same(\"d\", \"a\")\n    ml.undo()\n    assert ml.same(\"c\", \"d\")\n    assert not ml.same(\"a\", \"c\")\n    assert ml.component_size(\"c\") == 2\n\n    # Example 2\n    ml = MergeLedger()\n    ml.add(\"x\", 10); ml.add(\"y\", 20)\n    assert ml.merge(\"x\", \"y\") is True\n    ml.add_value(\"y\", 100)\n    assert ml.component_value(\"x\") == 130\n    ml.undo()\n    assert ml.component_value(\"x\") == 10\n    assert ml.component_value(\"y\") == 120\n\n    # Example 3\n    ml = MergeLedger()\n    ml.add(\"p\"); ml.add(\"q\")\n    assert ml.merge(\"p\", \"q\") is True\n    assert ml.merge(\"q\", \"p\") is False\n    ml.undo()\n    assert ml.components() == 2\n    try:\n        ml.undo()\n    except RuntimeError:\n        pass\n    else:\n        raise AssertionError(\"expected RuntimeError\")\n\n    # Interleaving: add and add_value between merge and undo are preserved\n    ml = MergeLedger()\n    ml.add(1, 5); ml.add(2, 7)\n    ml.merge(1, 2)\n    ml.add(3, 100)              # new element after the merge\n    ml.add_value(1, 3)\n    ml.undo()\n    assert ml.component_value(1) == 8      # 5 + 3 kept after undo\n    assert ml.component_value(2) == 7\n    assert ml.component_value(3) == 100\n    assert ml.components() == 3\n\n    # Errors\n    try:\n        ml.add(1)\n    except ValueError:\n        pass\n    try:\n        ml.merge(1, \"nope\")\n    except KeyError:\n        pass\n\n    print(\"All tests passed.\")",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 37.02,
+   "model": "claude-fable-5",
+   "tokens_in": 1075,
+   "tokens_out": 3146
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "vector_norm",
+  "code": "```python\nimport math\n\n\ndef vector_norm(v: list[float]) -> float:\n    \"\"\"\n    Compute the Euclidean (L2) norm of a vector of floats, robust against\n    overflow/underflow across the full double-precision range.\n\n    Uses the classic scaling technique: divide all entries by the maximum\n    absolute value, sum the squares of the scaled entries (all of which are\n    <= 1 in magnitude, so no over",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 9.81,
+   "model": "claude-fable-5",
+   "tokens_in": 455,
+   "tokens_out": 536
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "truncate_display",
+  "code": "## Solution\n\n```python\nimport unicodedata\n\n\ndef truncate_display(s: str, width: int) -> str:\n    \"\"\"Truncate s to at most `width` user-perceived units, never splitting\n    a base character from its combining marks.\"\"\"\n    if width < 0:\n        raise ValueError(\"width must be non-negative\")\n\n    def is",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 7.49,
+   "model": "claude-fable-5",
+   "tokens_in": 573,
+   "tokens_out": 200
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "rank_scores",
+  "code": "import math\n\n\ndef rank_scores(scores: list) -> list:\n    \"\"\"Assign competition (\"1224\") ranks to scores; higher score = better rank.\n\n    result[i] = 1 + (number of scores strictly greater than scores[i]).\n\n    Raises:\n        ValueError: if any score is NaN.\n    \"\"\"\n    # Validate: reject NaN (NaN is the only value where x != x)\n    for s in scores:\n        if isinstance(s, float) and math.isnan(s):\n            raise ValueError(\"NaN scores are not allowed\")\n\n    # Sort a copy descending (does not mutate input)\n    sorted_desc = sorted(scores, reverse=True)\n\n    # First occurrence index (0-based) of each distinct score in the sorted\n    # order equals the count of strictly-greater scores, so rank = index + 1.\n    # Dict keys use == / hash, and Python guarantees hash(2) == hash(2.0)\n    # and hash(-0.0) == hash(0.0), matching plain numeric equality.\n    rank_of = {}\n    for i, s in enumerate(sorted_desc):\n        if s not in rank_of:\n            rank_of[s] = i + 1\n\n    return [rank_of[s] for s in scores]",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 17.67,
+   "model": "claude-fable-5",
+   "tokens_in": 483,
+   "tokens_out": 1157
+  }
+ },
+ {
+  "title": null,
+  "category": "edge_cases",
+  "entry_point": "chunk_evenly",
+  "code": "def chunk_evenly(items, n: int) -> list[list]:\n    \"\"\"\n    Split the elements of an iterable into exactly `n` contiguous chunks\n    whose lengths differ by at most 1 (longer chunks come first).\n\n    Works with any iterable (lists, tuples, one-shot generators), consuming\n    it at most once. Always returns exactly `n` lists; trailing chunks are\n    empty if there aren't enough elements.\n\n    Raises:\n        ValueError: if n < 1.\n    \"\"\"\n    if n < 1:\n        raise ValueError(\"n must be at least 1\")\n\n    # Materialize once so we can handle len()-less iterables and know L.\n    elements = list(items)\n    L = len(elements)\n\n    base, extra = divmod(L, n)  # first `extra` chunks get `base + 1` items\n\n    chunks = []\n    start = 0\n    for i in range(n):\n        size = base + (1 if i < extra else 0)\n        chunks.append(elements[start:start + size])\n        start += size\n    return chunks",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "cost_usd": null,
+   "latency_s": 12.29,
+   "model": "claude-fable-5",
+   "tokens_in": 487,
+   "tokens_out": 804
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "TaskScheduler",
+  "code": "import heapq\n\n\nclass TaskScheduler:\n    \"\"\"Priority queue of unique task ids with reprioritization and cancellation.\n\n    Higher priority is served first; ties broken by original submission order.\n    Uses a heap with lazy deletion: stale entries are discarded when they\n    surface at the top. Each operation is O(log n) amortized.\n    \"\"\"\n\n    def __init__(self):\n        self._heap = []          # entries: (-priority, seq, task_id)\n        self._active = {}        # task_id -> (priority, seq)\n        self._counter = 0        # monotonically increasing submission counter\n\n    def submit(self, task_id, priority):\n        if task_id in self._active:\n            raise ValueError(f\"task {task_id!r} is already active\")\n        seq = self._counter\n        self._counter += 1\n        self._active[task_id] = (priority, seq)\n        heapq.heappush(self._heap, (-priority, seq, task_id))\n\n    def reprioritize(self, task_id, priority):\n        if task_id not in self._active:\n            raise KeyError(task_id)\n        _, seq = self._active[task_id]          # keep original FIFO position\n        self._active[task_id] = (priority, seq)\n        heapq.heappush(self._heap, (-priority, seq, task_id))\n        # The old heap entry becomes stale and is skipped lazily.\n\n    def cancel(self, task_id):\n        if task_id not in self._active:\n            raise KeyError(task_id)\n        del self._active[task_id]\n        # Its heap entries become stale and are skipped lazily.\n\n    def _prune(self):\n        \"\"\"Discard stale heap entries until the top is valid (or heap empty).\"\"\"\n        heap = self._heap\n        while heap:\n            neg_pri, seq, task_id = heap[0]\n            current = self._active.get(task_id)\n            if current is not None and current == (-neg_pri, seq):\n                return\n            heapq.heappop(heap)\n\n    def pop(self):\n        self._prune()\n        if not self._heap:\n            raise IndexError(\"pop from empty scheduler\")\n        _, _, task_id = heapq.heappop(self._heap)\n        del self._active[task_id]\n        return task_id\n\n    def peek(self):\n        self._prune()\n        if not self._heap:\n            raise IndexError(\"peek from empty scheduler\")\n        return self._heap[0][2]\n\n    def priority_of(self, task_id):\n        if task_id not in self._active:\n            raise KeyError(task_id)\n        return self._active[task_id][0]\n\n    def __len__(self):\n        return len(self._active)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 19.21,
+   "model": "claude-fable-5",
+   "tokens_in": 851,
+   "tokens_out": 1579
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "IntervalSet",
+  "code": "import bisect\n\n\nclass IntervalSet:\n    \"\"\"A set of integers stored as sorted, disjoint, non-adjacent\n    half-open intervals [lo, hi).\"\"\"\n\n    def __init__(self):\n        # Invariant: self._iv is sorted by lo; for consecutive\n        # (a, b), (c, d) we always have b < c (disjoint AND non-adjacent).\n        self._iv = []\n\n    @staticmethod\n    def _validate(lo, hi):\n        if lo >= hi:\n            raise ValueError(f\"invalid interval [{lo}, {hi}): lo must be < hi\")\n\n    # ------------------------------------------------------------------ add\n    def add(self, lo, hi):\n        self._validate(lo, hi)\n        new = []\n        placed = False\n        for a, b in self._iv:\n            if b < lo:                      # strictly before, not even touching\n                new.append((a, b))\n            elif a > hi:                    # strictly after, not even touching\n                if not placed:\n                    new.append((lo, hi))\n                    placed = True\n                new.append((a, b))\n            else:                           # overlaps or touches -> merge\n                lo = min(lo, a)\n                hi = max(hi, b)\n        if not placed:\n            new.append((lo, hi))\n        self._iv = new\n\n    # --------------------------------------------------------------- remove\n    def remove(self, lo, hi):\n        self._validate(lo, hi)\n        new = []\n        for a, b in self._iv:\n            if b <= lo or a >= hi:          # no real overlap\n                new.append((a, b))\n            else:\n                if a < lo:                  # left remainder\n                    new.append((a, lo))\n                if b > hi:                  # right remainder\n                    new.append((hi, b))\n        self._iv = new\n\n    # ------------------------------------------------------------- contains\n    def contains(self, x):\n        # Binary search: find the last interval with lo <= x.\n        i = bisect.bisect_right(self._iv, (x, float(\"inf\"))) - 1\n        return i >= 0 and self._iv[i][0] <= x < self._iv[i][1]\n\n    # ---------------------------------------------------------------- total\n    def total(self):\n        return sum(b - a for a, b in self._iv)\n\n    # ------------------------------------------------------------ intervals\n    def intervals(self):\n        return list(self._iv)\n\n    # ----------------------------------------------------------------- gaps\n    def gaps(self, lo, hi):\n        self._validate(lo, hi)\n        result = []\n        cur = lo\n        for a, b in self._iv:\n            if b <= lo:\n                continue\n            if a >= hi:\n                break\n            if a > cur:\n                result.append((cur, a))\n            cur = max(cur, b)\n        if cur < hi:\n            result.append((cur, hi))\n        return result\n\n\n# ------------------------------- demo / sanity checks -------------------------------\nif __name__ == \"__main__\":\n    s = IntervalSet()\n    s.add(0, 5)\n    s.add(8, 12)\n    s.add(5, 8)                                  # bridges both pieces\n    assert s.intervals() == [(0, 12)]\n\n    s.remove(3, 4)\n    assert s.intervals() == [(0, 3), (4, 12)]\n    assert s.contains(3) is False\n    assert s.contains(4) is True\n    assert s.total() == 11\n    assert s.gaps(-2, 6) == [(-2, 0), (3, 4)]\n\n    # Adjacent adds coalesce\n    t = IntervalSet()\n    t.add(0, 5)\n    t.add(5, 8)\n    assert t.intervals() == [(0, 8)]\n\n    # Removing uncovered ranges is a no-op where nothing is covered\n    t.remove(100, 200)\n    assert t.intervals() == [(0, 8)]\n    t.remove(-5, 3)                              # partially uncovered\n    assert t.intervals() == [(3, 8)]\n\n    # Validation\n    for method in (t.add, t.remove, t.gaps):\n        try:\n            method(5, 5)\n        except ValueError:\n            pass\n        else:\n            raise AssertionError(\"expected ValueError\")\n\n    print(\"all checks passed\")",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 24.31,
+   "model": "claude-fable-5",
+   "tokens_in": 665,
+   "tokens_out": 2329
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "Leaderboard",
+  "code": "class Leaderboard:\n    def __init__(self):\n        self._best = {}       # player -> best score\n        self._when = {}       # player -> sequence number of the improving submission\n        self._clock = 0       # counts every submit call\n\n    def submit(self, player, score):\n        \"\"\"Record an attempt. Return True iff it strictly improves the player's best.\"\"\"\n        self._clock += 1\n        if player not in self._best or score > self._best[player]:\n            self._best[player] = score\n            self._when[player] = self._clock\n            return True\n        return False\n\n    def best(self, player):\n        \"\"\"Return the player's best score; KeyError if unknown.\"\"\"\n        return self._best[player]  # raises KeyError naturally\n\n    def rank(self, player):\n        \"\"\"Standard competition ranking (1224-style).\"\"\"\n        mine = self._best[player]  # KeyError if unknown\n        return 1 + sum(1 for s in self._best.values() if s > mine)\n\n    def top(self, k):\n        \"\"\"Top k players as (player, best), score desc, ties by earlier improvement.\"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        ordered = sorted(\n            self._best.items(),\n            key=lambda item: (-item[1], self._when[item[0]]),\n        )\n        return ordered[:k]\n\n    def player_count(self):\n        return len(self._best)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 15.88,
+   "model": "claude-fable-5",
+   "tokens_in": 658,
+   "tokens_out": 1088
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "VersionedKV",
+  "code": "class VersionedKV:\n    \"\"\"A key-value store with commit snapshots, point-in-time reads, and rollback.\n\n    - The \"working state\" is a mutable dict.\n    - `commit()` appends an immutable snapshot (a copy) to the history.\n    - Version numbers are 1-based; version 0 is the empty initial state\n      (valid only as a rollback target).\n    \"\"\"\n\n    def __init__(self):\n        self._working = {}       # current mutable state\n        self._snapshots = []     # append-only list; index i -> version i+1\n\n    # ---- working-state operations ----\n\n    def set(self, key, value):\n        \"\"\"Write a key-value pair to the working state.\"\"\"\n        self._working[key] = value\n\n    def delete(self, key):\n        \"\"\"Remove a key from the working state; KeyError if absent.\"\"\"\n        del self._working[key]   # raises KeyError naturally if missing\n\n    def get(self, key):\n        \"\"\"Read a value from the working state; KeyError if absent.\"\"\"\n        return self._working[key]\n\n    def has(self, key):\n        \"\"\"Return True if the key exists in the working state.\"\"\"\n        return key in self._working\n\n    # ---- versioning operations ----\n\n    def latest(self):\n        \"\"\"Return the number of commits so far (0 if none).\"\"\"\n        return len(self._snapshots)\n\n    def commit(self):\n        \"\"\"Snapshot the working state; return the new version number.\"\"\"\n        self._snapshots.append(dict(self._working))  # copy => isolation\n        return len(self._snapshots)\n\n    def get_at(self, key, version):\n        \"\"\"Return the key's value in snapshot `version`.\n\n        Raises ValueError for an invalid version, KeyError if the key\n        was not present in that snapshot.\n        \"\"\"\n        if not (1 <= version <= len(self._snapshots)):\n            raise ValueError(\n                f\"invalid version {version!r}; must be between 1 and {self.latest()}\"\n            )\n        return self._snapshots[version - 1][key]  # KeyError if absent\n\n    def rollback(self, version):\n        \"\"\"Replace the working state with a copy of snapshot `version`.\n\n        Version 0 means the empty initial state. History is preserved.\n        \"\"\"\n        if not (0 <= version <= len(self._snapshots)):\n            raise ValueError(\n                f\"invalid version {version!r}; must be between 0 and {self.latest()}\"\n            )\n        if version == 0:\n            self._working = {}\n        else:\n            self._working = dict(self._snapshots[version - 1])  # copy => isolation",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 17.9,
+   "model": "claude-fable-5",
+   "tokens_in": 809,
+   "tokens_out": 1390
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "TTLCache",
+  "code": "from collections import OrderedDict\n\n\nclass TTLCache:\n    \"\"\"Fixed-capacity LRU cache with per-entry TTL driven by a logical clock.\"\"\"\n\n    def __init__(self, capacity):\n        if not isinstance(capacity, int) or isinstance(capacity, bool) or capacity < 1:\n            raise ValueError(\"capacity must be an integer >= 1\")\n        self._capacity = capacity\n        # key -> (value, stored_time, ttl); order = recency (last = MRU)\n        self._data = OrderedDict()\n        self._hits = 0\n        self._misses = 0\n        self._evictions = 0\n        self._expirations = 0\n\n    def _purge(self, now):\n        \"\"\"Remove every entry dead at `now`, counting expirations.\"\"\"\n        dead = [\n            key\n            for key, (_, stored, ttl) in self._data.items()\n            if ttl is not None and now >= stored + ttl\n        ]\n        for key in dead:\n            del self._data[key]\n            self._expirations += 1\n\n    def put(self, key, value, now, ttl=None):\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be positive or None\")\n        self._purge(now)\n        if key in self._data:\n            # Update in place: reset value, time, ttl; mark MRU.\n            self._data[key] = (value, now, ttl)\n            self._data.move_to_end(key)\n            return\n        if len(self._data) >= self._capacity:\n            self._data.popitem(last=False)  # evict LRU\n            self._evictions += 1\n        self._data[key] = (value, now, ttl)\n\n    def get(self, key, now):\n        self._purge(now)\n        if key in self._data:\n            self._hits += 1\n            self._data.move_to_end(key)\n            return self._data[key][0]\n        self._misses += 1\n        return None\n\n    def stats(self):\n        return {\n            \"hits\": self._hits,\n            \"misses\": self._misses,\n            \"evictions\": self._evictions,\n            \"expirations\": self._expirations,\n        }\n\n    def __len__(self):\n        return len(self._data)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 16.74,
+   "model": "claude-fable-5",
+   "tokens_in": 1125,
+   "tokens_out": 1303
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "UndoStack",
+  "code": "class UndoStack:\n    \"\"\"A LIFO stack whose push/pop operations can be undone.\"\"\"\n\n    def __init__(self):\n        self._items = []    # the stack itself\n        self._history = []  # undo log: (\"push\",) or (\"pop\", value)\n\n    def push(self, x) -> None:\n        self._items.append(x)\n        self._history.append((\"push\",))\n\n    def pop(self):\n        if not self._items:\n            raise IndexError(\"pop from empty stack\")\n        value = self._items.pop()\n        self._history.append((\"pop\", value))\n        return value\n\n    def peek(self):\n        if not self._items:\n            raise IndexError(\"peek from empty stack\")\n        return self._items[-1]\n\n    def undo(self) -> None:\n        if not self._history:\n            raise RuntimeError(\"nothing to undo\")\n        entry = self._history.pop()\n        if entry[0] == \"push\":\n            # Reverse a push: remove the value that push added (the top).\n            self._items.pop()\n        else:\n            # Reverse a pop: put the exact popped value back on top.\n            self._items.append(entry[1])\n\n    def __len__(self) -> int:\n        return len(self._items)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 10.83,
+   "model": "claude-fable-5",
+   "tokens_in": 689,
+   "tokens_out": 818
+  }
+ },
+ {
+  "title": null,
+  "category": "data_structures",
+  "entry_point": "CountingBag",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "cost_usd": null,
+   "latency_s": 2.72,
+   "model": "claude-fable-5",
+   "tokens_in": 725,
+   "tokens_out": 9
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "apply_hunks",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 3.55,
+   "model": "claude-fable-5",
+   "tokens_in": 932,
+   "tokens_out": 10
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "memoize",
+  "code": "def memoize(func):\n    cache = {}\n    def wrapper(*args, **kwargs):\n        key = (args, frozenset(kwargs.items()))\n        if key in cache:\n            wrapper.hits += 1\n            return cache[key]\n        wrapper.misses += 1\n        result = func(*args, **kwargs)\n        cache[key] = result\n        return result\n    wrapper.hits = 0\n    wrapper.misses = 0\n    return wrapper",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 15.17,
+   "model": "claude-fable-5",
+   "tokens_in": 757,
+   "tokens_out": 1007
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "resolve_build_order",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 2.58,
+   "model": "claude-fable-5",
+   "tokens_in": 759,
+   "tokens_out": 3
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "compute_balances",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 2.98,
+   "model": "claude-fable-5",
+   "tokens_in": 784,
+   "tokens_out": 7
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "min_insertions",
+  "code": "def min_insertions(s, allowed):\n    allowed = set(allowed)\n    n = len(s)\n    if n <= 1:\n        return 0\n\n    INF = float('inf')\n    # dp[i][j]: min insertions to make s[i..j] a palindrome (inclusive)\n    dp = [[0] * n for _ in range(n)]\n\n    for length in range(2, n + 1):\n        for i in range(n - length + 1):\n            j = i + length - 1\n            if s[i] == s[j]:\n                dp[i][j] = dp[i + 1][j - 1] if length > 2 else 0\n            else:\n                best = INF\n                if s[j] in allowed:          # mirror s[j] on the left\n                    best = min(best, 1 + dp[i][j - 1])\n                if s[i] in allowed:          # mirror s[i] on the right\n                    best = min(best, 1 + dp[i + 1][j])\n                dp[i][j] = best\n\n    return dp[0][n - 1] if dp[0][n - 1] != INF else -1",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 24.65,
+   "model": "claude-fable-5",
+   "tokens_in": 388,
+   "tokens_out": 2014
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "min_steps",
+  "code": "from collections import deque, defaultdict\n\n\ndef min_steps(grid, c):\n    R, C = len(grid), len(grid[0])\n    if grid[0][0] == -1 or grid[R - 1][C - 1] == -1:\n        return -1\n\n    INF = float('inf')\n\n    def bfs(sr, sc):\n        dist = [[INF] * C for _ in range(R)]\n        dist[sr][sc] = 0\n        q = deque([(sr, sc)])\n        while q:\n            r, col = q.popleft()\n            d = dist[r][col] + 1\n            for nr, nc in ((r - 1, col), (r + 1, col), (r, col - 1), (r, col + 1)):\n                if 0 <= nr < R and 0 <= nc < C and grid[nr][nc] != -1 and d < dist[nr][nc]:\n                    dist[nr][nc] = d\n                    q.append((nr, nc))\n        return dist\n\n    dist_s = bfs(0, 0)\n    dist_e = bfs(R - 1, C - 1)\n\n    best = dist_s[R - 1][C - 1]  # pure walking\n\n    # For each label, keep the two smallest dist_s values (with cell id),\n    # and the two smallest dist_e values (with cell id).\n    def make_entry():\n        # [(dist, cell_id), (dist, cell_id)] -- best and second best\n        return [(INF, None), (INF, None)]\n\n    src_best = defaultdict(make_entry)\n    dst_best = defaultdict(make_entry)\n\n    def update(entry, d, cid):\n        if d < entry[0][0]:\n            entry[1] = entry[0]\n            entry[0] = (d, cid)\n        elif d < entry[1][0]:\n            entry[1] = (d, cid)\n\n    for r in range(R):\n        row = grid[r]\n        for col in range(C):\n            label = row[col]\n            if label == -1:\n                continue\n            cid = r * C + col\n            ds = dist_s[r][col]\n            if ds < INF:\n                update(src_best[label], ds, cid)\n            de = dist_e[r][col]\n            if de < INF:\n                update(dst_best[label], de, cid)\n\n    for label, s_entry in src_best.items():\n        if label not in dst_best:\n            continue\n        e_entry = dst_best[label]\n        (s1, sid1), (s2, _) = s_entry\n        (e1, eid1), (e2, _) = e_entry\n        if s1 == INF or e1 == INF:\n            continue\n        if sid1 != eid1:\n            cand = s1 + e1\n        else:\n            cand = min(s1 + e2, s2 + e1)  # may be INF if no second cell\n        if cand < INF:\n            total = cand + c\n            if total < best:\n                best = total\n\n    return best if best < INF else -1",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 24.31,
+   "model": "claude-fable-5",
+   "tokens_in": 591,
+   "tokens_out": 1958
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "insert_booking",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 2.91,
+   "model": "claude-fable-5",
+   "tokens_in": 737,
+   "tokens_out": 4
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "purge_expired",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 2.53,
+   "model": "claude-fable-5",
+   "tokens_in": 491,
+   "tokens_out": 4
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "merge_settings",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 2.94,
+   "model": "claude-fable-5",
+   "tokens_in": 595,
+   "tokens_out": 3
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "best_circular_selection",
+  "code": "def best_circular_selection(values, k):\n    NEG = float('-inf')\n\n    def line_exact(arr, need):\n        \"\"\"Max sum picking exactly `need` non-adjacent elements from a line,\n        or -inf if impossible. O(len(arr) * need).\"\"\"\n        m = len(arr)\n        if need == 0:\n            return 0\n        if need > (m + 1) // 2:  # max independent set size on a path\n            return NEG\n        # dp over first i elements; rolling rows for i-2 and i-1\n        prev2 = [0] + [NEG] * need          # i = 0\n        prev1 = [0] + [NEG] * need          # i = 1\n        prev1[1] = arr[0]\n        for i in range(2, m + 1):\n            cur = [0] + [NEG] * need\n            v = arr[i - 1]\n            for j in range(1, need + 1):\n                skip = prev1[j]\n                take = prev2[j - 1] + v if prev2[j - 1] != NEG else NEG\n                cur[j] = skip if skip > take else take\n            prev2, prev1 = prev1, cur\n        return prev1[need]\n\n    n = len(values)\n    if k == 0:\n        return 0\n\n    if n == 1:\n        # single element is not adjacent to itself; k must be 1 here\n        return int(values[0])\n\n    if n == 2:\n        if k == 1:\n            return int(max(values))\n        raise ValueError(\"no valid selection of exactly k elements exists\")\n\n    # n >= 3, proper circle\n    # Case 1: index 0 not chosen\n    best = line_exact(values[1:], k)\n    # Case 2: index 0 chosen -> indices 1 and n-1 excluded\n    inner = line_exact(values[2:n - 1], k - 1)\n    if inner != NEG:\n        cand = values[0] + inner\n        if cand > best:\n            best = cand\n\n    if best == NEG:\n        raise ValueError(\"no valid selection of exactly k elements exists\")\n    return int(best)",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0.8
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 31.27,
+   "model": "claude-fable-5",
+   "tokens_in": 488,
+   "tokens_out": 2673
+  }
+ },
+ {
+  "title": null,
+  "category": "bug_fixing",
+  "entry_point": "RateLimiter",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "cost_usd": null,
+   "latency_s": 3.48,
+   "model": "claude-fable-5",
+   "tokens_in": 753,
+   "tokens_out": 9
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "smallest_balanced",
+  "code": "def smallest_balanced(s):\n    n = len(s)\n    if n % 2 != 0:\n        raise ValueError(\"no balanced assignment exists\")\n\n    q = s.count('?')\n    open_c = s.count('(')\n    close_c = n - q - open_c\n\n    # number of '?' that must become '(' — parity is guaranteed since n is even\n    a = (close_c + q - open_c) // 2\n    if a < 0 or a > q:\n        raise ValueError(\"no balanced assignment exists\")\n\n    # greedily place '(' in the first a question marks\n    res = []\n    used = 0\n    for c in s:\n        if c == '?':\n            res.append('(' if used < a else ')')\n            used += 1\n        else:\n            res.append(c)\n\n    # verify prefix condition (total is 0 by construction of a)\n    bal = 0\n    for c in res:\n        bal += 1 if c == '(' else -1\n        if bal < 0:\n            raise ValueError(\"no balanced assignment exists\")\n\n    return ''.join(res)",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 23.73,
+   "model": "claude-fable-5",
+   "tokens_in": 316,
+   "tokens_out": 1890
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "longest_spaced_repeat",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 3.07,
+   "model": "claude-fable-5",
+   "tokens_in": 452,
+   "tokens_out": 2
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "solve_congruences",
+  "code": "from math import gcd\n\n\ndef solve_congruences(pairs):\n    \"\"\"\n    Solve a system of congruences x ≡ r (mod m) using the generalized CRT\n    (moduli need not be pairwise coprime).\n\n    Returns the smallest non-negative solution, or raises ValueError if\n    the system is inconsistent.\n    \"\"\"\n    # Current combined congruence: x ≡ r mod m\n    r, m = 0, 1\n\n    for r2, m2 in pairs:\n        if m2 < 1:\n            raise ValueError(\"modulus must be >= 1\")\n        r2 %= m2\n\n        g = gcd(m, m2)\n        if (r2 - r) % g != 0:\n            raise ValueError(\"system of congruences has no solution\")\n\n        lcm = m // g * m2\n        # Solve: r + m*t ≡ r2 (mod m2)  =>  t ≡ (r2 - r)/g * inv(m/g) (mod m2/g)\n        diff = (r2 - r) // g\n        m2_g = m2 // g\n        t = (diff * pow(m // g, -1, m2_g)) % m2_g\n        r = (r + m * t) % lcm\n        m = lcm\n\n    return r",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 12.34,
+   "model": "claude-fable-5",
+   "tokens_in": 391,
+   "tokens_out": 886
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "max_sessions",
+  "code": "def max_sessions(intervals, gap):\n    \"\"\"\n    Select the maximum number of non-conflicting sessions where each selected\n    session must start at least `gap` time units after the previous one ends.\n\n    Greedy strategy: sort by end time, always take the session that ends\n    earliest among those that are compatible. This is the classic interval\n    scheduling greedy, which remains optimal with a fixed gap since the gap\n    just shifts the \"next available time\" uniformly.\n\n    Time complexity: O(n log n) for sorting; O(n) scan afterwards.\n    \"\"\"\n    if not intervals:\n        return 0\n\n    # Sort by end time (tie-break by start doesn't matter for correctness).\n    intervals_sorted = sorted(intervals, key=lambda iv: iv[1])\n\n    count = 0\n    next_free = None  # earliest time the next session may start\n\n    for start, end in intervals_sorted:\n        if next_free is None or start >= next_free:\n            count += 1\n            next_free = end + gap\n\n    return count",
+  "scores": {
+   "checker": 1,
+   "pass": 1,
+   "tests_ratio": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 14.06,
+   "model": "claude-fable-5",
+   "tokens_in": 512,
+   "tokens_out": 867
+  }
+ },
+ {
+  "title": null,
+  "category": "algorithms",
+  "entry_point": "min_cost_route",
+  "code": "",
+  "scores": {
+   "checker": 1,
+   "pass": 0,
+   "tests_ratio": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "cost_usd": null,
+   "latency_s": 3.08,
+   "model": "claude-fable-5",
+   "tokens_in": 617,
+   "tokens_out": 2
+  }
+ }
+]

@@ -1,0 +1,61 @@
+{
+  "title": "Build order resolver reports phantom dependency cycles",
+  "entry_point": "resolve_build_order",
+  "cases": [
+    {
+      "name": "diamond_shared_dependency",
+      "code": "r = sol.resolve_build_order({'app': ['net', 'ui'], 'net': ['core'], 'ui': ['core']})\npos = {p: i for i, p in enumerate(r)}\nresult = (sorted(r), len(r), pos['core'] < pos['net'], pos['core'] < pos['ui'], pos['net'] < pos['app'], pos['ui'] < pos['app'])",
+      "timeout_s": 5
+    },
+    {
+      "name": "simple_chain",
+      "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['c']})",
+      "timeout_s": 5
+    },
+    {
+      "name": "empty_graph",
+      "code": "result = sol.resolve_build_order({})",
+      "timeout_s": 5
+    },
+    {
+      "name": "dependency_only_packages",
+      "code": "r = sol.resolve_build_order({'app': ['lib', 'util']})\npos = {p: i for i, p in enumerate(r)}\nresult = (sorted(r), len(r), pos['lib'] < pos['app'], pos['util'] < pos['app'])",
+      "timeout_s": 5
+    },
+    {
+      "name": "duplicate_dependency_entries",
+      "code": "result = sol.resolve_build_order({'a': ['b', 'b', 'b'], 'b': []})",
+      "timeout_s": 5
+    },
+    {
+      "name": "wide_shared_fanin",
+      "code": "deps = {'top': ['m1', 'm2', 'm3'], 'm1': ['base'], 'm2': ['base'], 'm3': ['base', 'm1'], 'base': []}\nr = sol.resolve_build_order(deps)\npos = {p: i for i, p in enumerate(r)}\nok = all(pos[d] < pos[p] for p, ds in deps.items() for d in ds)\nresult = (sorted(r), len(r), ok)",
+      "timeout_s": 5
+    },
+    {
+      "name": "isolated_packages",
+      "code": "r = sol.resolve_build_order({'a': [], 'b': [], 'c': []})\nresult = (sorted(r), len(r))",
+      "timeout_s": 5
+    },
+    {
+      "name": "deterministic_repeat",
+      "code": "d = {'app': ['net', 'ui'], 'net': ['core'], 'ui': ['core'], 'core': []}\nresult = sol.resolve_build_order(d) == sol.resolve_build_order(d)",
+      "timeout_s": 5
+    },
+    {
+      "name": "two_node_cycle",
+      "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['a']})",
+      "timeout_s": 5
+    },
+    {
+      "name": "self_dependency_cycle",
+      "code": "result = sol.resolve_build_order({'a': ['a']})",
+      "timeout_s": 5
+    },
+    {
+      "name": "cycle_behind_valid_prefix",
+      "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['c'], 'c': ['b'], 'd': []})",
+      "timeout_s": 5
+    }
+  ]
+}

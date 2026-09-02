@@ -1,0 +1,56 @@
+{
+  "title": "Ledger balances drift by one cent",
+  "entry_point": "compute_balances",
+  "cases": [
+    {
+      "name": "basic_transfer",
+      "code": "result = sol.compute_balances([{'from': 'alice', 'to': 'bob', 'amount': '0.29'}])",
+      "timeout_s": 5
+    },
+    {
+      "name": "no_rounding_drift",
+      "code": "amounts = ['0.29', '4.35', '1.10', '8.87', '2.67', '0.07', '1.15', '70.07', '1.005'[:4]]\nout = []\nfor a in amounts:\n    b = sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': a}])\n    out.append((a, b['y']))\nresult = out",
+      "timeout_s": 5
+    },
+    {
+      "name": "format_variants",
+      "code": "out = []\nfor a in ['7', '0.5', '0.29', '4.35', '123', '0.01', '10.00', '999999999.99', '007', '0.10']:\n    out.append((a, sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': a}])['y']))\nresult = out",
+      "timeout_s": 5
+    },
+    {
+      "name": "net_to_zero_still_present",
+      "code": "result = sol.compute_balances([{'from': 'a', 'to': 'b', 'amount': '1.10'}, {'from': 'b', 'to': 'a', 'amount': '1.10'}])",
+      "timeout_s": 5
+    },
+    {
+      "name": "accumulates_many",
+      "code": "txs = [{'from': 'a', 'to': 'b', 'amount': '0.29'}, {'from': 'b', 'to': 'c', 'amount': '0.01'}, {'from': 'c', 'to': 'a', 'amount': '2'}, {'from': 'a', 'to': 'd', 'amount': '0.5'}]\nresult = sol.compute_balances(txs)",
+      "timeout_s": 5
+    },
+    {
+      "name": "invalid_amounts_raise",
+      "code": "bad = ['12.345', '1e2', '.5', '3.', '-3', '0', '0.00', 'abc', ' 1', '1 ', '1_0', '+1', '', '0.000', '1.2.3', '1,5', 'nan', 'inf', '0.0']\nout = []\nfor a in bad:\n    try:\n        sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': a}])\n        out.append((a, 'no-raise'))\n    except Exception as e:\n        out.append((a, type(e).__name__))\nresult = out",
+      "timeout_s": 10
+    },
+    {
+      "name": "invalid_raises_valueerror_directly",
+      "code": "result = sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': '12.345'}])",
+      "timeout_s": 5
+    },
+    {
+      "name": "exponent_rejected",
+      "code": "result = sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': '1e2'}])",
+      "timeout_s": 5
+    },
+    {
+      "name": "zero_amount_rejected",
+      "code": "result = sol.compute_balances([{'from': 'x', 'to': 'y', 'amount': '0.00'}])",
+      "timeout_s": 5
+    },
+    {
+      "name": "empty_input_and_no_mutation",
+      "code": "txs = [{'from': 'a', 'to': 'b', 'amount': '1.25'}]\nsnapshot = [dict(t) for t in txs]\nb = sol.compute_balances(txs)\nresult = (sol.compute_balances([]), b, txs == snapshot, len(txs))",
+      "timeout_s": 5
+    }
+  ]
+}

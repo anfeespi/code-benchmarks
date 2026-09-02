@@ -1,0 +1,56 @@
+{
+ "title": "Exactly-k non-adjacent picks on a circle",
+ "entry_point": "best_circular_selection",
+ "cases": [
+  {
+   "name": "example_wrap_adjacency",
+   "code": "result = sol.best_circular_selection([10, -5, -5, 10], 2)",
+   "timeout_s": 5
+  },
+  {
+   "name": "example_five_elements",
+   "code": "result = sol.best_circular_selection([3, 4, 5, 6, 7], 2)",
+   "timeout_s": 5
+  },
+  {
+   "name": "example_all_negative",
+   "code": "result = sol.best_circular_selection([-1, -2, -3], 1)",
+   "timeout_s": 5
+  },
+  {
+   "name": "example_two_elements_k2_raises",
+   "code": "result = sol.best_circular_selection([1, 2], 2)",
+   "timeout_s": 5
+  },
+  {
+   "name": "k_zero_returns_zero",
+   "code": "result = (sol.best_circular_selection([5, 5, 5], 0), sol.best_circular_selection([-9], 0))",
+   "timeout_s": 5
+  },
+  {
+   "name": "single_element_k1",
+   "code": "result = sol.best_circular_selection([7], 1)",
+   "timeout_s": 5
+  },
+  {
+   "name": "single_element_k2_raises",
+   "code": "result = sol.best_circular_selection([7], 2)",
+   "timeout_s": 5
+  },
+  {
+   "name": "two_elements_k1",
+   "code": "result = sol.best_circular_selection([3, 9], 1)",
+   "timeout_s": 5
+  },
+  {
+   "name": "too_many_picks_raises",
+   "code": "result = sol.best_circular_selection([1, 2, 3, 4], 3)",
+   "timeout_s": 5
+  },
+  {
+   "name": "large_seeded",
+   "code": "import random\nrnd = random.Random(0)\nvals = [rnd.randrange(-1000000, 1000000) for _ in range(300)]\nresult = sol.best_circular_selection(vals, 75)",
+   "timeout_s": 10
+  }
+ ]
+}

@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .harness import ROOT, load_problems, extract_code
 
-MAX_TOKENS = 16384
+MAX_TOKENS = int(os.environ.get("CODEBENCH_MAX_TOKENS", "16384"))
 
 
 def _post(url, headers, body, timeout=600):

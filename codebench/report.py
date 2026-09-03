@@ -10,13 +10,15 @@ from datetime import date
 
 from .harness import ROOT, load_problems
 
-MODELS = [("gemini-3.8-flash", "Gemini 3.8 Flash", "fresh Sep 2 · OpenRouter"), ("kimi-k3", "Kimi K3", "Jul 25 outputs re-scored"),
-          ("grok-4.5", "Grok 4.5", "Jul 25 outputs re-scored"), ("glm-5.2", "GLM 5.2", "Jul 25 outputs re-scored"),
-          ("fable-5.1", "Claude Fable 5.1", "fresh Sep 2 · Anthropic API"), ("opus-5", "Claude Opus 5", "Jul 25 outputs re-scored"),
-          ("fable-5", "Claude Fable 5", "Jul 25 outputs re-scored")]
+MODELS = [("grok-4.5", "Grok 4.5", "OpenRouter"), ("gemini-3.8-flash", "Gemini 3.8 Flash", "OpenRouter"),
+          ("fable-5.1", "Claude Fable 5.1", "Anthropic API"), ("kimi-k3", "Kimi K3", "OpenRouter"),
+          ("glm-5.2", "GLM 5.2", "OpenRouter"), ("opus-5", "Claude Opus 5", "Anthropic API"), ("fable-5", "Claude Fable 5", "Anthropic API")]
+LIST_PRICE = {"fable-5.1": (10, 50), "fable-5": (10, 50), "opus-5": (5, 25)}  # USD per M tokens; direct API returns no cost
 CATS = [("algorithms", "Algorithms"), ("data_structures", "Data structures"), ("optimization", "Optimization"),
         ("bug_fixing", "Bug fixing"), ("spec_compliance", "Spec compliance"), ("edge_cases", "Edge cases")]
-JULY = {"kimi-k3": 42, "grok-4.5": 43, "glm-5.2": 39, "opus-5": 32, "fable-5": 15}  # v3 pass counts, Jul 25
+def july_pass(tag):
+    f = ROOT / "data" / "outputs" / ("code-bench-v4-july__%s.json" % tag)
+    return sum(r["scores"]["pass"] for r in json.load(open(f))) if f.exists() else None
 
 e = html.escape
 
@@ -45,26 +47,27 @@ def main(out):
         n_pass = sum(v[0] for v in g.values())
         n_empty = sum(v[1] for v in g.values())
         # July rows carry no stop_reason: per the July 25 run notes, Claude 5 empties are API refusals, GLM empties hit max_tokens
-        refusal = tag.startswith(("fable", "opus")) or any((r.get("metadata") or {}).get("stop_reason") == "refusal" for r in rows)
-        stats[tag] = dict(name=name, src=src, n_pass=n_pass, n_empty=n_empty, empty_kind="refusals" if refusal else ("max_tokens" if n_empty else ""),
+        refusal = any((r.get("metadata") or {}).get("stop_reason") == "refusal" for r in rows)
+        stats[tag] = dict(name=name, src=src, n_pass=n_pass, n_empty=n_empty, empty_kind="refusals" if refusal else ("output cap" if n_empty else ""),
                           att=len(att), acc=100 * n_pass / len(att) if att else 0,
                           lat=statistics.mean((r["metadata"].get("latency_s") or 0) for r in att) if att else 0,
                           tok=statistics.mean((r["metadata"].get("tokens_out") or 0) for r in att) if att else 0,
-                          cost=sum((r["metadata"].get("cost_usd") or 0) for r in rows) or None)
+                          cost=(sum(((r["metadata"].get("tokens_in") or 0) * LIST_PRICE[tag][0] + (r["metadata"].get("tokens_out") or 0) * LIST_PRICE[tag][1]) / 1e6 for r in rows)
+                                if tag in LIST_PRICE else sum((r["metadata"].get("cost_usd") or 0) for r in rows)), est=tag in LIST_PRICE)
         grid[tag] = g
         fails[tag] = f
     rows_html = "".join(
         "<tr><td>%s</td><td class=n>%d/48 (%.0f%%)</td><td class=n>%.0f%%</td><td class=n>%s</td><td class=n>%.1f s</td><td class=n>%s</td><td class=n>%s</td><td class=note>%s</td></tr>" % (
             e(s["name"]), s["n_pass"], 100 * s["n_pass"] / 48, s["acc"],
             ("%d %s" % (s["n_empty"], s["empty_kind"])) if s["n_empty"] else "0", s["lat"], "{:,.0f}".format(s["tok"]),
-            ("$%.2f" % s["cost"]) if s["cost"] else "n/a", e(s["src"])) for tag, s in ((t, stats[t]) for t, _, _ in MODELS))
+            (("≈" if s["est"] else "") + "$%.2f" % s["cost"]) if s["cost"] else "n/a", e(s["src"])) for tag, s in ((t, stats[t]) for t, _, _ in MODELS))
     matrix = "".join("<tr><td>%s</td>%s</tr>" % (e(cn), "".join(
         "<td class=n>%s</td>" % ("<span class=ref>%d refused</span>" % grid[t][c][1] if grid[t][c][0] == 0 and grid[t][c][1] else
                                  ("%d/8" % grid[t][c][0] + (" <span class=ref>(%d✕)</span>" % grid[t][c][1] if grid[t][c][1] else "")))
         for t, _, _ in MODELS)) for c, cn in CATS)
     mhead = "".join("<th class=n>%s</th>" % e(n.replace("Claude ", "")) for _, n, _ in MODELS)
     july_rows = "".join("<tr><td>%s</td><td class=n>%d/48</td><td class=n>%d/48</td><td class=n>%+d</td></tr>" % (
-        e(stats[t]["name"]), JULY[t], stats[t]["n_pass"], stats[t]["n_pass"] - JULY[t]) for t in JULY)
+        e(stats[t]["name"]), july_pass(t), stats[t]["n_pass"], stats[t]["n_pass"] - july_pass(t)) for t, _, _ in MODELS if july_pass(t) is not None)
     fail_rows = "".join("<tr><td>%s</td><td>%s</td><td class=mono>%s</td><td class=note>%s</td></tr>" % (
         e(stats[t]["name"]), e(c), e(slug), e(d[:150])) for t, _, _ in MODELS for c, slug, d in fails[t])
     css = """<style>
@@ -91,35 +94,35 @@ td.n,th.n{text-align:right}
 </style>"""
     g51, gg = stats["fable-5.1"], stats["gemini-3.8-flash"]
     body = """<!doctype html><html><head><meta charset="utf-8"><title>Code benchmark v4 — seven models</title>%s</head><body>
-<div class=head><h1>Yuno code benchmark v4 — seven models, execution-graded</h1><div class=who>AI Squad · Yuno<br>%s</div></div>
-<div class=verdict><b>Verdict.</b> On the rebuilt 48-problem suite, <b>Gemini 3.8 Flash passes 48/48</b> with no friction and the cheapest run ($%.2f). <b>Claude Fable 5.1 passes 40/48</b>: it refuses %d prompts (all optimization and algorithms) but is <b>100%% correct on everything it attempts</b>, closing most of the gap left by Fable 5 (16/48, 30 refusals). Kimi K3 (47), Grok 4.5 (45) and GLM 5.2 (44) keep their July order. The Claude 5 raw-API refusal pattern is still the operational risk for autonomous code agents, but it is now 8/48 instead of 30/48.</div>
+<div class=head><h1>Yuno code benchmark v4 — seven models, one baseline</h1><div class=who>AI Squad · Yuno<br>%s</div></div>
+<div class=verdict><b>Verdict.</b> Seven models regenerated on the same day, same protocol, same rebuilt suite. <b>Grok 4.5 and Gemini 3.8 Flash pass 48/48</b>; Gemini is the cheapest run ($%.2f) and twice as fast as Grok. <b>Claude Fable 5.1 passes 40/48</b>: it refuses %d prompts (optimization and algorithms) and is <b>100%% correct on everything it attempts</b>. Kimi K3 (40) and GLM 5.2 (35) lose answers by exhausting the 16k output cap on reasoning; Opus 5 and Fable 5 (35 each) refuse 13 and are perfect on the rest. The Claude 5 raw-API refusal remains the operational risk, but it moved from 30/48 (Fable 5, July) to 8/48 (Fable 5.1).</div>
 <h2>What was tested</h2>
 <p>48 in-house HumanEval-style Python problems in six categories (algorithms, data structures, optimization, bug fixing, spec compliance, edge cases; 8 each). Each model receives the problem prompt as the only user message, no system prompt (Claude: no temperature; OpenRouter models: temperature 0). Grading is by execution: the candidate module is imported in a sandboxed child process (memory and time limits) and run against the test cases; <span class=mono>pass</span> requires every case, <span class=mono>tests_ratio</span> is the fraction passed, <span class=mono>checker</span> is 1 when the module loads and defines the entry point. Refusals (<span class=mono>stop_reason: refusal</span>) and empty answers score 0 and are reported separately so they are never confused with wrong code.</p>
 <p><b>The v4 suite.</b> Both July runners were lost, so the suite was rebuilt from the problems and canonical solutions stored in Braintrust: 461 cases (6-15 per problem), expected values generated by executing the canonical solution, and a large deterministic input per optimization problem sized so a quadratic solution times out while the canonical runs in under a second. The suite was calibrated against the stored July 25 outputs of five models: 89.6%% agreement on pass (215/240). Every disagreement was reviewed: 21 go in the model's favour (July tests stricter than the prompt; the outputs are behaviourally identical to the canonical under fuzzing) and 4 are real bugs July missed. Candidates run on Python 3.12 (the prompts never pin a version; on 3.9 two correct Gemini solutions failed on <span class=mono>int | None</span> and <span class=mono>bisect(key=)</span>). The suite, harness and every output now live in the <span class=mono>code-benchmarks</span> repository.</p>
+<p><b>One baseline.</b> All seven models were generated on September 2 with a 16,384-token output cap. Two kinds of empty answer are reported separately: the Anthropic API classifier refusing a benign prompt (<span class=mono>stop_reason: refusal</span>) and a reasoning model exhausting the output cap without emitting code (<span class=mono>finish_reason: length</span>; retrying at 32k changed nothing, the provider caps Kimi and GLM at 16,384). Two Opus 5 requests hit 529 Overloaded and were retried successfully.</p>
 <h2>Results</h2>
 <table><tr><th>model</th><th class=n>pass (raw)</th><th class=n>when attempted</th><th class=n>empty</th><th class=n>latency</th><th class=n>output tokens</th><th class=n>cost / run</th><th>source</th></tr>%s</table>
-<p class=note>Empty = API refusal (Claude 5) or reasoning that exhausted max_tokens (GLM). "When attempted" = passes ÷ answered prompts. Latency and tokens are per-problem means on answered prompts; cost is only available through OpenRouter. The five July models are their July 25 generations re-scored under v4; Fable 5.1 and Gemini 3.8 Flash are fresh September 2 generations under the same protocol.</p>
+<p class=note>Empty = API refusal (Claude 5) or output cap exhausted by reasoning (Kimi, GLM). "When attempted" = passes ÷ answered prompts. Latency and tokens are per-problem means on answered prompts. Cost per 48-problem run: measured by OpenRouter; ≈ list-price estimate (tokens × rate) for the direct Anthropic API.</p>
 <h3>By category (passes out of 8)</h3>
 <table><tr><th>category</th>%s</tr>%s</table>
-<h3>July 25 (v3) vs September 2 (v4), same outputs</h3>
-<table><tr><th>model</th><th class=n>v3 pass</th><th class=n>v4 pass</th><th class=n>Δ</th></tr>%s</table>
-<p class=note>v3 = the July 25 reconstructed suite (since lost). Order preserved; GLM and Opus recover cases where July tests were stricter than the prompt; Grok loses two genuine ones (see below).</p>
+<h3>July 25 outputs vs September 2 outputs, both scored on v4</h3>
+<table><tr><th>model</th><th class=n>Jul 25 generation</th><th class=n>Sep 2 generation</th><th class=n>Δ</th></tr>%s</table>
+<p class=note>Same suite, same scoring; only the generation date differs. Fable 5 gains 19 problems purely from fewer refusals (30 → 13) on identical prompts; Kimi and GLM lose problems to longer reasoning that now exhausts the output cap; Grok fixes the two cases its July code got wrong.</p>
 <div class=pb></div>
 <h2>Findings</h2>
 <ul>
-<li><b>Fable 5.1 attempts far more and never misses.</b> 8 refusals against Fable 5's 30 on identical prompts (5 optimization, 3 algorithms; bug fixing, spec, data structures and edge cases are 8/8), and 40/40 on what it answers, with the shortest answers of the fresh runs (%.0f tokens, %.1f s). The mechanism is unchanged — the API safety classifier declines benign code prompts with an empty body — but it fires four times less often.</li>
-<li><b>Gemini 3.8 Flash is the first model to clear the whole suite.</b> 48/48 at $%.2f for the run, %.1f s per problem, verbose (%.0f output tokens, second only to GLM). No refusals, no truncation.</li>
-<li><b>Opus 5 remains the most accurate Claude when it answers</b> (35/35 attempted, 100%%) but still refuses 13/48; those are July 25 outputs, not re-generated here.</li>
-<li><b>What v4 changed.</b> Grok 4.5 loses two real cases the July suite did not exercise: it resets a re-submitted task's version in the FIFO scheduler (served at its old position) and uses <span class=mono>str.format</span> where the prompt forbids it; Grok and Fable 5 crash with <span class=mono>TypeError</span> in the colour-graph heap on cost ties. Kimi K3's only miss is competition ranking implemented as dense ranking.</li>
-<li><b>Refusal is the operational risk, not capability.</b> A refusal scores 0 like a wrong answer and is invisible unless <span class=mono>stop_reason</span> is inspected. Every Claude 5 refusal in this suite came from bare code prompts over the raw API; the Maia agent evals run on Fable without a single refusal.</li>
+<li><b>Grok 4.5 and Gemini 3.8 Flash clear the whole suite.</b> Both 48/48 with no empty answers. Gemini does it at $%.2f and %.1f s per problem (%.0f output tokens); Grok takes 45.8 s per problem, twice its July pace, with longer answers (2.6k tokens). Grok also fixes the two cases its July outputs got wrong (FIFO scheduler re-submission, <span class=mono>str.format</span> where forbidden).</li>
+<li><b>Fable 5.1 attempts far more and never misses.</b> 8 refusals (5 optimization, 3 algorithms; the other four categories are 8/8) and 40/40 on what it answers, with the shortest answers in the set (%.0f tokens, %.1f s). Fable 5 itself, regenerated today, refuses 13 instead of July's 30 on identical prompts: the classifier moved on Anthropic's side, and the model is 35/35 when it answers. Opus 5: 13 refusals, 35/35.</li>
+<li><b>Reasoning models hit the output cap.</b> Kimi K3 leaves 6 problems and GLM 5.2 leaves 12 with no code after 16,384 output tokens of reasoning; retrying with a 32k budget changed nothing because the provider caps both there. On what they deliver they are strong (Kimi 40/42, GLM 35/36), but Kimi is now the most expensive run ($4.09) and, with Grok, the slowest.</li>
+<li><b>Two empties, one score.</b> A refusal and an exhausted cap both score 0 like a wrong answer and are invisible unless <span class=mono>stop_reason</span> / <span class=mono>finish_reason</span> is inspected. Every Claude 5 refusal in this suite came from bare code prompts over the raw API; the Maia agent evals run on Fable without a single refusal.</li>
 </ul>
 <h2>Recommendation</h2>
-<p>For autonomous code agents on the raw API, Gemini 3.8 Flash, Kimi K3 and Grok 4.5 are the frictionless choices, with Gemini now leading on accuracy and cost. Fable 5.1 is viable where a supervising loop can detect a refusal and re-route (its accuracy is the best in the set), and its refusal rate should be re-measured on each model release since it moved from 30 to 8 between Fable 5 and 5.1. Keep the suite in the repository and re-run <span class=mono>calibrate</span> before every comparison.</p>
+<p>For autonomous code agents on the raw API, Gemini 3.8 Flash and Grok 4.5 are the frictionless choices; Gemini wins on cost and latency. Fable 5.1 is viable where a supervising loop can detect a refusal and re-route (its accuracy is the best in the set), and refusal rates should be re-measured on every release: Fable 5 went from 30 to 13 refusals in five weeks with no version change. Give reasoning models (Kimi, GLM) a larger output budget where the provider allows it, or expect empty answers on the hardest prompts. Keep the suite in the repository and re-run <span class=mono>calibrate</span> before every comparison.</p>
 <h2>Appendix — non-refusal failures per model</h2>
 <table><tr><th>model</th><th>category</th><th>problem</th><th>first failing case</th></tr>%s</table>
-<div class=foot>Sources: Braintrust project "code-benchmarks", experiments code-bench-v4__* (7 models × 48 rows, per-test detail in metadata); repository code-benchmarks (harness, tests, outputs, this report). Prepared by Andrés Espitia with Claude Code.</div>
+<div class=foot>Sources: Braintrust project "code-benchmarks", experiments code-bench-v4__* (seven models regenerated 2026-09-02, 48 rows each, first failing test in metadata) and code-bench-v4-july__* (July 25 outputs re-scored); repository code-benchmarks (harness, tests, outputs, this report). Prepared by Andrés Espitia with Claude Code.</div>
 </body></html>""" % (css, date.today().isoformat(), gg["cost"] or 0, g51["n_empty"], rows_html, mhead, matrix, july_rows,
-                     g51["tok"], g51["lat"], gg["cost"] or 0, gg["lat"], gg["tok"], fail_rows)
+                     gg["cost"] or 0, gg["lat"], gg["tok"], g51["tok"], g51["lat"], fail_rows)
     open(out, "w").write(body)
     print("wrote", out)
 

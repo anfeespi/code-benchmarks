@@ -1,0 +1,1276 @@
+[
+ {
+  "title": "Cheapest walk with color-switch surcharge",
+  "category": "algorithms",
+  "entry_point": "min_cost_route",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest walk with color-switch surcharge",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 102.48,
+   "tokens_in": 460,
+   "tokens_out": 16384,
+   "cost_usd": 0.072006264,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Exactly-k non-adjacent picks on a circle",
+  "category": "algorithms",
+  "entry_point": "best_circular_selection",
+  "code": "def best_circular_selection(values, k):\n    \"\"\"\n    Select exactly k non-adjacent elements from a circular list to maximize sum.\n    \n    Args:\n        values: list of integers (length n, 1 <= n <= 2000)\n        k: number of elements to select (0 <= k <= n)\n        \n    Returns:\n        int: maximum sum of selected elements\n        \n    Raises:\n        ValueError: if no valid selection of exactly k elements exists\n    \"\"\"\n    n = len(values)\n    if k == 0:\n        return 0\n    if n == 1:\n        if k == 1:\n            return values[0]\n        raise ValueError\n    if n == 2:\n        if k == 1:\n            return max(values)\n        raise ValueError\n\n    INF = float('-inf')\n\n    def linear_max_sum(arr, k):\n        \"\"\"Max sum of exactly k non-adjacent elements in a linear array.\"\"\"\n        if k == 0:\n            return 0\n        m = len(arr)\n        if m < k:\n            return INF\n\n        # dp0: base case (0 elements considered)\n        dp0 = [INF] * (k + 1)\n        dp0[0] = 0\n        # dp1: first element considered\n        dp1 = [INF] * (k + 1)\n        dp1[0] = 0\n        if k >= 1:\n            dp1[1] = arr[0]\n        if m == 1:\n            return dp1[k]\n\n        dp_prev2 = dp0\n        dp_prev = dp1\n        for i in range(2, m + 1):\n            dp_curr = [INF] * (k + 1)\n            dp_curr[0] = 0\n            max_j = min(i, k)\n            arr_i = arr[i - 1]\n            prev = dp_prev\n            prev2 = dp_prev2\n            for j in range(1, max_j + 1):\n                # Option 1: skip current element\n                best = prev[j]\n                # Option 2: take current element (must skip previous)\n                cand = prev2[j - 1] + arr_i\n                if cand > best:\n                    best = cand\n                dp_curr[j] = best\n            dp_prev2 = dp_prev\n            dp_prev = dp_curr\n        return dp_prev[k]\n\n    # In a circle, any valid selection must miss at least one of the two ends\n    # (otherwise the first and last would be adjacent). We solve two linear\n    # problems: one excluding the first element, one excluding the last.\n    res1 = linear_max_sum(values[1:], k)\n    res2 = linear_max_sum(values[:-1], k)\n    ans = max(res1, res2)\n    if ans == INF:\n        raise ValueError\n    return int(ans)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Exactly-k non-adjacent picks on a circle",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 58.34,
+   "tokens_in": 357,
+   "tokens_out": 14778,
+   "cost_usd": 0.097282944,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Grid shortest path with one same-label teleport",
+  "category": "algorithms",
+  "entry_point": "min_steps",
+  "code": "from collections import deque, defaultdict\n\ndef min_steps(grid, c):\n    \"\"\"\n    Returns the minimum cost to reach (R-1, C-1) from (0, 0) in the given grid.\n    Moves: orthogonal steps cost 1; at most one teleport of cost c between\n    cells with the same label. Returns -1 if unreachable.\n    \"\"\"\n    R = len(grid)\n    C = len(grid[0])\n    \n    # If start or target is blocked, impossible\n    if grid[0][0] == -1 or grid[R-1][C-1] == -1:\n        return -1\n    \n    # BFS from start\n    dist_start = [[-1] * C for _ in range(R)]\n    q = deque()\n    dist_start[0][0] = 0\n    q.append((0, 0))\n    dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]\n    \n    while q:\n        r, c_ = q.popleft()\n        d = dist_start[r][c_]\n        for dr, dc in dirs:\n            nr, nc = r + dr, c_ + dc\n            if 0 <= nr < R and 0 <= nc < C and grid[nr][nc] != -1 and dist_start[nr][nc] == -1:\n                dist_start[nr][nc] = d + 1\n                q.append((nr, nc))\n    \n    # BFS from target\n    dist_target = [[-1] * C for _ in range(R)]\n    q = deque()\n    dist_target[R-1][C-1] = 0\n    q.append((R-1, C-1))\n    \n    while q:\n        r, c_ = q.popleft()\n        d = dist_target[r][c_]\n        for dr, dc in dirs:\n            nr, nc = r + dr, c_ + dc\n            if 0 <= nr < R and 0 <= nc < C and grid[nr][nc] != -1 and dist_target[nr][nc] == -1:\n                dist_target[nr][nc] = d + 1\n                q.append((nr, nc))\n    \n    # Base answer: walk without teleport\n    ans = dist_start[R-1][C-1]  # -1 if unreachable\n    \n    # Group cells by label, keeping the two smallest distances from start and target\n    label_info = defaultdict(lambda: {'start': [], 'target': []})\n    \n    def update_top2(lst, dist, idx):\n        \"\"\"Keep the two smallest (dist, idx) in lst, sorted ascending.\"\"\"\n        lst.append((dist, idx))\n        lst.sort(key=lambda x: x[0])\n        if len(lst) > 2:\n            lst.pop()\n    \n    for r in range(R):\n        for c_ in range(C):\n            label = grid[r][c_]\n            if label == -1:\n                continue\n            idx = r * C + c_\n            ds = dist_start[r][c_]\n            dt = dist_target[r][c_]\n            if ds != -1:\n                update_top2(label_info[label]['start'], ds, idx)\n            if dt != -1:\n                update_top2(label_info[label]['target'], dt, idx)\n    \n    # Try teleport for each label\n    for info in label_info.values():\n        start_best = info['start']\n        target_best = info['target']\n        if not start_best or not target_best:\n            continue\n        \n        min_comb = float('inf')\n        for ds, i in start_best:\n            for dt, j in target_best:\n                if i != j:\n                    if ds + dt < min_comb:\n                        min_comb = ds + dt\n        \n        if min_comb != float('inf'):\n            total = min_comb + c\n            if ans == -1 or total < ans:\n                ans = total\n    \n    return ans if ans != -1 else -1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Grid shortest path with one same-label teleport",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 48.09,
+   "tokens_in": 442,
+   "tokens_out": 6966,
+   "cost_usd": 0.030956508,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Interval scheduling with mandatory cooldown gap",
+  "category": "algorithms",
+  "entry_point": "max_sessions",
+  "code": "def max_sessions(intervals, gap):\n    \"\"\"\n    Returns the maximum number of non-overlapping sessions that can be scheduled\n    given a mandatory idle gap after each session.\n\n    Args:\n        intervals: List of tuples (start, end) with start < end.\n        gap: Non-negative integer idle time required after each session.\n\n    Returns:\n        int: Maximum number of sessions that can be selected.\n    \"\"\"\n    if not intervals:\n        return 0\n\n    # Transform each interval by adding the gap to its end time.\n    # The condition \"next_start >= previous_end + gap\" becomes\n    # \"next_start >= previous_transformed_end\", which is the standard\n    # non-overlapping interval condition.\n    transformed = [(s, e + gap) for s, e in intervals]\n\n    # Greedy algorithm: sort by end time, pick earliest finishing intervals.\n    transformed.sort(key=lambda x: x[1])\n\n    count = 0\n    last_end = -1  # Safe because all starts are >= 0\n\n    for s, e in transformed:\n        if s >= last_end:\n            count += 1\n            last_end = e\n\n    return count",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Interval scheduling with mandatory cooldown gap",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 26.45,
+   "tokens_in": 380,
+   "tokens_out": 4621,
+   "cost_usd": 0.030983634,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lexicographically smallest balanced bracket completion",
+  "category": "algorithms",
+  "entry_point": "smallest_balanced",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Lexicographically smallest balanced bracket completion",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 84.58,
+   "tokens_in": 219,
+   "tokens_out": 16384,
+   "cost_usd": 0.107508357,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Longest repeated substring with enforced spacing",
+  "category": "algorithms",
+  "entry_point": "longest_spaced_repeat",
+  "code": "def longest_spaced_repeat(s, gap):\n    \"\"\"\n    Returns the largest L > 0 such that some substring of length L occurs\n    at least twice at starting positions p < q with q >= p + L + gap.\n    If no such pair exists, returns 0.\n    \"\"\"\n    n = len(s)\n    max_L = 0\n\n    # d = q - p, the distance between the two start positions\n    for d in range(1, n):\n        # We need L <= d - gap, so d must be strictly greater than gap\n        if d <= gap:\n            continue\n\n        # Compute the maximum LCP for this shift d\n        max_lcp = 0\n        next_lcp = 0  # lcp[i+1] for the current i\n        # i goes from n-d-1 down to 0\n        for i in range(n - d - 1, -1, -1):\n            if s[i] == s[i + d]:\n                cur = 1 + next_lcp\n                if cur > max_lcp:\n                    max_lcp = cur\n                next_lcp = cur\n            else:\n                next_lcp = 0\n\n        # The best L we can get with this d is min(max_lcp, d - gap)\n        candidate = max_lcp if max_lcp < d - gap else d - gap\n        if candidate > max_L:\n            max_L = candidate\n\n    return max_L",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Longest repeated substring with enforced spacing",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 59.48,
+   "tokens_in": 329,
+   "tokens_out": 13577,
+   "cost_usd": 0.089396109,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Palindrome insertions from a restricted alphabet",
+  "category": "algorithms",
+  "entry_point": "min_insertions",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Palindrome insertions from a restricted alphabet",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 44.52,
+   "tokens_in": 279,
+   "tokens_out": 16384,
+   "cost_usd": 0.1076050305,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Smallest solution of congruences with non-coprime moduli",
+  "category": "algorithms",
+  "entry_point": "solve_congruences",
+  "code": "import math\n\ndef solve_congruences(pairs):\n    \"\"\"\n    Solve a system of congruences x ≡ r (mod m) for each (r, m) in pairs.\n    \n    The moduli are not required to be pairwise coprime. If the system has no\n    solution, ValueError is raised. If pairs is empty, returns 0.\n    \n    The returned x is the smallest non-negative solution, satisfying\n    0 <= x < lcm(all moduli).\n    \"\"\"\n    x = 0\n    M = 1  # current modulus\n    \n    for r, m in pairs:\n        r = r % m  # normalize remainder\n        \n        if M == 1:\n            x = r\n            M = m\n            continue\n        \n        g = math.gcd(M, m)\n        if (r - x) % g != 0:\n            raise ValueError(\"Inconsistent congruences\")\n        \n        # We need to solve: x + M * t ≡ r (mod m)\n        # => M * t ≡ r - x (mod m)\n        # Divide by g: (M/g) * t ≡ (r - x)/g (mod m/g)\n        diff = (r - x) // g\n        m_g = m // g\n        M_g = M // g\n        \n        # Modular inverse of M_g modulo m_g (they are coprime)\n        # Using extended Euclidean algorithm\n        def egcd(a, b):\n            if b == 0:\n                return (a, 1, 0)\n            g, x1, y1 = egcd(b, a % b)\n            return (g, y1, x1 - (a // b) * y1)\n        \n        _, inv, _ = egcd(M_g, m_g)\n        inv %= m_g\n        \n        t = (diff * inv) % m_g\n        x = x + M * t\n        M = M * m_g  # lcm(M, m)\n        x %= M\n    \n    return x",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Smallest solution of congruences with non-coprime moduli",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 12.72,
+   "tokens_in": 281,
+   "tokens_out": 2135,
+   "cost_usd": 0.009689526,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Build-order resolver reports phantom dependency cycles",
+  "category": "bug_fixing",
+  "entry_point": "resolve_build_order",
+  "code": "def resolve_build_order(deps):\n    graph = {}\n    for pkg, ds in deps.items():\n        graph.setdefault(pkg, [])\n        for d in ds:\n            graph.setdefault(d, [])\n            graph[pkg].append(d)\n    order = []\n    visiting = set()\n    visited = set()\n\n    def visit(node):\n        if node in visiting:\n            raise ValueError(\"dependency cycle detected at \" + node)\n        if node in visited:\n            return\n        visiting.add(node)\n        for dep in sorted(graph[node]):\n            visit(dep)\n        visiting.remove(node)\n        visited.add(node)\n        order.append(node)\n\n    for node in sorted(graph):\n        if node not in visited:\n            visit(node)\n    return order",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Build-order resolver reports phantom dependency cycles",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 8.76,
+   "tokens_in": 501,
+   "tokens_out": 2348,
+   "cost_usd": 0.0060022908,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Ledger balances drift by one cent",
+  "category": "bug_fixing",
+  "entry_point": "compute_balances",
+  "code": "import re\n\ndef compute_balances(transactions):\n    balances = {}\n    for tx in transactions:\n        amount = tx[\"amount\"]\n        # Strict format check: one or more digits, optionally followed by '.' and 1-2 digits.\n        if not re.fullmatch(r'\\d+(\\.\\d{1,2})?', amount):\n            raise ValueError(\"invalid amount\")\n        # Convert to integer cents exactly, without floating point.\n        if '.' in amount:\n            int_part, frac_part = amount.split('.')\n            cents = int(int_part) * 100 + int(frac_part) * (10 if len(frac_part) == 1 else 1)\n        else:\n            cents = int(amount) * 100\n        # Must be strictly positive.\n        if cents <= 0:\n            raise ValueError(\"amount must be positive\")\n        balances[tx[\"from\"]] = balances.get(tx[\"from\"], 0) - cents\n        balances[tx[\"to\"]] = balances.get(tx[\"to\"], 0) + cents\n    return balances",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Ledger balances drift by one cent",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 8.1,
+   "tokens_in": 553,
+   "tokens_out": 1896,
+   "cost_usd": 0.004958514,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Memoization decorator returns results for the wrong keyword arguments",
+  "category": "bug_fixing",
+  "entry_point": "memoize",
+  "code": "def memoize(func):\n    cache = {}\n    def wrapper(*args, **kwargs):\n        # Include both positional and keyword arguments in the key.\n        # frozenset makes the keyword mapping order-independent.\n        key = (args, frozenset(kwargs.items()))\n        if key in cache:\n            wrapper.hits += 1\n            return cache[key]\n        wrapper.misses += 1\n        result = func(*args, **kwargs)\n        cache[key] = result\n        return result\n    wrapper.hits = 0\n    wrapper.misses = 0\n    return wrapper",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Memoization decorator returns results for the wrong keyword arguments",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 5.83,
+   "tokens_in": 512,
+   "tokens_out": 1194,
+   "cost_usd": 0.003245814,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Patch applier lands hunks on the wrong lines",
+  "category": "bug_fixing",
+  "entry_point": "apply_hunks",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Patch applier lands hunks on the wrong lines",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 65.87,
+   "tokens_in": 636,
+   "tokens_out": 16384,
+   "cost_usd": 0.0397313136,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Recursive settings merger drops falsy overrides",
+  "category": "bug_fixing",
+  "entry_point": "merge_settings",
+  "code": "def merge_settings(defaults, overrides):\n    result = dict(defaults)\n    for key, value in overrides.items():\n        if isinstance(value, dict) and isinstance(result.get(key), dict):\n            result[key] = merge_settings(result[key], value)\n        else:\n            result[key] = value\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Recursive settings merger drops falsy overrides",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 2.21,
+   "tokens_in": 405,
+   "tokens_out": 256,
+   "cost_usd": 0.0009180468,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking insert wrongly merges back-to-back reservations",
+  "category": "bug_fixing",
+  "entry_point": "insert_booking",
+  "code": "def insert_booking(bookings, new):\n    start, end = new\n    if start >= end:\n        raise ValueError(\"empty booking\")\n    result = []\n    i = 0\n    # Skip bookings that end at or before the new booking's start.\n    # Touching intervals (end == start) must NOT be merged.\n    while i < len(bookings) and bookings[i][1] <= start:\n        result.append(bookings[i])\n        i += 1\n    # Merge all bookings that overlap with the new (or merged) interval.\n    # Overlap requires strict inequality: bookings[i][0] < end.\n    while i < len(bookings) and bookings[i][0] < end:\n        start = min(start, bookings[i][0])\n        end = max(end, bookings[i][1])\n        i += 1\n    result.append((start, end))\n    result.extend(bookings[i:])\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Room booking insert wrongly merges back-to-back reservations",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 36.38,
+   "tokens_in": 514,
+   "tokens_out": 7993,
+   "cost_usd": 0.019536363,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Session purge crashes and keeps just-expired sessions",
+  "category": "bug_fixing",
+  "entry_point": "purge_expired",
+  "code": "def purge_expired(sessions, now):\n    purged = [sid for sid, expiry in sessions.items() if expiry <= now]\n    for sid in purged:\n        del sessions[sid]\n    return purged",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Session purge crashes and keeps just-expired sessions",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 3.27,
+   "tokens_in": 328,
+   "tokens_out": 533,
+   "cost_usd": 0.0015237486,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Sliding-window rate limiter admits one extra call",
+  "category": "bug_fixing",
+  "entry_point": "RateLimiter",
+  "code": "class RateLimiter:\n    def __init__(self, max_calls, window_seconds):\n        self.max_calls = max_calls\n        self.window = window_seconds\n        self.calls = []\n\n    def allow(self, timestamp):\n        self.calls = [t for t in self.calls if timestamp - t < self.window]\n        if len(self.calls) < self.max_calls:\n            self.calls.append(timestamp)\n            return True\n        return False",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Sliding-window rate limiter admits one extra call",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 3.48,
+   "tokens_in": 496,
+   "tokens_out": 767,
+   "cost_usd": 0.006024051,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Counting bag with deterministic most-common ordering",
+  "category": "data_structures",
+  "entry_point": "CountingBag",
+  "code": "class CountingBag:\n    \"\"\"A multiset (bag) of hashable items that tracks counts and reports\n    its most common items with a fully specified, deterministic ordering.\"\"\"\n\n    def __init__(self):\n        self._counts = {}          # item -> current count (only items with count >= 1)\n        self._entry_time = {}      # item -> entry moment (monotonic integer)\n        self._time = 0             # global counter for entry moments\n        self._total = 0            # total number of occurrences\n\n    def add(self, item) -> int:\n        \"\"\"Add one occurrence of item; return the item's new count.\"\"\"\n        if item not in self._counts:\n            # Item enters the bag\n            self._entry_time[item] = self._time\n            self._time += 1\n            self._counts[item] = 1\n        else:\n            self._counts[item] += 1\n        self._total += 1\n        return self._counts[item]\n\n    def discard(self, item) -> bool:\n        \"\"\"Remove one occurrence; return True if an occurrence was removed,\n        False if the item was not present. When count reaches 0 the item\n        leaves the bag entirely.\"\"\"\n        if item not in self._counts:\n            return False\n        self._counts[item] -= 1\n        self._total -= 1\n        if self._counts[item] == 0:\n            del self._counts[item]\n            del self._entry_time[item]\n        return True\n\n    def count(self, item) -> int:\n        \"\"\"Return current count (0 if absent).\"\"\"\n        return self._counts.get(item, 0)\n\n    def __len__(self) -> int:\n        \"\"\"Return total number of occurrences across all items.\"\"\"\n        return self._total\n\n    def distinct(self) -> int:\n        \"\"\"Return number of distinct items currently present (count >= 1).\"\"\"\n        return len(self._counts)\n\n    def most_common(self, k: int) -> list:\n        \"\"\"Return the k items with the highest counts as (item, count) tuples.\n        Ordered by count descending; ties broken by earlier entry moment first.\n        Only items currently present may appear. If fewer than k items are\n        present, return all of them. most_common(0) returns [].\n        Raise ValueError if k < 0.\"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        if k == 0:\n            return []\n        # Get all present items\n        items = list(self._counts.items())\n        # Sort by count descending, then entry time ascending\n        items.sort(key=lambda x: (-x[1], self._entry_time[x[0]]))\n        return items[:k]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Counting bag with deterministic most-common ordering",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 6.36,
+   "tokens_in": 546,
+   "tokens_out": 1842,
+   "cost_usd": 0.004823874,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "LRU cache with TTL and stats",
+  "category": "data_structures",
+  "entry_point": "TTLCache",
+  "code": "from collections import OrderedDict\nfrom typing import Any, Optional, Dict, Union\n\nclass TTLCache:\n    \"\"\"\n    A fixed-capacity LRU cache with per-entry time-to-live (TTL),\n    driven by an explicit logical clock, with operation statistics.\n    \"\"\"\n\n    def __init__(self, capacity: int) -> None:\n        if not isinstance(capacity, int) or capacity < 1:\n            raise ValueError(\"capacity must be an integer >= 1\")\n        self._capacity = capacity\n        self._cache: OrderedDict[Any, tuple] = OrderedDict()\n        self._hits = 0\n        self._misses = 0\n        self._evictions = 0\n        self._expirations = 0\n\n    def _purge(self, now: Union[int, float]) -> None:\n        \"\"\"Remove all entries that are dead at `now`.\"\"\"\n        dead_keys = []\n        for key, (_, stored_time, ttl) in self._cache.items():\n            if ttl is not None and now >= stored_time + ttl:\n                dead_keys.append(key)\n        for key in dead_keys:\n            del self._cache[key]\n            self._expirations += 1\n\n    def put(self, key: Any, value: Any, now: Union[int, float],\n            ttl: Optional[Union[int, float]] = None) -> None:\n        \"\"\"\n        Insert or update an entry.\n\n        Raises ValueError if ttl is not None and ttl <= 0.\n        \"\"\"\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be positive or None\")\n\n        self._purge(now)\n\n        if key in self._cache:\n            # Update existing entry: reset time and ttl, mark as MRU\n            self._cache[key] = (value, now, ttl)\n            self._cache.move_to_end(key)\n        else:\n            # New entry: evict LRU if at capacity\n            if len(self._cache) >= self._capacity:\n                self._cache.popitem(last=False)  # LRU\n                self._evictions += 1\n            self._cache[key] = (value, now, ttl)  # inserted as MRU\n\n    def get(self, key: Any, now: Union[int, float]) -> Any:\n        \"\"\"Retrieve a value, or None if missing/expired.\"\"\"\n        self._purge(now)\n\n        if key in self._cache:\n            self._hits += 1\n            self._cache.move_to_end(key)\n            return self._cache[key][0]\n        else:\n            self._misses += 1\n            return None\n\n    def stats(self) -> Dict[str, int]:\n        \"\"\"Return cumulative statistics.\"\"\"\n        return {\n            \"hits\": self._hits,\n            \"misses\": self._misses,\n            \"evictions\": self._evictions,\n            \"expirations\": self._expirations,\n        }\n\n    def __len__(self) -> int:\n        \"\"\"Number of entries currently stored (including unpurged expired ones).\"\"\"\n        return len(self._cache)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "LRU cache with TTL and stats",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 16.18,
+   "tokens_in": 852,
+   "tokens_out": 3644,
+   "cost_usd": 0.00937134,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard with competition ranks and stable ties",
+  "category": "data_structures",
+  "entry_point": "Leaderboard",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Leaderboard with competition ranks and stable ties",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 68.19,
+   "tokens_in": 471,
+   "tokens_out": 16384,
+   "cost_usd": 0.0396071676,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Mergeable component ledger with undo",
+  "category": "data_structures",
+  "entry_point": "MergeLedger",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Mergeable component ledger with undo",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 186.99,
+   "tokens_in": 781,
+   "tokens_out": 16384,
+   "cost_usd": 0.07245117,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Normalized integer interval set",
+  "category": "data_structures",
+  "entry_point": "IntervalSet",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Normalized integer interval set",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 68.53,
+   "tokens_in": 453,
+   "tokens_out": 16384,
+   "cost_usd": 0.107976132,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Reprioritizable task scheduler with FIFO ties",
+  "category": "data_structures",
+  "entry_point": "TaskScheduler",
+  "code": "import heapq\n\nclass TaskScheduler:\n    \"\"\"A priority queue of unique task ids supporting reprioritization and cancellation.\n    \n    Higher priority is served first. Among equal priorities, tasks are served in FIFO\n    order of their original submission. Reprioritizing a task does not change its FIFO position.\n    \"\"\"\n    \n    def __init__(self):\n        self._heap = []          # min-heap of (-priority, seq, task_id)\n        self._active = {}         # task_id -> (priority, seq)\n        self._seq = 0             # global sequence counter for FIFO ordering\n\n    def submit(self, task_id, priority):\n        \"\"\"Add a new active task. Raises ValueError if task_id is already active.\"\"\"\n        if task_id in self._active:\n            raise ValueError(f\"Task {task_id!r} is already active\")\n        self._seq += 1\n        self._active[task_id] = (priority, self._seq)\n        heapq.heappush(self._heap, (-priority, self._seq, task_id))\n\n    def reprioritize(self, task_id, priority):\n        \"\"\"Change an active task's priority. Raises KeyError if not active.\n        The old priority stops mattering immediately; FIFO position is unchanged.\n        \"\"\"\n        if task_id not in self._active:\n            raise KeyError(f\"Task {task_id!r} is not active\")\n        old_priority, seq = self._active[task_id]\n        if old_priority == priority:\n            return  # no change needed\n        self._active[task_id] = (priority, seq)\n        heapq.heappush(self._heap, (-priority, seq, task_id))\n\n    def cancel(self, task_id):\n        \"\"\"Remove an active task without serving it. Raises KeyError if not active.\"\"\"\n        if task_id not in self._active:\n            raise KeyError(f\"Task {task_id!r} is not active\")\n        del self._active[task_id]\n\n    def pop(self):\n        \"\"\"Remove and return the highest priority task (ties: earliest submission).\n        Raises IndexError if no tasks are active.\n        \"\"\"\n        while self._heap:\n            neg_priority, seq, task_id = heapq.heappop(self._heap)\n            priority = -neg_priority\n            if task_id in self._active and self._active[task_id] == (priority, seq):\n                del self._active[task_id]\n                return task_id\n        raise IndexError(\"pop from empty scheduler\")\n\n    def peek(self):\n        \"\"\"Return the highest priority task without removing it.\n        Raises IndexError if no tasks are active.\n        \"\"\"\n        while self._heap:\n            neg_priority, seq, task_id = self._heap[0]\n            priority = -neg_priority\n            if task_id in self._active and self._active[task_id] == (priority, seq):\n                return task_id\n            heapq.heappop(self._heap)  # discard stale entry\n        raise IndexError(\"peek from empty scheduler\")\n\n    def priority_of(self, task_id):\n        \"\"\"Return the current priority of an active task. Raises KeyError if not active.\"\"\"\n        if task_id not in self._active:\n            raise KeyError(f\"Task {task_id!r} is not active\")\n        return self._active[task_id][0]\n\n    def __len__(self):\n        \"\"\"Return the number of active tasks.\"\"\"\n        return len(self._active)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Reprioritizable task scheduler with FIFO ties",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 97.39,
+   "tokens_in": 574,
+   "tokens_out": 8498,
+   "cost_usd": 0.037812852,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Undoable stack",
+  "category": "data_structures",
+  "entry_point": "UndoStack",
+  "code": "class UndoStack:\n    \"\"\"A LIFO stack of arbitrary Python values whose mutating operations can be undone.\"\"\"\n\n    def __init__(self):\n        self._stack = []      # the actual values\n        self._history = []    # stack of ('push', value) or ('pop', value)\n\n    def push(self, x) -> None:\n        \"\"\"Push x onto the top of the stack.\"\"\"\n        self._stack.append(x)\n        self._history.append(('push', x))\n\n    def pop(self):\n        \"\"\"Remove and return the top value. Raise IndexError if empty.\"\"\"\n        if not self._stack:\n            raise IndexError(\"pop from empty stack\")\n        x = self._stack.pop()\n        self._history.append(('pop', x))\n        return x\n\n    def peek(self):\n        \"\"\"Return the top value without removing it. Raise IndexError if empty.\"\"\"\n        if not self._stack:\n            raise IndexError(\"peek from empty stack\")\n        return self._stack[-1]\n\n    def undo(self) -> None:\n        \"\"\"Reverse the most recent successful push or pop that hasn't been undone.\"\"\"\n        if not self._history:\n            raise RuntimeError(\"nothing to undo\")\n        op, x = self._history.pop()\n        if op == 'push':\n            # Undo a push: the pushed value is on top, so remove it.\n            self._stack.pop()\n        else:  # op == 'pop'\n            # Undo a pop: put the popped value back on top.\n            self._stack.append(x)\n\n    def __len__(self) -> int:\n        \"\"\"Return the number of values currently on the stack.\"\"\"\n        return len(self._stack)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Undoable stack",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 12.1,
+   "tokens_in": 490,
+   "tokens_out": 3413,
+   "cost_usd": 0.015546168,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Versioned key-value store with rollback",
+  "category": "data_structures",
+  "entry_point": "VersionedKV",
+  "code": "class VersionedKV:\n    \"\"\"\n    A key-value store with commit snapshots, point-in-time reads, and rollback.\n\n    Keys must be hashable; values can be arbitrary objects.\n    \"\"\"\n\n    def __init__(self):\n        self._working = {}          # current mutable state\n        self._history = []          # list of immutable snapshots (index 0 -> version 1)\n\n    def set(self, key, value) -> None:\n        \"\"\"Write a key-value pair to the working state.\"\"\"\n        self._working[key] = value\n\n    def delete(self, key) -> None:\n        \"\"\"Remove a key from the working state. Raises KeyError if absent.\"\"\"\n        if key not in self._working:\n            raise KeyError(key)\n        del self._working[key]\n\n    def get(self, key):\n        \"\"\"Read a value from the working state. Raises KeyError if absent.\"\"\"\n        if key not in self._working:\n            raise KeyError(key)\n        return self._working[key]\n\n    def has(self, key) -> bool:\n        \"\"\"Return True if the key is present in the working state.\"\"\"\n        return key in self._working\n\n    def commit(self) -> int:\n        \"\"\"\n        Snapshot the working state and return the new version number.\n        A new version is created even if no changes were made.\n        \"\"\"\n        self._history.append(self._working.copy())\n        return len(self._history)\n\n    def get_at(self, key, version):\n        \"\"\"\n        Return the value of `key` in the snapshot `version`.\n        Raises ValueError if version is out of range (1 <= version <= latest()).\n        Raises KeyError if the snapshot exists but does not contain the key.\n        \"\"\"\n        if not (1 <= version <= len(self._history)):\n            raise ValueError(f\"version {version} out of range (1..{len(self._history)})\")\n        snapshot = self._history[version - 1]\n        if key not in snapshot:\n            raise KeyError(key)\n        return snapshot[key]\n\n    def rollback(self, version) -> None:\n        \"\"\"\n        Replace the working state with a copy of snapshot `version`.\n        Version 0 means the empty initial state.\n        Raises ValueError if version is out of range (0 <= version <= latest()).\n        History is never destroyed: all committed versions remain readable.\n        \"\"\"\n        if not (0 <= version <= len(self._history)):\n            raise ValueError(f\"version {version} out of range (0..{len(self._history)})\")\n        if version == 0:\n            self._working = {}\n        else:\n            self._working = self._history[version - 1].copy()\n\n    def latest(self) -> int:\n        \"\"\"Return the number of commits so far (0 if none).\"\"\"\n        return len(self._history)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Versioned key-value store with rollback",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 11.74,
+   "tokens_in": 565,
+   "tokens_out": 1887,
+   "cost_usd": 0.0134762265,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Competition ranks with ties and NaN guard",
+  "category": "edge_cases",
+  "entry_point": "rank_scores",
+  "code": "def rank_scores(scores: list) -> list[int]:\n    \"\"\"\n    Assign competition ranks (\"1224\" ranking) to a list of numeric scores.\n    \n    The rank of a score is 1 plus the number of scores strictly greater than it.\n    Equal scores share a rank, and the next distinct lower score skips ranks.\n    \n    Args:\n        scores: A list of numeric scores (ints or floats). May be empty.\n        \n    Returns:\n        A list of ranks aligned with the input positions.\n        \n    Raises:\n        ValueError: If any score is NaN.\n    \"\"\"\n    if not scores:\n        return []\n    \n    # Check for NaN (NaN is the only value not equal to itself)\n    if any(x != x for x in scores):\n        raise ValueError(\"NaN score\")\n    \n    # Pair each score with its original index\n    indexed = list(enumerate(scores))\n    # Sort by score descending; ties keep their relative order (stable sort)\n    indexed.sort(key=lambda x: x[1], reverse=True)\n    \n    ranks = [0] * len(scores)\n    prev_score = None\n    current_rank = 0\n    \n    for i, (orig_idx, score) in enumerate(indexed):\n        # If this score differs from the previous, it's a new rank.\n        # The rank is 1 + the number of scores strictly greater (which is i).\n        if i == 0 or score != prev_score:\n            current_rank = i + 1\n            prev_score = score\n        ranks[orig_idx] = current_rank\n        \n    return ranks",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Competition ranks with ties and NaN guard",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 26.62,
+   "tokens_in": 343,
+   "tokens_out": 5920,
+   "cost_usd": 0.0144412092,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Display-width truncation with combining marks",
+  "category": "edge_cases",
+  "entry_point": "truncate_display",
+  "code": "import unicodedata\n\ndef truncate_display(s: str, width: int) -> str:\n    \"\"\"\n    Truncate a string to a maximum display width measured in user-perceived\n    characters, never separating a Unicode combining mark from the character\n    it attaches to.\n\n    A \"combining mark\" is a code point whose unicodedata.category(ch) is\n    'Mn', 'Mc' or 'Me'. Every other code point counts as 1 unit of display\n    width. Combining marks add zero width and belong to the unit of the\n    character they follow.\n\n    If the string begins with combining marks, the first one starts a unit\n    and subsequent combining marks join it; that unit counts as 1 width unit.\n\n    Args:\n        s: The input string.\n        width: The maximum number of display units to keep. Must be >= 0.\n\n    Returns:\n        The truncated string.\n\n    Raises:\n        ValueError: If width is negative.\n    \"\"\"\n    if width < 0:\n        raise ValueError(\"width must be non-negative\")\n    if width == 0 or not s:\n        return \"\"\n\n    units = 0\n    in_unit = False\n\n    for i, ch in enumerate(s):\n        if unicodedata.category(ch) in ('Mn', 'Mc', 'Me'):\n            if not in_unit:\n                in_unit = True\n            # else: continue in current unit\n        else:\n            if in_unit:\n                units += 1\n                if units == width:\n                    return s[:i]\n                in_unit = False\n            in_unit = True\n\n    if in_unit:\n        units += 1\n        if units == width:\n            return s\n\n    # width >= total units\n    return s",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Display-width truncation with combining marks",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 12.78,
+   "tokens_in": 417,
+   "tokens_out": 4036,
+   "cost_usd": 0.018158778,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Even chunking of arbitrary iterables",
+  "category": "edge_cases",
+  "entry_point": "chunk_evenly",
+  "code": "from typing import Iterable, List, Any\n\ndef chunk_evenly(items: Iterable[Any], n: int) -> List[List[Any]]:\n    \"\"\"\n    Split an iterable into exactly n contiguous chunks whose lengths differ by at most 1.\n\n    The first L % n chunks have L // n + 1 elements, and the remaining chunks have\n    L // n elements, where L is the total number of elements. If the iterable yields\n    fewer than n elements, trailing chunks are empty lists.\n\n    Args:\n        items: Any iterable (list, tuple, generator, etc.). Consumed at most once.\n        n: Number of chunks. Must be >= 1.\n\n    Returns:\n        A list of exactly n lists, preserving the original order of elements.\n\n    Raises:\n        ValueError: If n < 1.\n    \"\"\"\n    if n < 1:\n        raise ValueError(\"n must be at least 1\")\n\n    # Consume the iterable exactly once into a list to determine total length\n    items_list = list(items)\n    L = len(items_list)\n\n    base = L // n\n    remainder = L % n\n\n    chunks = []\n    start = 0\n    for i in range(n):\n        # First `remainder` chunks get one extra element\n        size = base + (1 if i < remainder else 0)\n        chunks.append(items_list[start:start + size])\n        start += size\n\n    return chunks",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Even chunking of arbitrary iterables",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 11.89,
+   "tokens_in": 338,
+   "tokens_out": 1486,
+   "cost_usd": 0.006941484,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact integer k-th root floor",
+  "category": "edge_cases",
+  "entry_point": "kth_root_floor",
+  "code": "def kth_root_floor(n: int, k: int) -> int:\n    \"\"\"\n    Return the floor of the k-th root of a nonnegative integer n,\n    computed exactly with integer arithmetic.\n\n    Args:\n        n: nonnegative integer (up to 10**60)\n        k: positive integer\n\n    Returns:\n        The largest integer r >= 0 such that r ** k <= n.\n\n    Raises:\n        ValueError: if n < 0 or k < 1\n    \"\"\"\n    if n < 0 or k < 1:\n        raise ValueError(\"n must be nonnegative and k must be >= 1\")\n    if k == 1:\n        return n\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n\n    # If k is larger than the bit length of n, then 2^k > n, so the root is 1.\n    if k > n.bit_length():\n        return 1\n\n    # Upper bound: 2^ceil(bit_length(n)/k) > n\n    high = 1 << ((n.bit_length() + k - 1) // k)\n    low = 1\n\n    # Binary search for the largest r with r**k <= n\n    while low < high:\n        mid = (low + high) // 2\n        if pow(mid, k) <= n:\n            low = mid + 1\n        else:\n            high = mid\n\n    return low - 1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Exact integer k-th root floor",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 23.85,
+   "tokens_in": 331,
+   "tokens_out": 7537,
+   "cost_usd": 0.033289938,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Largest-remainder integer allocation",
+  "category": "edge_cases",
+  "entry_point": "allocate_shares",
+  "code": "from fractions import Fraction\n\ndef allocate_shares(total: int, weights: list) -> list[int]:\n    \"\"\"\n    Splits an integer amount into integer shares proportional to weights,\n    using the largest-remainder method with a deterministic tie-break.\n\n    Args:\n        total: Non-negative integer to distribute.\n        weights: Non-empty list of non-negative numbers with positive sum.\n\n    Returns:\n        List of integers summing to total, proportional to weights.\n\n    Raises:\n        ValueError: If total < 0, weights is empty, any weight < 0, or sum(weights) == 0.\n    \"\"\"\n    if total < 0:\n        raise ValueError(\"total must be non-negative\")\n    if not weights:\n        raise ValueError(\"weights must be non-empty\")\n    if any(w < 0 for w in weights):\n        raise ValueError(\"weights must be non-negative\")\n    W = sum(weights)\n    if W == 0:\n        raise ValueError(\"sum of weights must be positive\")\n\n    if total == 0:\n        return [0] * len(weights)\n\n    # Compute exact quotas as Fractions to avoid floating-point rounding issues\n    quotas = [Fraction(total) * Fraction(w) / Fraction(W) for w in weights]\n    floors = [q.numerator // q.denominator for q in quotas]  # floor for non-negative\n    remainders = [q - f for q, f in zip(quotas, floors)]\n\n    sum_floors = sum(floors)\n    remaining = total - sum_floors\n\n    # Sort indices by remainder descending; ties broken by lower index\n    indices = list(range(len(weights)))\n    indices.sort(key=lambda i: (-remainders[i], i))\n\n    # Distribute the remaining units to the parties with the largest remainders\n    for i in indices[:remaining]:\n        floors[i] += 1\n\n    return floors",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Largest-remainder integer allocation",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 84.17,
+   "tokens_in": 399,
+   "tokens_out": 7685,
+   "cost_usd": 0.034028874,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lazy round-robin interleaver",
+  "category": "edge_cases",
+  "entry_point": "round_robin",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lazy round-robin interleaver",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 83.62,
+   "tokens_in": 472,
+   "tokens_out": 16384,
+   "cost_usd": 0.1080118908,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Lower weighted median with tolerance",
+  "category": "edge_cases",
+  "entry_point": "weighted_median",
+  "code": "def weighted_median(values: list, weights: list) -> float:\n    \"\"\"\n    Compute the lower weighted median of a dataset.\n\n    The lower weighted median is the smallest value v such that the cumulative\n    weight of all pairs with value <= v is at least W/2 - 1e-9, where W is the\n    total weight. Zero-weight entries are ignored and never affect the result.\n\n    Args:\n        values: List of numeric values.\n        weights: List of non-negative weights corresponding to the values.\n\n    Returns:\n        The lower weighted median as a float.\n\n    Raises:\n        ValueError: If lengths differ, any weight is negative, or total weight <= 0.\n    \"\"\"\n    if len(values) != len(weights):\n        raise ValueError(\"values and weights must have the same length\")\n    if any(w < 0 for w in weights):\n        raise ValueError(\"weights must be non-negative\")\n    \n    W = sum(weights)\n    if W <= 0:\n        raise ValueError(\"total weight must be positive\")\n    \n    # Group positive weights by value (zero weights contribute nothing)\n    weight_by_value = {}\n    for v, w in zip(values, weights):\n        if w > 0:\n            weight_by_value[v] = weight_by_value.get(v, 0.0) + w\n    \n    # Sort the unique values that have positive weight\n    sorted_values = sorted(weight_by_value.keys())\n    \n    cumulative = 0.0\n    threshold = W / 2.0 - 1e-9\n    for v in sorted_values:\n        cumulative += weight_by_value[v]\n        if cumulative >= threshold:\n            return v\n    \n    # Fallback (should never be reached because W > 0 guarantees at least one positive weight)\n    return sorted_values[-1] if sorted_values else 0.0",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lower weighted median with tolerance",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 45.23,
+   "tokens_in": 401,
+   "tokens_out": 13796,
+   "cost_usd": 0.060651162,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Overflow-safe Euclidean norm",
+  "category": "edge_cases",
+  "entry_point": "vector_norm",
+  "code": "import math\n\ndef vector_norm(v: list[float]) -> float:\n    \"\"\"\n    Compute the Euclidean (L2) norm of a vector of floats, robust across\n    the full double-precision range.\n\n    Args:\n        v: A list of floats. Entries can be as large as ~1e308 and as small\n           as ~1e-308 in magnitude.\n\n    Returns:\n        The Euclidean norm as a float.\n\n    Raises:\n        ValueError: If any entry is NaN, +infinity, or -infinity.\n    \"\"\"\n    # Reject NaN and infinities\n    for x in v:\n        if math.isnan(x) or math.isinf(x):\n            raise ValueError(\"Vector contains NaN or infinity\")\n\n    # Empty vector or all-zero vector\n    if not v:\n        return 0.0\n\n    max_abs = max(abs(x) for x in v)\n    if max_abs == 0.0:\n        return 0.0\n\n    # Scale by the maximum absolute value to avoid overflow/underflow when squaring.\n    # The scaled values lie in [0, 1], so their squares lie in [0, 1].\n    # math.fsum gives an exactly rounded sum of the squares, eliminating\n    # intermediate rounding errors.\n    sum_sq = math.fsum((x / max_abs) ** 2 for x in v)\n\n    # The final norm is sqrt(sum_sq) * max_abs.\n    return math.sqrt(sum_sq) * max_abs",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Overflow-safe Euclidean norm",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 29.74,
+   "tokens_in": 344,
+   "tokens_out": 9525,
+   "cost_usd": 0.041967684,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Bounty scheduling with slot capacity",
+  "category": "optimization",
+  "entry_point": "max_bounty",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Bounty scheduling with slot capacity",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 65.44,
+   "tokens_in": 455,
+   "tokens_out": 16384,
+   "cost_usd": 0.071999334,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Divisible pulse windows with bounded length",
+  "category": "optimization",
+  "entry_point": "count_pulses",
+  "code": "def count_pulses(deltas: list[int], k: int, lo: int, hi: int) -> int:\n    \"\"\"\n    Count contiguous subarrays of `deltas` whose length L satisfies\n    lo <= L <= hi and whose element sum is an exact multiple of k.\n\n    Args:\n        deltas: list of integers (1 <= len <= 1,500,000)\n        k: integer divisor (1 <= k <= 10**9)\n        lo: minimum subarray length\n        hi: maximum subarray length\n\n    Returns:\n        int: exact count of valid subarrays\n\n    Raises:\n        ValueError: if not (1 <= lo <= hi <= len(deltas))\n    \"\"\"\n    n = len(deltas)\n    if not (1 <= lo <= hi <= n):\n        raise ValueError(\"lo and hi must satisfy 1 <= lo <= hi <= len(deltas)\")\n\n    # Prefix sums modulo k.\n    # M[i] = (sum(deltas[0..i-1])) % k, with M[0] = 0.\n    M = [0] * (n + 1)\n    s = 0\n    for i in range(n):\n        s += deltas[i]\n        M[i + 1] = s % k\n\n    freq = {}\n    total = 0\n    # Local bindings for speed\n    M_local = M\n    freq_get = freq.get\n\n    for j in range(1, n + 1):\n        # Index entering the sliding window of valid start positions\n        add_idx = j - lo\n        if add_idx >= 0:\n            val = M_local[add_idx]\n            freq[val] = freq_get(val, 0) + 1\n\n        # Index leaving the sliding window\n        remove_idx = j - hi - 1\n        if remove_idx >= 0:\n            val = M_local[remove_idx]\n            cnt = freq[val] - 1\n            if cnt:\n                freq[val] = cnt\n            else:\n                del freq[val]\n\n        # Count how many start positions in the window share the same modulo\n        total += freq_get(M_local[j], 0)\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Divisible pulse windows with bounded length",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 46.98,
+   "tokens_in": 502,
+   "tokens_out": 11603,
+   "cost_usd": 0.0768333357,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest echoed slice",
+  "category": "optimization",
+  "entry_point": "longest_echo",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Longest echoed slice",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 93.3,
+   "tokens_in": 272,
+   "tokens_out": 16384,
+   "cost_usd": 0.1075886064,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Parity-locked divisible pairs",
+  "category": "optimization",
+  "entry_point": "count_locked_pairs",
+  "code": "def count_locked_pairs(values: list[int], m: int) -> int:\n    \"\"\"\n    Counts index pairs (i, j) with i < j such that:\n    1. values[i] + values[j] is an exact multiple of m.\n    2. values[i] and values[j] have the same parity.\n    \n    Raises ValueError if m < 1.\n    \"\"\"\n    if m < 1:\n        raise ValueError(\"m must be >= 1\")\n    \n    even_counts = [0] * m\n    odd_counts = [0] * m\n    total = 0\n    \n    for v in values:\n        r = v % m\n        # The complement remainder such that r + r2 ≡ 0 (mod m)\n        r2 = m - r if r else 0\n        if v & 1:  # odd\n            total += odd_counts[r2]\n            odd_counts[r] += 1\n        else:      # even\n            total += even_counts[r2]\n            even_counts[r] += 1\n            \n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Parity-locked divisible pairs",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 59.59,
+   "tokens_in": 454,
+   "tokens_out": 10354,
+   "cost_usd": 0.068596902,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Peak concurrency and its first instant",
+  "category": "optimization",
+  "entry_point": "peak_load",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Peak concurrency and its first instant",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 49.45,
+   "tokens_in": 432,
+   "tokens_out": 16384,
+   "cost_usd": 0.071967456,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Recurring values over many windows",
+  "category": "optimization",
+  "entry_point": "recurring_counts",
+  "code": "def recurring_counts(data: list[int], queries: list[tuple[int, int]]) -> list[int]:\n    n = len(data)\n    q = len(queries)\n    if q == 0:\n        return []\n    if n == 0:\n        return [0] * q\n\n    # Group queries by their right endpoint r\n    queries_by_r = [[] for _ in range(n + 1)]\n    for idx, (l, r) in enumerate(queries):\n        queries_by_r[r].append((l, idx))\n\n    # Fenwick tree (Binary Indexed Tree), 1-indexed\n    bit = [0] * (n + 1)\n    answers = [0] * q\n    total_active = 0\n    first = {}   # first occurrence of each value\n    second = {}  # second occurrence of each value\n\n    for r in range(1, n + 1):\n        val = data[r - 1]\n        if val in first:\n            if val in second:\n                # Third or later occurrence: move the active marker\n                p1 = first[val]\n                p2 = second[val]\n                # Remove 1 at p1\n                i = p1 + 1\n                while i <= n:\n                    bit[i] -= 1\n                    i += i & -i\n                # Add 1 at p2\n                i = p2 + 1\n                while i <= n:\n                    bit[i] += 1\n                    i += i & -i\n                first[val] = p2\n                second[val] = r - 1\n            else:\n                # Second occurrence: activate the value\n                p1 = first[val]\n                i = p1 + 1\n                while i <= n:\n                    bit[i] += 1\n                    i += i & -i\n                second[val] = r - 1\n                total_active += 1\n        else:\n            first[val] = r - 1\n\n        # Answer all queries that end at r\n        for l, idx in queries_by_r[r]:\n            if l == r:\n                answers[idx] = 0\n            else:\n                # Prefix sum of first l elements (indices 0..l-1)\n                s = 0\n                i = l\n                while i > 0:\n                    s += bit[i]\n                    i -= i & -i\n                answers[idx] = total_active - s\n\n    # Queries with r == 0 (empty slices)\n    for l, idx in queries_by_r[0]:\n        answers[idx] = 0\n\n    return answers",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Recurring values over many windows",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 54.71,
+   "tokens_in": 479,
+   "tokens_out": 15384,
+   "cost_usd": 0.0372173868,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Stable sensor stretches",
+  "category": "optimization",
+  "entry_point": "count_stable_windows",
+  "code": "from collections import deque\n\ndef count_stable_windows(readings: list[int], tol: int) -> int:\n    \"\"\"\n    Counts the number of non-empty contiguous subarrays (windows) of `readings`\n    where max(window) - min(window) <= tol.\n    \n    Uses a two-pointer sliding window with two monotonic deques to track\n    the minimum and maximum values in the current window in O(n) time.\n    \"\"\"\n    n = len(readings)\n    if n == 0:\n        return 0\n        \n    min_deque = deque()  # indices, values increasing\n    max_deque = deque()  # indices, values decreasing\n    left = 0\n    ans = 0\n    \n    for right in range(n):\n        val = readings[right]\n        \n        # maintain min_deque\n        while min_deque and readings[min_deque[-1]] >= val:\n            min_deque.pop()\n        min_deque.append(right)\n        \n        # maintain max_deque\n        while max_deque and readings[max_deque[-1]] <= val:\n            max_deque.pop()\n        max_deque.append(right)\n        \n        # shrink window from the left if it violates the tolerance\n        while left <= right and readings[max_deque[0]] - readings[min_deque[0]] > tol:\n            if min_deque[0] == left:\n                min_deque.popleft()\n            if max_deque[0] == left:\n                max_deque.popleft()\n            left += 1\n            \n        # all subarrays ending at `right` and starting in [left, right] are valid\n        ans += right - left + 1\n        \n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Stable sensor stretches",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 15.31,
+   "tokens_in": 338,
+   "tokens_out": 2641,
+   "cost_usd": 0.017958996,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Triple-dominance pair counting",
+  "category": "optimization",
+  "entry_point": "count_dominant_pairs",
+  "code": "def count_dominant_pairs(seq: list[int]) -> int:\n    \"\"\"\n    Counts the number of index pairs (i, j) with i < j such that\n    seq[i] > 3 * seq[j].\n    \"\"\"\n    n = len(seq)\n    if n < 2:\n        return 0\n\n    # Coordinate compression: we need to query and insert values.\n    # We will process from left to right. For each j, we want to count\n    # how many i < j satisfy seq[i] > 3 * seq[j], i.e. seq[i] >= 3 * seq[j] + 1.\n    # We collect all seq values and all query thresholds (3 * x + 1).\n    vals = set(seq)\n    for x in seq:\n        vals.add(3 * x + 1)\n\n    sorted_vals = sorted(vals)\n    val_to_idx = {v: i + 1 for i, v in enumerate(sorted_vals)}  # 1-based indexing\n    M = len(sorted_vals)\n\n    # Fenwick tree (Binary Indexed Tree) for frequencies\n    bit = [0] * (M + 2)\n\n    total = 0\n    for x in seq:\n        q = 3 * x + 1\n        idx = val_to_idx[q]\n\n        # Query total elements seen so far (sum up to M)\n        sM = 0\n        i = M\n        while i > 0:\n            sM += bit[i]\n            i -= i & -i\n\n        # Query elements with value < q (sum up to idx - 1)\n        sIdx = 0\n        i = idx - 1\n        while i > 0:\n            sIdx += bit[i]\n            i -= i & -i\n\n        # Elements with value >= q\n        total += sM - sIdx\n\n        # Insert current element into BIT\n        i = val_to_idx[x]\n        while i <= M:\n            bit[i] += 1\n            i += i & -i\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Triple-dominance pair counting",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 41.7,
+   "tokens_in": 335,
+   "tokens_out": 7763,
+   "cost_usd": 0.051419907,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Category summarizer with indexed validation errors",
+  "category": "spec_compliance",
+  "entry_point": "summarize_by_category",
+  "code": "def summarize_by_category(rows):\n    if not isinstance(rows, list):\n        raise TypeError(\"rows must be a list\")\n\n    result = {}\n    for i, row in enumerate(rows):\n        if not isinstance(row, tuple) or len(row) != 3:\n            raise TypeError(f\"row {i}: each row must be a tuple of length 3\")\n        category, amount, refunded = row\n\n        if not isinstance(category, str) or category == \"\":\n            raise ValueError(f\"row {i}: category must be a non-empty string\")\n\n        if isinstance(amount, bool) or not isinstance(amount, (int, float)):\n            raise TypeError(f\"row {i}: amount must be an int or float\")\n\n        if amount < 0:\n            raise ValueError(f\"row {i}: amount must be non-negative\")\n\n        if not isinstance(refunded, bool):\n            raise TypeError(f\"row {i}: refunded must be a bool\")\n\n        if category not in result:\n            result[category] = {\n                \"count\": 0,\n                \"gross\": 0.0,\n                \"net\": 0.0,\n                \"largest\": 0.0,\n            }\n\n        summary = result[category]\n        summary[\"count\"] += 1\n        amt = float(amount)\n        summary[\"gross\"] += amt\n        if not refunded:\n            summary[\"net\"] += amt\n        if amt > summary[\"largest\"]:\n            summary[\"largest\"] = amt\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Category summarizer with indexed validation errors",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 4.11,
+   "tokens_in": 651,
+   "tokens_out": 1165,
+   "cost_usd": 0.0032809194,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Clamp list values without min/max",
+  "category": "spec_compliance",
+  "entry_point": "clamp_values",
+  "code": "def clamp_values(values, low, high):\n    # 1. values must be a list\n    if not isinstance(values, list):\n        raise TypeError(\"values must be a list\")\n\n    # 2. bounds must be numbers (and not bool)\n    if (isinstance(low, bool) or not isinstance(low, (int, float)) or\n        isinstance(high, bool) or not isinstance(high, (int, float))):\n        raise TypeError(\"bounds must be numbers\")\n\n    # 3. low must not exceed high\n    if low > high:\n        raise ValueError(\"low must not exceed high\")\n\n    # 4. scan elements, clamping valid ones and raising on the first invalid one\n    result = []\n    for i, v in enumerate(values):\n        if isinstance(v, bool) or not isinstance(v, (int, float)):\n            raise TypeError(f\"index {i}\")\n        if v < low:\n            result.append(low)\n        elif v > high:\n            result.append(high)\n        else:\n            result.append(v)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Clamp list values without min/max",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 11.42,
+   "tokens_in": 460,
+   "tokens_out": 2789,
+   "cost_usd": 0.0070279902,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Depth-limited flatten, iteration only",
+  "category": "spec_compliance",
+  "entry_point": "flatten_depth",
+  "code": "def flatten_depth(nested, max_depth):\n    # Validation 1: nested must be a list\n    if not isinstance(nested, list):\n        raise TypeError(\"nested must be a list\")\n    # Validation 2: max_depth must be an int (and not a bool)\n    if isinstance(max_depth, bool) or not isinstance(max_depth, int):\n        raise TypeError(\"max_depth must be an int\")\n    # Validation 3: max_depth must be >= 0\n    if max_depth < 0:\n        raise ValueError(\"max_depth must be >= 0\")\n\n    result = []\n    # Stack holds tuples of (item, remaining_depth)\n    # Process elements of nested in reverse order so that left-to-right order is preserved\n    stack = [(item, max_depth) for item in reversed(nested)]\n\n    while stack:\n        item, depth = stack.pop()\n        if isinstance(item, list) and depth > 0:\n            # Expand this list: push its elements in reverse order with depth-1\n            for sub in reversed(item):\n                stack.append((sub, depth - 1))\n        else:\n            # Atom or no remaining depth: keep as is\n            result.append(item)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Depth-limited flatten, iteration only",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 20.85,
+   "tokens_in": 452,
+   "tokens_out": 3243,
+   "cost_usd": 0.02212947,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Duration string parser under a no-import contract",
+  "category": "spec_compliance",
+  "entry_point": "parse_duration",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Duration string parser under a no-import contract",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 58.31,
+   "tokens_in": 425,
+   "tokens_out": 16384,
+   "cost_usd": 0.1079104356,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Placeholder template renderer with exact error positions",
+  "category": "spec_compliance",
+  "entry_point": "render_template",
+  "code": "def render_template(template, context):\n    if not isinstance(template, str):\n        raise TypeError(\"template must be a string\")\n    if not isinstance(context, dict):\n        raise TypeError(\"context must be a dict\")\n\n    out = []\n    i = 0\n    n = len(template)\n\n    def valid_name_char(ch):\n        return (\n            (\"A\" <= ch <= \"Z\")\n            or (\"a\" <= ch <= \"z\")\n            or (\"0\" <= ch <= \"9\")\n            or ch == \"_\"\n        )\n\n    while i < n:\n        c = template[i]\n        if c == \"{\":\n            # Escape \"{{\" -> literal \"{\"\n            if i + 1 < n and template[i + 1] == \"{\":\n                out.append(\"{\")\n                i += 2\n                continue\n            # Placeholder\n            j = i + 1\n            if j >= n:\n                raise ValueError(f\"unclosed placeholder at position {i}\")\n            first = template[j]\n            if first == \"}\":\n                raise ValueError(f\"empty placeholder at position {i}\")\n            if not valid_name_char(first):\n                raise ValueError(f\"invalid placeholder at position {i}\")\n            name_chars = []\n            while j < n and valid_name_char(template[j]):\n                name_chars.append(template[j])\n                j += 1\n            if j >= n:\n                raise ValueError(f\"unclosed placeholder at position {i}\")\n            if template[j] != \"}\":\n                raise ValueError(f\"invalid placeholder at position {i}\")\n            key = \"\".join(name_chars)\n            if key not in context:\n                raise KeyError(key)\n            out.append(str(context[key]))\n            i = j + 1\n        elif c == \"}\":\n            # Escape \"}}\" -> literal \"}\"\n            if i + 1 < n and template[i + 1] == \"}\":\n                out.append(\"}\")\n                i += 2\n                continue\n            raise ValueError(f\"stray '}}' at position {i}\")\n        else:\n            out.append(c)\n            i += 1\n\n    return \"\".join(out)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Placeholder template renderer with exact error positions",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 18.45,
+   "tokens_in": 546,
+   "tokens_out": 2884,
+   "cost_usd": 0.01997919,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "RPN evaluator with truncating division and indexed errors",
+  "category": "spec_compliance",
+  "entry_point": "eval_rpn",
+  "code": "def eval_rpn(tokens):\n    if not isinstance(tokens, list):\n        raise TypeError(\"tokens must be a list\")\n    if len(tokens) == 0:\n        raise ValueError(\"empty expression\")\n\n    stack = []\n    for i, tok in enumerate(tokens):\n        if not isinstance(tok, str):\n            raise TypeError(f\"token {i}\")\n\n        if tok in (\"+\", \"-\", \"*\", \"/\"):\n            if len(stack) < 2:\n                raise ValueError(f\"stack underflow at token {i}\")\n            right = stack.pop()\n            left = stack.pop()\n            if tok == \"+\":\n                stack.append(left + right)\n            elif tok == \"-\":\n                stack.append(left - right)\n            elif tok == \"*\":\n                stack.append(left * right)\n            else:  # \"/\"\n                if right == 0:\n                    raise ZeroDivisionError(f\"token {i}\")\n                # Integer division truncated toward zero (C-style)\n                q = left // right\n                if (left % right != 0) and ((left < 0) != (right < 0)):\n                    q += 1\n                stack.append(q)\n        else:\n            # Operand: optional single leading '+' or '-' followed by one or more ASCII digits\n            if len(tok) == 0:\n                raise ValueError(f\"unknown token {i}\")\n            if tok[0] in (\"+\", \"-\"):\n                if len(tok) == 1:\n                    # Exactly \"+\" or \"-\" is an operator, already handled above.\n                    raise ValueError(f\"unknown token {i}\")\n                rest = tok[1:]\n            else:\n                rest = tok\n            if len(rest) == 0 or not all('0' <= c <= '9' for c in rest):\n                raise ValueError(f\"unknown token {i}\")\n            stack.append(int(tok))\n\n    if len(stack) != 1:\n        raise ValueError(\"leftover operands\")\n    return stack[0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "RPN evaluator with truncating division and indexed errors",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 23.05,
+   "tokens_in": 558,
+   "tokens_out": 5223,
+   "cost_usd": 0.0352478709,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive deep_get with loop ban",
+  "category": "spec_compliance",
+  "entry_point": "deep_get",
+  "code": "def deep_get(data, path):\n    if not isinstance(path, str):\n        raise TypeError(\"path must be a string\")\n    if path == \"\":\n        raise ValueError(\"path must not be empty\")\n\n    segments = path.split('.')\n\n    def has_empty(segs):\n        if not segs:\n            return False\n        if segs[0] == \"\":\n            return True\n        return has_empty(segs[1:])\n\n    if has_empty(segments):\n        raise ValueError(\"empty segment\")\n\n    def all_ascii_digits(s):\n        if s == \"\":\n            return True\n        return s[0] in '0123456789' and all_ascii_digits(s[1:])\n\n    def is_valid_int_literal(s):\n        if s == \"\":\n            return False\n        if s[0] == '-':\n            return len(s) > 1 and all_ascii_digits(s[1:])\n        return all_ascii_digits(s)\n\n    def navigate(node, segs):\n        if not segs:\n            return node\n        seg = segs[0]\n        rest = segs[1:]\n        if isinstance(node, dict):\n            if seg not in node:\n                raise KeyError(seg)\n            return navigate(node[seg], rest)\n        elif isinstance(node, list):\n            if not is_valid_int_literal(seg):\n                raise ValueError(\"invalid index\")\n            index = int(seg)\n            if index < -len(node) or index >= len(node):\n                raise IndexError(seg)\n            return navigate(node[index], rest)\n        else:\n            raise TypeError(\"cannot descend\")\n\n    return navigate(data, segments)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Recursive deep_get with loop ban",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 25.6,
+   "tokens_in": 504,
+   "tokens_out": 5806,
+   "cost_usd": 0.0389449269,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Top-k frequent without sorting builtins",
+  "category": "spec_compliance",
+  "entry_point": "top_k_frequent",
+  "code": "def top_k_frequent(items, k):\n    # Validation 1: items must be a list\n    if not isinstance(items, list):\n        raise TypeError(\"items must be a list\")\n    # Validation 2: k must be an int (and not a bool)\n    if isinstance(k, bool) or not isinstance(k, int):\n        raise TypeError(\"k must be an int\")\n    # Validation 3: k must be >= 0\n    if k < 0:\n        raise ValueError(\"k must be >= 0\")\n\n    if k == 0:\n        return []\n\n    # Build frequency and first-occurrence index without mutating items\n    freq = {}\n    first_occurrence = {}\n    for i, val in enumerate(items):\n        if val not in freq:\n            freq[val] = 0\n            first_occurrence[val] = i\n        freq[val] += 1\n\n    distinct = list(freq.keys())\n    result = []\n\n    # Select top k by repeated manual selection (no sorted/min/max)\n    for _ in range(min(k, len(distinct))):\n        best_val = None\n        best_count = -1\n        best_first = None\n        for val in distinct:\n            c = freq[val]\n            f = first_occurrence[val]\n            if c > best_count or (c == best_count and f < best_first):\n                best_val = val\n                best_count = c\n                best_first = f\n        result.append((best_val, best_count))\n        distinct.remove(best_val)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.9091,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Top-k frequent without sorting builtins",
+   "model": "z-ai/glm-5.2",
+   "provider": "openrouter",
+   "latency_s": 10.1,
+   "tokens_in": 419,
+   "tokens_out": 1543,
+   "cost_usd": 0.0109137699,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": [
+   "no_sorting_builtins: expected {\"value\": [false, false, false, false, false]} got {\"ok\": true, \"loaded\": true, \"value\": [false, true, false, false, false]}"
+  ]
+ }
+]

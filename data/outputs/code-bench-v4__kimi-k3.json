@@ -1,0 +1,1266 @@
+[
+ {
+  "title": "Cheapest walk with color-switch surcharge",
+  "category": "algorithms",
+  "entry_point": "min_cost_route",
+  "code": "import heapq\n\ndef min_cost_route(n, edges, s, t, switch_cost):\n    if s == t:\n        return 0\n\n    # State (v, color): we are at v and the previous edge had this color.\n    state_id = {}\n    state_node = []\n    states_at = [[] for _ in range(n)]\n    adj = []\n\n    def get_state(v, color):\n        key = (v, color)\n        idx = state_id.get(key)\n        if idx is None:\n            idx = len(state_node)\n            state_id[key] = idx\n            state_node.append(v)\n            states_at[v].append(idx)\n            adj.append([])\n        return idx\n\n    # Traversing an edge preserves its color as the new \"previous color\".\n    for u, v, w, color in edges:\n        a = get_state(u, color)\n        b = get_state(v, color)\n        adj[a].append((b, w))\n        adj[b].append((a, w))\n\n    # Add one hub per vertex. Going through the hub represents changing color:\n    # (v, old_color) -> hub(v) -> (v, new_color)\n    hub_base = len(adj)\n    adj.extend([[] for _ in range(n)])\n\n    for idx, v in enumerate(state_node):\n        hub = hub_base + v\n        adj[idx].append((hub, 0))\n        adj[hub].append((idx, switch_cost))\n\n    dist = [float(\"inf\")] * len(adj)\n    pq = []\n\n    # The first edge has no switch charge, so every color is available at s.\n    for idx in states_at[s]:\n        dist[idx] = 0\n        heapq.heappush(pq, (0, idx))\n\n    # hub(t) is reachable at the minimum distance over all final colors.\n    target = hub_base + t\n\n    while pq:\n        d, x = heapq.heappop(pq)\n        if d != dist[x]:\n            continue\n        if x == target:\n            return d\n\n        for y, weight in adj[x]:\n            nd = d + weight\n            if nd < dist[y]:\n                dist[y] = nd\n                heapq.heappush(pq, (nd, y))\n\n    return -1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest walk with color-switch surcharge",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 242.78,
+   "tokens_in": 539,
+   "tokens_out": 12352,
+   "cost_usd": 0.18502803,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exactly-k non-adjacent picks on a circle",
+  "category": "algorithms",
+  "entry_point": "best_circular_selection",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Exactly-k non-adjacent picks on a circle",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 220.77,
+   "tokens_in": 432,
+   "tokens_out": 16384,
+   "cost_usd": 0.269043984,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Grid shortest path with one same-label teleport",
+  "category": "algorithms",
+  "entry_point": "min_steps",
+  "code": "from collections import deque\n\ndef min_steps(grid, c):\n    R = len(grid)\n    C = len(grid[0])\n    target_r, target_c = R - 1, C - 1\n\n    if grid[0][0] == -1 or grid[target_r][target_c] == -1:\n        return -1\n\n    def bfs(start_r, start_c):\n        \"\"\"Walking-only distances from the start cell; -1 means unreachable.\"\"\"\n        dist = [[-1] * C for _ in range(R)]\n        dist[start_r][start_c] = 0\n        queue = deque([(start_r, start_c)])\n\n        while queue:\n            r, col = queue.popleft()\n            next_dist = dist[r][col] + 1\n\n            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                nr, nc = r + dr, col + dc\n                if (\n                    0 <= nr < R\n                    and 0 <= nc < C\n                    and grid[nr][nc] != -1\n                    and dist[nr][nc] == -1\n                ):\n                    dist[nr][nc] = next_dist\n                    queue.append((nr, nc))\n\n        return dist\n\n    from_start = bfs(0, 0)\n    from_target = bfs(target_r, target_c)\n\n    INF = 10**18\n\n    # For each label store:\n    # [best_start, best_start_id, second_start,\n    #  best_target, best_target_id, second_target]\n    label_stats = {}\n\n    for r in range(R):\n        for col in range(C):\n            label = grid[r][col]\n            if label == -1:\n                continue\n\n            stats = label_stats.get(label)\n            if stats is None:\n                stats = [INF, -1, INF, INF, -1, INF]\n                label_stats[label] = stats\n\n            cell_id = r * C + col\n\n            d = from_start[r][col]\n            if d != -1:\n                if d < stats[0]:\n                    stats[2] = stats[0]\n                    stats[0] = d\n                    stats[1] = cell_id\n                elif d < stats[2]:\n                    stats[2] = d\n\n            d = from_target[r][col]\n            if d != -1:\n                if d < stats[3]:\n                    stats[5] = stats[3]\n                    stats[3] = d\n                    stats[4] = cell_id\n                elif d < stats[5]:\n                    stats[5] = d\n\n    # Option 1: never teleport.\n    answer = from_start[target_r][target_c]\n    if answer == -1:\n        answer = INF\n\n    # Option 2: walk to u, teleport u -> v, then walk from v to target.\n    for s1, s_id, s2, t1, t_id, t2 in label_stats.values():\n        if s1 == INF or t1 == INF:\n            continue\n\n        if s_id != t_id:\n            candidate = s1 + t1 + c\n        else:\n            # The two best cells are the same cell, but teleporting requires\n            # two distinct cells. Replace one of them by its second-best cell.\n            walk_cost = min(s2 + t1, s1 + t2)\n            if walk_cost >= INF:\n                continue\n            candidate = walk_cost + c\n\n        answer = min(answer, candidate)\n\n    return -1 if answer == INF else answer",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Grid shortest path with one same-label teleport",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 167.6,
+   "tokens_in": 518,
+   "tokens_out": 7680,
+   "cost_usd": 0.11558646,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Interval scheduling with mandatory cooldown gap",
+  "category": "algorithms",
+  "entry_point": "max_sessions",
+  "code": "def max_sessions(intervals, gap):\n    \"\"\"\n    Return the maximum number of non-conflicting sessions that can be\n    scheduled in one room, requiring `gap` idle time between sessions.\n\n    Greedy: always take the compatible session that ends earliest.\n    Runs in O(n log n) due to the sort.\n    \"\"\"\n    count = 0\n    last_end = None  # end time of the most recently selected session\n\n    for start, end in sorted(intervals, key=lambda iv: iv[1]):\n        if last_end is None or start >= last_end + gap:\n            count += 1\n            last_end = end\n\n    return count",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Interval scheduling with mandatory cooldown gap",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 15.76,
+   "tokens_in": 455,
+   "tokens_out": 836,
+   "cost_usd": 0.015142545,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lexicographically smallest balanced bracket completion",
+  "category": "algorithms",
+  "entry_point": "smallest_balanced",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Lexicographically smallest balanced bracket completion",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 383.07,
+   "tokens_in": 293,
+   "tokens_out": 16384,
+   "cost_usd": 0.24417261,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Longest repeated substring with enforced spacing",
+  "category": "algorithms",
+  "entry_point": "longest_spaced_repeat",
+  "code": "def longest_spaced_repeat(s: str, gap: int) -> int:\n    \"\"\"\n    Return the maximum length L of a substring occurring at positions p < q\n    such that q >= p + L + gap.\n    \"\"\"\n    n = len(s)\n    best = 0\n\n    # d is the distance q - p between the two starting positions.\n    for d in range(gap + 1, n):\n        max_len_for_d = d - gap\n        run = 0\n\n        # Scanning downward makes `run` the longest common prefix length\n        # of the suffixes starting at p and p + d.\n        for p in range(n - d - 1, -1, -1):\n            if s[p] == s[p + d]:\n                run += 1\n                candidate = min(run, max_len_for_d)\n                best = max(best, candidate)\n            else:\n                run = 0\n\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Longest repeated substring with enforced spacing",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 33.43,
+   "tokens_in": 400,
+   "tokens_out": 2505,
+   "cost_usd": 0.038216178,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Palindrome insertions from a restricted alphabet",
+  "category": "algorithms",
+  "entry_point": "min_insertions",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Palindrome insertions from a restricted alphabet",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 203.18,
+   "tokens_in": 357,
+   "tokens_out": 16384,
+   "cost_usd": 0.268798959,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Smallest solution of congruences with non-coprime moduli",
+  "category": "algorithms",
+  "entry_point": "solve_congruences",
+  "code": "from math import gcd\n\n\ndef solve_congruences(pairs):\n    \"\"\"\n    Return the smallest non-negative solution to the given system of\n    congruences x ≡ r (mod m).\n\n    Raises ValueError if the system is inconsistent.\n    \"\"\"\n    x = 0       # Solution to the congruences processed so far\n    modulus = 1 # LCM of the moduli processed so far\n\n    for r, m in pairs:\n        r %= m\n        g = gcd(modulus, m)\n\n        # The two congruences must agree modulo gcd(modulus, m).\n        if (r - x) % g != 0:\n            raise ValueError(\"The system of congruences has no solution\")\n\n        reduced_current = modulus // g\n        reduced_new = m // g\n\n        if reduced_new != 1:\n            inverse = pow(reduced_current, -1, reduced_new)\n            k = ((r - x) // g * inverse) % reduced_new\n            x += modulus * k\n\n        modulus *= reduced_new\n        x %= modulus\n\n    return x",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Smallest solution of congruences with non-coprime moduli",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 8.75,
+   "tokens_in": 353,
+   "tokens_out": 1183,
+   "cost_usd": 0.018444888,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Build-order resolver reports phantom dependency cycles",
+  "category": "bug_fixing",
+  "entry_point": "resolve_build_order",
+  "code": "def resolve_build_order(deps):\n    graph = {}\n    for pkg, ds in deps.items():\n        graph.setdefault(pkg, [])\n        for d in ds:\n            graph.setdefault(d, [])\n            graph[pkg].append(d)\n    order = []\n    visiting = set()  # nodes on the current DFS path (cycle detection)\n    done = set()      # nodes fully emitted into `order`\n\n    def visit(node):\n        if node in done:\n            return\n        if node in visiting:\n            raise ValueError(\"dependency cycle detected at \" + node)\n        visiting.add(node)\n        for dep in sorted(set(graph[node])):  # set() collapses duplicate entries\n            visit(dep)\n        visiting.remove(node)   # leave the path: node is no longer \"in progress\"\n        done.add(node)\n        order.append(node)\n\n    for node in sorted(graph):\n        visit(node)\n    return order",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Build-order resolver reports phantom dependency cycles",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 14.37,
+   "tokens_in": 577,
+   "tokens_out": 2371,
+   "cost_usd": 0.036751968,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Ledger balances drift by one cent",
+  "category": "bug_fixing",
+  "entry_point": "compute_balances",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Ledger balances drift by one cent",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 71.02,
+   "tokens_in": 628,
+   "tokens_out": 16384,
+   "cost_usd": 0.244996488,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Memoization decorator returns results for the wrong keyword arguments",
+  "category": "bug_fixing",
+  "entry_point": "memoize",
+  "code": "def memoize(func):\n    cache = {}\n    def wrapper(*args, **kwargs):\n        key = (args, frozenset(kwargs.items()))\n        if key in cache:\n            wrapper.hits += 1\n            return cache[key]\n        wrapper.misses += 1\n        result = func(*args, **kwargs)\n        cache[key] = result\n        return result\n    wrapper.hits = 0\n    wrapper.misses = 0\n    return wrapper",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Memoization decorator returns results for the wrong keyword arguments",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 10.91,
+   "tokens_in": 590,
+   "tokens_out": 1493,
+   "cost_usd": 0.023752278,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Patch applier lands hunks on the wrong lines",
+  "category": "bug_fixing",
+  "entry_point": "apply_hunks",
+  "code": "def apply_hunks(lines, hunks):\n    ordered = sorted(hunks, key=lambda h: h[0])\n    for i in range(1, len(ordered)):\n        prev = ordered[i - 1]\n        if ordered[i][0] == prev[0] or ordered[i][0] < prev[0] + prev[1]:\n            raise ValueError(\"conflicting hunks\")\n    for start, delete, insert in ordered:\n        if start < 0 or start + delete > len(lines):\n            raise ValueError(\"hunk out of range\")\n    result = list(lines)\n    for start, delete, insert in reversed(ordered):\n        result[start:start + delete] = list(insert)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Patch applier lands hunks on the wrong lines",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 28.74,
+   "tokens_in": 714,
+   "tokens_out": 4689,
+   "cost_usd": 0.071581158,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive settings merger drops falsy overrides",
+  "category": "bug_fixing",
+  "entry_point": "merge_settings",
+  "code": "merge_settings({\"debug\": True, \"port\": 8080}, {\"debug\": False})\n# {\"debug\": False, \"port\": 8080}   ✓ (previously {\"debug\": True, ...})\n\nmerge_settings({\"db\": {\"host\": \"prod\", \"pool\": 5}}, {\"db\": {\"pool\": 0}})\n# {\"db\": {\"host\": \"prod\", \"pool\": 0}}   ✓ (previously pool stayed 5)\n\nmerge_settings({\"a\": 1}, {\"b\": {\"c\": 2}})\n# {\"a\": 1, \"b\": {\"c\": 2}}   ✓",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Recursive settings merger drops falsy overrides",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 6.44,
+   "tokens_in": 479,
+   "tokens_out": 1042,
+   "cost_usd": 0.016725258,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": [
+   "import: NameError: name 'merge_settings' is not defined"
+  ]
+ },
+ {
+  "title": "Room booking insert wrongly merges back-to-back reservations",
+  "category": "bug_fixing",
+  "entry_point": "insert_booking",
+  "code": "def insert_booking(bookings, new):\n    start, end = new\n    if start >= end:\n        raise ValueError(\"empty booking\")\n    result = []\n    i = 0\n    # Bookings ending at or before `start` do not overlap (touching != overlap),\n    # so they are copied through unchanged.\n    while i < len(bookings) and bookings[i][1] <= start:\n        result.append(bookings[i])\n        i += 1\n    # Merge only true overlaps: booking.start < end (strict). A booking that\n    # starts exactly at `end` merely touches and must stay separate.\n    while i < len(bookings) and bookings[i][0] < end:\n        start = min(start, bookings[i][0])\n        end = max(end, bookings[i][1])\n        i += 1\n    result.append((start, end))\n    result.extend(bookings[i:])\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Room booking insert wrongly merges back-to-back reservations",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 15.49,
+   "tokens_in": 595,
+   "tokens_out": 2697,
+   "cost_usd": 0.041646528,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Session purge crashes and keeps just-expired sessions",
+  "category": "bug_fixing",
+  "entry_point": "purge_expired",
+  "code": "def purge_expired(sessions, now):\n    purged = []\n    for sid, expiry in list(sessions.items()):\n        if expiry <= now:\n            del sessions[sid]\n            purged.append(sid)\n    return purged",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Session purge crashes and keeps just-expired sessions",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 3.74,
+   "tokens_in": 408,
+   "tokens_out": 575,
+   "cost_usd": 0.009579438,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Sliding-window rate limiter admits one extra call",
+  "category": "bug_fixing",
+  "entry_point": "RateLimiter",
+  "code": "class RateLimiter:\n    def __init__(self, max_calls, window_seconds):\n        self.max_calls = max_calls\n        self.window = window_seconds\n        self.calls = []\n\n    def allow(self, timestamp):\n        self.calls = [t for t in self.calls if timestamp - t < self.window]\n        if len(self.calls) < self.max_calls:\n            self.calls.append(timestamp)\n            return True\n        return False",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Sliding-window rate limiter admits one extra call",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 6.69,
+   "tokens_in": 566,
+   "tokens_out": 1114,
+   "cost_usd": 0.018052848,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Counting bag with deterministic most-common ordering",
+  "category": "data_structures",
+  "entry_point": "CountingBag",
+  "code": "from typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\n\nclass CountingBag(Generic[T]):\n    \"\"\"A multiset that tracks item counts and current entry order.\"\"\"\n\n    def __init__(self) -> None:\n        self._counts: dict[T, int] = {}\n        self._entry_moments: dict[T, int] = {}\n        self._next_entry_moment = 0\n        self._size = 0\n\n    def add(self, item: T) -> int:\n        \"\"\"Add one occurrence of item and return its new count.\"\"\"\n        new_count = self._counts.get(item, 0) + 1\n\n        if new_count == 1:\n            self._entry_moments[item] = self._next_entry_moment\n            self._next_entry_moment += 1\n\n        self._counts[item] = new_count\n        self._size += 1\n        return new_count\n\n    def discard(self, item: T) -> bool:\n        \"\"\"Remove one occurrence of item, returning whether one was present.\"\"\"\n        current_count = self._counts.get(item, 0)\n        if current_count == 0:\n            return False\n\n        if current_count == 1:\n            del self._counts[item]\n            del self._entry_moments[item]\n        else:\n            self._counts[item] = current_count - 1\n\n        self._size -= 1\n        return True\n\n    def count(self, item: T) -> int:\n        \"\"\"Return the current count for item, or 0 if it is absent.\"\"\"\n        return self._counts.get(item, 0)\n\n    def __len__(self) -> int:\n        \"\"\"Return the total number of occurrences in the bag.\"\"\"\n        return self._size\n\n    def distinct(self) -> int:\n        \"\"\"Return the number of items with a positive count.\"\"\"\n        return len(self._counts)\n\n    def most_common(self, k: int) -> list[tuple[T, int]]:\n        \"\"\"\n        Return up to k items ordered by:\n          1. count, descending\n          2. current entry moment, ascending\n        \"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        if k == 0:\n            return []\n\n        ordered = sorted(\n            self._counts.items(),\n            key=lambda entry: (-entry[1], self._entry_moments[entry[0]]),\n        )\n        return ordered[:k]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Counting bag with deterministic most-common ordering",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 7.8,
+   "tokens_in": 618,
+   "tokens_out": 1240,
+   "cost_usd": 0.020078388,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "LRU cache with TTL and stats",
+  "category": "data_structures",
+  "entry_point": "TTLCache",
+  "code": "from collections import OrderedDict\n\n\nclass TTLCache:\n    \"\"\"Fixed-capacity LRU cache with per-entry TTLs on an explicit logical clock.\"\"\"\n\n    def __init__(self, capacity):\n        if not isinstance(capacity, int) or isinstance(capacity, bool) or capacity < 1:\n            raise ValueError(\"capacity must be an integer >= 1\")\n        self._capacity = capacity\n        # key -> (value, stored_time, ttl); iteration order is LRU -> MRU\n        self._entries = OrderedDict()\n        self._hits = 0\n        self._misses = 0\n        self._evictions = 0\n        self._expirations = 0\n\n    def _purge(self, now):\n        \"\"\"Remove every entry dead at `now`, counting each as an expiration.\"\"\"\n        dead = [\n            key\n            for key, (_, stored_at, ttl) in self._entries.items()\n            if ttl is not None and now >= stored_at + ttl\n        ]\n        for key in dead:\n            del self._entries[key]\n            self._expirations += 1\n\n    def put(self, key, value, now, ttl=None):\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be a positive number or None\")\n        self._purge(now)\n        if key in self._entries:\n            # Update in place: refresh value, timestamp, ttl, and recency.\n            self._entries[key] = (value, now, ttl)\n            self._entries.move_to_end(key)\n        else:\n            if len(self._entries) >= self._capacity:\n                self._entries.popitem(last=False)  # evict LRU\n                self._evictions += 1\n            self._entries[key] = (value, now, ttl)\n\n    def get(self, key, now):\n        self._purge(now)\n        if key in self._entries:\n            self._hits += 1\n            self._entries.move_to_end(key)\n            return self._entries[key][0]\n        self._misses += 1\n        return None\n\n    def stats(self):\n        return {\n            \"hits\": self._hits,\n            \"misses\": self._misses,\n            \"evictions\": self._evictions,\n            \"expirations\": self._expirations,\n        }\n\n    def __len__(self):\n        return len(self._entries)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "LRU cache with TTL and stats",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 15.31,
+   "tokens_in": 921,
+   "tokens_out": 2277,
+   "cost_usd": 0.036377748,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard with competition ranks and stable ties",
+  "category": "data_structures",
+  "entry_point": "Leaderboard",
+  "code": "class Leaderboard:\n    \"\"\"Tracks players' best (highest-ever) scores and ranks them.\n\n    Ties in `top` are broken by who achieved their current best earlier\n    in the overall sequence of improving submissions.\n    \"\"\"\n\n    def __init__(self):\n        self._best = {}         # player -> best score\n        self._achieved_at = {}  # player -> sequence number of the submit that set the current best\n        self._seq = 0           # monotonic counter over improving submissions\n\n    def submit(self, player, score) -> bool:\n        \"\"\"Record an attempt. Return True iff it sets a new personal best.\n\n        Non-improving submissions (including ties with the current best)\n        change nothing, so tie-breaking order is preserved.\n        \"\"\"\n        if player in self._best and score <= self._best[player]:\n            return False\n        self._best[player] = score\n        self._achieved_at[player] = self._seq\n        self._seq += 1\n        return True\n\n    def best(self, player) -> int:\n        \"\"\"The player's best score. Raises KeyError for unknown players.\"\"\"\n        return self._best[player]\n\n    def rank(self, player) -> int:\n        \"\"\"Standard competition ranking: 1 + # players with a strictly greater best.\"\"\"\n        if player not in self._best:\n            raise KeyError(player)\n        b = self._best[player]\n        return 1 + sum(1 for other in self._best.values() if other > b)\n\n    def top(self, k) -> list:\n        \"\"\"Top-k players as (player, best) tuples.\n\n        Ordered by best descending; ties by earliest achievement of that best.\n        \"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        ordered = sorted(\n            self._best.items(),\n            key=lambda item: (-item[1], self._achieved_at[item[0]]),\n        )\n        return ordered[:k]\n\n    def player_count(self) -> int:\n        return len(self._best)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Leaderboard with competition ranks and stable ties",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 15.27,
+   "tokens_in": 538,
+   "tokens_out": 2612,
+   "cost_usd": 0.040214988,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Mergeable component ledger with undo",
+  "category": "data_structures",
+  "entry_point": "MergeLedger",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Mergeable component ledger with undo",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 338.2,
+   "tokens_in": 855,
+   "tokens_out": 16384,
+   "cost_usd": 0.245670678,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Normalized integer interval set",
+  "category": "data_structures",
+  "entry_point": "IntervalSet",
+  "code": "from bisect import bisect_left, bisect_right\n\n\nclass IntervalSet:\n    \"\"\"A set of integers stored as half-open intervals [lo, hi).\n\n    Invariant: self._iv is a list of [lo, hi] pairs sorted by lo,\n    pairwise disjoint and non-adjacent (iv[k][1] < iv[k+1][0] strictly),\n    so the representation is unique.\n    \"\"\"\n\n    __slots__ = (\"_iv\",)\n\n    def __init__(self, intervals=()):\n        self._iv = []\n        for lo, hi in intervals:\n            self.add(lo, hi)\n\n    @staticmethod\n    def _check(lo, hi):\n        if lo >= hi:\n            raise ValueError(f\"invalid interval [{lo}, {hi}): require lo < hi\")\n\n    def add(self, lo: int, hi: int) -> None:\n        \"\"\"Cover every integer in [lo, hi), merging overlapping/touching intervals.\"\"\"\n        self._check(lo, hi)\n        iv = self._iv\n        i = bisect_left(iv, [lo, hi])\n        if i and iv[i - 1][1] >= lo:            # predecessor overlaps or touches\n            i -= 1\n            lo = min(lo, iv[i][0])\n            hi = max(hi, iv[i][1])\n        j = i\n        while j < len(iv) and iv[j][0] <= hi:   # swallow all overlaps/touches\n            hi = max(hi, iv[j][1])\n            j += 1\n        iv[i:j] = [[lo, hi]]\n\n    def remove(self, lo: int, hi: int) -> None:\n        \"\"\"Uncover every integer in [lo, hi), splitting intervals as needed.\"\"\"\n        self._check(lo, hi)\n        iv = self._iv\n        i = bisect_left(iv, [lo, hi])\n        if i and iv[i - 1][1] > lo:             # predecessor overlaps\n            i -= 1\n        j = i\n        pieces = []\n        while j < len(iv) and iv[j][0] < hi:    # all intervals meeting [lo, hi)\n            a, b = iv[j]\n            if a < lo:\n                pieces.append([a, lo])          # left remnant\n            if b > hi:\n                pieces.append([hi, b])          # right remnant\n            j += 1\n        iv[i:j] = pieces\n\n    def contains(self, x: int) -> bool:\n        \"\"\"Return True iff integer x is covered.\"\"\"\n        iv = self._iv\n        i = bisect_right(iv, [x, float(\"inf\")]) - 1   # last interval with start <= x\n        return i >= 0 and x < iv[i][1]\n\n    def total(self) -> int:\n        \"\"\"Total number of covered integers.\"\"\"\n        return sum(b - a for a, b in self._iv)\n\n    def intervals(self) -> list:\n        \"\"\"Sorted list of (lo, hi) tuples: disjoint, non-adjacent, normalized.\"\"\"\n        return [(a, b) for a, b in self._iv]\n\n    def gaps(self, lo: int, hi: int) -> list:\n        \"\"\"Maximal uncovered sub-intervals of the window [lo, hi), normalized.\"\"\"\n        self._check(lo, hi)\n        out = []\n        cur = lo\n        for a, b in self._iv:\n            if b <= lo:          # entirely left of the window\n                continue\n            if a >= hi:          # entirely right of the window\n                break\n            if a > cur:\n                out.append((cur, a))\n            cur = max(cur, b)\n            if cur >= hi:\n                break\n        if cur < hi:\n            out.append((cur, hi))\n        return out\n\n    def __contains__(self, x):\n        return self.contains(x)\n\n    def __repr__(self):\n        return f\"IntervalSet({self.intervals()!r})\"",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Normalized integer interval set",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 55.56,
+   "tokens_in": 523,
+   "tokens_out": 8875,
+   "cost_usd": 0.133175988,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Reprioritizable task scheduler with FIFO ties",
+  "category": "data_structures",
+  "entry_point": "TaskScheduler",
+  "code": "import heapq\n\n\nclass TaskScheduler:\n    \"\"\"Priority queue of unique task ids with reprioritization and cancellation.\n\n    Higher integer priority is served first; ties are broken by FIFO order of\n    the task's *original* submission (reprioritizing never moves a task in the\n    FIFO order). All mutating/serving operations are O(log n) amortized.\n    \"\"\"\n\n    __slots__ = (\"_heap\", \"_live\", \"_next_seq\")\n\n    def __init__(self):\n        # Min-heap of entries (-priority, seq, task_id). Negating the priority\n        # puts the highest priority on top; seq breaks ties toward the\n        # earliest original submission.\n        self._heap = []\n        # task_id -> (current_priority, seq) for each active task. This dict\n        # is the single source of truth; heap entries that disagree with it\n        # are stale and discarded lazily.\n        self._live = {}\n        # Monotonic submission counter, never reused, so a seq value\n        # identifies exactly one submission of one task.\n        self._next_seq = 0\n\n    # ---- internal ---------------------------------------------------- #\n\n    def _purge_top(self):\n        \"\"\"Pop stale entries off the top of the heap.\"\"\"\n        heap, live = self._heap, self._live\n        while heap:\n            neg_prio, seq, task_id = heap[0]\n            current = live.get(task_id)\n            if current is not None and current == (-neg_prio, seq):\n                break  # top entry is current\n            heapq.heappop(heap)  # cancelled, superseded, or already served\n\n    # ---- public API -------------------------------------------------- #\n\n    def submit(self, task_id, priority):\n        if task_id in self._live:\n            raise ValueError(f\"task {task_id!r} is already active\")\n        seq = self._next_seq\n        self._next_seq += 1\n        self._live[task_id] = (priority, seq)\n        heapq.heappush(self._heap, (-priority, seq, task_id))\n\n    def reprioritize(self, task_id, priority):\n        old_priority, seq = self._live[task_id]  # KeyError if not active\n        if priority == old_priority:\n            return  # nothing changes; FIFO position (seq) already correct\n        # Keep the original seq -> FIFO position preserved. Push a new entry;\n        # the old one becomes stale immediately and is ignored from now on.\n        self._live[task_id] = (priority, seq)\n        heapq.heappush(self._heap, (-priority, seq, task_id))\n\n    def cancel(self, task_id):\n        del self._live[task_id]  # KeyError if not active\n        # Its heap entry is now stale and will be skipped lazily.\n\n    def pop(self):\n        self._purge_top()\n        if not self._heap:\n            raise IndexError(\"pop from empty TaskScheduler\")\n        _, _, task_id = heapq.heappop(self._heap)\n        del self._live[task_id]\n        return task_id\n\n    def peek(self):\n        self._purge_top()\n        if not self._heap:\n            raise IndexError(\"peek from empty TaskScheduler\")\n        return self._heap[0][2]\n\n    def priority_of(self, task_id):\n        return self._live[task_id][0]  # KeyError if not active\n\n    def __len__(self):\n        return len(self._live)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Reprioritizable task scheduler with FIFO ties",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 44.9,
+   "tokens_in": 648,
+   "tokens_out": 7111,
+   "cost_usd": 0.107351838,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Undoable stack",
+  "category": "data_structures",
+  "entry_point": "UndoStack",
+  "code": "class UndoStack:\n    \"\"\"A LIFO stack of arbitrary values whose push/pop operations can be undone.\n\n    The stack itself and the undo history are both plain lists used as stacks.\n    Each successful push/pop appends one entry to the history; undo() pops the\n    newest entry and reverses it. Undo operations are not recorded (no redo).\n    \"\"\"\n\n    __slots__ = (\"_items\", \"_history\")\n\n    def __init__(self) -> None:\n        self._items: list = []    # the actual stack (top = last element)\n        self._history: list = []  # (\"push\", x) or (\"pop\", x) entries\n\n    def push(self, x) -> None:\n        \"\"\"Push x onto the top of the stack.\"\"\"\n        self._items.append(x)\n        self._history.append((\"push\", x))\n\n    def pop(self):\n        \"\"\"Remove and return the top value. Raise IndexError if empty.\"\"\"\n        if not self._items:\n            raise IndexError(\"pop from empty UndoStack\")\n        value = self._items.pop()\n        self._history.append((\"pop\", value))\n        return value\n\n    def peek(self):\n        \"\"\"Return the top value without removing it. Raise IndexError if empty.\"\"\"\n        if not self._items:\n            raise IndexError(\"peek at empty UndoStack\")\n        return self._items[-1]\n\n    def undo(self) -> None:\n        \"\"\"Reverse the most recent not-yet-undone push or pop.\n\n        Raise RuntimeError if there is nothing left to undo.\n        \"\"\"\n        if not self._history:\n            raise RuntimeError(\"nothing to undo\")\n        op, value = self._history.pop()\n        if op == \"push\":\n            # The pushed value is guaranteed to be on top: any operation\n            # performed after it would have been undone first.\n            self._items.pop()\n        else:  # \"pop\"\n            self._items.append(value)\n\n    def __len__(self) -> int:\n        return len(self._items)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Undoable stack",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 10.35,
+   "tokens_in": 572,
+   "tokens_out": 1584,
+   "cost_usd": 0.025050168,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Versioned key-value store with rollback",
+  "category": "data_structures",
+  "entry_point": "VersionedKV",
+  "code": "from __future__ import annotations\n\nfrom typing import Dict, Generic, Hashable, List, TypeVar\n\nK = TypeVar(\"K\", bound=Hashable)\nV = TypeVar(\"V\")\n\n\nclass VersionedKV(Generic[K, V]):\n    \"\"\"Key-value store with commit snapshots, point-in-time reads, and rollback.\n\n    Version numbers count committed snapshots: the first commit() returns 1,\n    the next 2, and so on. Version 0 denotes the empty initial state and is\n    valid only for rollback(). History is append-only: rollback never\n    truncates it, so the next commit() always returns latest() + 1.\n    \"\"\"\n\n    def __init__(self) -> None:\n        self._working: Dict[K, V] = {}\n        # _history[i] is the immutable snapshot for version (i + 1).\n        self._history: List[Dict[K, V]] = []\n\n    # ---------------- working-state operations ----------------\n\n    def set(self, key: K, value: V) -> None:\n        \"\"\"Write to the working state.\"\"\"\n        self._working[key] = value\n\n    def delete(self, key: K) -> None:\n        \"\"\"Remove key from the working state. Raises KeyError if absent.\"\"\"\n        del self._working[key]\n\n    def get(self, key: K) -> V:\n        \"\"\"Read from the working state. Raises KeyError if absent.\"\"\"\n        return self._working[key]\n\n    def has(self, key: K) -> bool:\n        \"\"\"Return True if key is present in the working state.\"\"\"\n        return key in self._working\n\n    # ---------------- versioning ----------------\n\n    def commit(self) -> int:\n        \"\"\"Snapshot the working state and return the new version number.\"\"\"\n        self._history.append(dict(self._working))  # copy: decouples snapshot from working state\n        return len(self._history)\n\n    def get_at(self, key: K, version: int) -> V:\n        \"\"\"Return key's value in snapshot `version`.\n\n        Raises ValueError unless 1 <= version <= latest().\n        Raises KeyError if that snapshot did not contain the key.\n        \"\"\"\n        if not 1 <= version <= len(self._history):\n            raise ValueError(\n                f\"invalid version {version!r}: must satisfy 1 <= version <= {len(self._history)}\"\n            )\n        return self._history[version - 1][key]\n\n    def rollback(self, version: int) -> None:\n        \"\"\"Replace the working state with a copy of snapshot `version` (0 = empty).\n\n        Raises ValueError unless 0 <= version <= latest(). History is preserved.\n        \"\"\"\n        if not 0 <= version <= len(self._history):\n            raise ValueError(\n                f\"invalid version {version!r}: must satisfy 0 <= version <= {len(self._history)}\"\n            )\n        # Copy so later working-state mutations can't corrupt the snapshot.\n        self._working = {} if version == 0 else dict(self._history[version - 1])\n\n    def latest(self) -> int:\n        \"\"\"Number of commits so far (0 if none).\"\"\"\n        return len(self._history)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Versioned key-value store with rollback",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 16.45,
+   "tokens_in": 641,
+   "tokens_out": 2927,
+   "cost_usd": 0.045198648,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Competition ranks with ties and NaN guard",
+  "category": "edge_cases",
+  "entry_point": "rank_scores",
+  "code": "def rank_scores(scores: list) -> list[int]:\n    \"\"\"Assign competition (\"1224\") ranks; higher scores rank better.\"\"\"\n    for s in scores:\n        if s != s:  # NaN is the only value not equal to itself\n            raise ValueError(\"scores must not contain NaN\")\n\n    # Sort a copy (input is not mutated) from best to worst.\n    ordered = sorted(scores, reverse=True)\n\n    # A score's rank is the 1-based position of its first occurrence in the\n    # sorted order, so ties share a rank and the next distinct score skips.\n    rank_of = {}\n    for position, s in enumerate(ordered, start=1):\n        if s not in rank_of:  # first occurrence wins; later ties keep it\n            rank_of[s] = position\n\n    return [rank_of[s] for s in scores]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Competition ranks with ties and NaN guard",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 21.27,
+   "tokens_in": 421,
+   "tokens_out": 3091,
+   "cost_usd": 0.046980648,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Display-width truncation with combining marks",
+  "category": "edge_cases",
+  "entry_point": "truncate_display",
+  "code": "import unicodedata\n\n_COMBINING_CATEGORIES = frozenset((\"Mn\", \"Mc\", \"Me\"))\n\n\ndef truncate_display(s: str, width: int) -> str:\n    \"\"\"Truncate s to at most `width` user-perceived characters.\n\n    Combining marks (categories Mn, Mc, Me) add zero width and are never\n    separated from the unit they belong to.\n    \"\"\"\n    if width < 0:\n        raise ValueError(\"width must be non-negative\")\n    if width == 0:\n        return \"\"\n\n    units = 0\n    for i, ch in enumerate(s):\n        # A new unit starts at a non-combining code point, or at a combining\n        # mark when no unit has started yet (string begins with marks).\n        if unicodedata.category(ch) not in _COMBINING_CATEGORIES or units == 0:\n            units += 1\n            if units > width:\n                # i is the start of the (width+1)-th unit; everything before\n                # it is exactly the first `width` whole units.\n                return s[:i]\n    return s",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Display-width truncation with combining marks",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 11.05,
+   "tokens_in": 484,
+   "tokens_out": 1728,
+   "cost_usd": 0.026927208,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Even chunking of arbitrary iterables",
+  "category": "edge_cases",
+  "entry_point": "chunk_evenly",
+  "code": "assert chunk_evenly([1, 2, 3, 4, 5], 2) == [[1, 2, 3], [4, 5]]\nassert chunk_evenly((x for x in \"abcd\"), 3) == [['a', 'b'], ['c'], ['d']]\nassert chunk_evenly([], 3) == [[], [], []]\nassert chunk_evenly([7], 4) == [[7], [], [], []]\nassert chunk_evenly(range(10), 3) == [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]]\nassert chunk_evenly([1, 2], 1) == [[1, 2]]\n\n# Duplicates and arbitrary types preserved\nassert chunk_evenly([None, None, \"a\"], 2) == [[None, None], [\"a\"]]\n\n# Exactly n chunks, order preserved\nitems = list(range(97))\nfor n in range(1, 100):\n    chunks = chunk_evenly(iter(items), n)\n    assert len(chunks) == n\n    assert [x for c in chunks for x in c] == items\n    sizes = [len(c) for c in chunks]\n    assert max(sizes) - min(sizes) <= 1\n\n# n < 1 raises before touching the iterable\ntry:\n    chunk_evenly([1, 2], 0)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"expected ValueError\")",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Even chunking of arbitrary iterables",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 13.08,
+   "tokens_in": 411,
+   "tokens_out": 1441,
+   "cost_usd": 0.022448448,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": [
+   "import: NameError: name 'chunk_evenly' is not defined"
+  ]
+ },
+ {
+  "title": "Exact integer k-th root floor",
+  "category": "edge_cases",
+  "entry_point": "kth_root_floor",
+  "code": "def kth_root_floor(n: int, k: int) -> int:\n    \"\"\"Return the largest integer r such that r**k <= n.\"\"\"\n    if n < 0:\n        raise ValueError(\"n must be nonnegative\")\n    if k < 1:\n        raise ValueError(\"k must be at least 1\")\n\n    if k == 1 or n < 2:\n        return n\n\n    # For n >= 2, 2**k > n whenever k >= n.bit_length().\n    if k >= n.bit_length():\n        return 1\n\n    def power_is_at_most_n(x: int) -> bool:\n        \"\"\"Compute x**k, stopping as soon as it exceeds n.\"\"\"\n        result = 1\n        base = x\n        exp = k\n\n        while exp:\n            if exp & 1:\n                result *= base\n                if result > n:\n                    return False\n\n            exp >>= 1\n            if exp:\n                base *= base\n                if base > n:\n                    return False\n\n        return True\n\n    # Since n < 2**bit_length, this hi satisfies hi**k > n.\n    lo = 1\n    hi = 1 << ((n.bit_length() + k - 1) // k)\n\n    # Invariant: lo**k <= n < hi**k.\n    while hi - lo > 1:\n        mid = (lo + hi) // 2\n        if power_is_at_most_n(mid):\n            lo = mid\n        else:\n            hi = mid\n\n    return lo",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Exact integer k-th root floor",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 55.25,
+   "tokens_in": 405,
+   "tokens_out": 5208,
+   "cost_usd": 0.078370578,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Largest-remainder integer allocation",
+  "category": "edge_cases",
+  "entry_point": "allocate_shares",
+  "code": "from fractions import Fraction\n\n\ndef allocate_shares(total: int, weights: list) -> list[int]:\n    \"\"\"\n    Split `total` (integer >= 0) into integer shares proportional to\n    `weights` using the largest-remainder (Hamilton) method.\n\n    Remainder ties are broken deterministically in favor of the lower index.\n\n    Raises ValueError if total < 0, weights is empty, any weight is\n    negative, or the weights sum to 0.\n    \"\"\"\n    if total < 0:\n        raise ValueError(\"total must be >= 0\")\n    if len(weights) == 0:\n        raise ValueError(\"weights must be non-empty\")\n\n    # Exact rationals: quotas/remainders are compared exactly, so float\n    # rounding can never flip a floor or a tie-break.\n    w = [Fraction(x) for x in weights]\n\n    if any(x < 0 for x in w):\n        raise ValueError(\"weights must be >= 0\")\n    W = sum(w)\n    if W == 0:\n        raise ValueError(\"sum of weights must be > 0\")\n\n    quotas = [total * x / W for x in w]\n    floors = [q.numerator // q.denominator for q in quotas]  # q >= 0, so // is floor\n    remainders = [q - f for q, f in zip(quotas, floors)]\n\n    leftover = total - sum(floors)  # always satisfies 0 <= leftover < len(w)\n\n    # Remainder descending; ties go to the lower index.\n    order = sorted(range(len(w)), key=lambda i: (-remainders[i], i))\n\n    shares = list(floors)\n    for i in order[:leftover]:\n        shares[i] += 1\n    return shares",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Largest-remainder integer allocation",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 28.68,
+   "tokens_in": 473,
+   "tokens_out": 4039,
+   "cost_usd": 0.061212888,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lazy round-robin interleaver",
+  "category": "edge_cases",
+  "entry_point": "round_robin",
+  "code": "from collections import deque\n\ndef round_robin(iterables: list) -> \"iterator\":\n    iterators = deque(iter(iterable) for iterable in iterables)\n\n    while iterators:\n        iterator = iterators.popleft()\n        try:\n            value = next(iterator)\n        except StopIteration:\n            # Exhausted iterators are removed from the rotation.\n            continue\n\n        yield value\n        iterators.append(iterator)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lazy round-robin interleaver",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 29.89,
+   "tokens_in": 543,
+   "tokens_out": 2707,
+   "cost_usd": 0.041640588,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lower weighted median with tolerance",
+  "category": "edge_cases",
+  "entry_point": "weighted_median",
+  "code": "def weighted_median(values: list, weights: list) -> float:\n    \"\"\"\n    Return the lower weighted median of `values` using the given `weights`.\n\n    The lower weighted median is the smallest value v such that the total\n    weight of all entries with value <= v reaches W / 2, where W is the sum\n    of all weights. \"Reaches\" uses an absolute tolerance of 1e-9, i.e.\n    cumulative >= W / 2 - 1e-9.\n\n    Raises:\n        ValueError: if `values` and `weights` have different lengths, if any\n            weight is negative, or if the total weight is not positive\n            (empty input or all weights zero).\n    \"\"\"\n    if len(values) != len(weights):\n        raise ValueError(\"values and weights must have the same length\")\n    if len(values) == 0:\n        raise ValueError(\"values must not be empty\")\n\n    total = 0.0\n    for w in weights:\n        if w < 0:\n            raise ValueError(\"weights must be non-negative\")\n        total += w\n    if total <= 0.0:\n        raise ValueError(\"total weight must be positive\")\n\n    # Sort pairs by value; equal values need no particular order since the\n    # returned result is the value itself.\n    pairs = sorted(zip(values, weights), key=lambda p: p[0])\n\n    threshold = total / 2.0\n    cumulative = 0.0\n    for value, weight in pairs:\n        cumulative += weight\n        if cumulative >= threshold - 1e-9:\n            return value\n\n    # Unreachable: cumulative ends at total, and total >= threshold - 1e-9.\n    return pairs[-1][0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lower weighted median with tolerance",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 17.87,
+   "tokens_in": 482,
+   "tokens_out": 2938,
+   "cost_usd": 0.044889768,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Overflow-safe Euclidean norm",
+  "category": "edge_cases",
+  "entry_point": "vector_norm",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Overflow-safe Euclidean norm",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 169.34,
+   "tokens_in": 417,
+   "tokens_out": 16384,
+   "cost_usd": 0.244369818,
+   "stop_reason": "length",
+   "refused": true,
+   "empty_output": true,
+   "error": null
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Bounty scheduling with slot capacity",
+  "category": "optimization",
+  "entry_point": "max_bounty",
+  "code": "import heapq\n\n\ndef max_bounty(jobs: list[tuple[int, int]], cap: int) -> int:\n    if cap < 1:\n        raise ValueError(\"cap must be at least 1\")\n\n    # Min-heap of the bounties of currently selected jobs.\n    chosen: list[int] = []\n    total = 0\n\n    # Process jobs in nondecreasing deadline order.\n    for d, p in sorted(jobs):\n        heapq.heappush(chosen, p)\n        total += p\n\n        # Slots 1..d provide only cap*d positions in total.\n        if len(chosen) > cap * d:\n            total -= heapq.heappop(chosen)  # discard the cheapest job\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Bounty scheduling with slot capacity",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 169.02,
+   "tokens_in": 529,
+   "tokens_out": 15802,
+   "cost_usd": 0.236059758,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Divisible pulse windows with bounded length",
+  "category": "optimization",
+  "entry_point": "count_pulses",
+  "code": "def count_pulses(deltas: list[int], k: int, lo: int, hi: int) -> int:\n    n = len(deltas)\n    if not 1 <= lo <= hi <= n:\n        raise ValueError(\n            f\"require 1 <= lo <= hi <= len(deltas), got lo={lo}, hi={hi}, n={n}\"\n        )\n\n    # Pass 1: prefix sums reduced mod k (residues are in [0, k), negatives handled)\n    pref = [0] * (n + 1)\n    s = 0\n    for i, v in enumerate(deltas, 1):\n        s = (s + v) % k\n        pref[i] = s\n\n    # Pass 2: for each right endpoint j, count i in [j-hi, j-lo] with pref[i] == pref[j]\n    counts = {}                 # residue -> number of window positions with that residue\n    get = counts.get\n    total = 0\n    p = pref\n    for j in range(lo, n + 1):\n        ra = p[j - lo]                      # index j-lo enters the window\n        counts[ra] = get(ra, 0) + 1\n        b = j - hi - 1                      # index j-hi-1 leaves the window\n        if b >= 0:\n            rr = p[b]\n            counts[rr] = get(rr, 0) - 1\n        total += get(p[j], 0)               # all i in window matching P[j] mod k\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Divisible pulse windows with bounded length",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 33.79,
+   "tokens_in": 574,
+   "tokens_out": 5058,
+   "cost_usd": 0.076645008,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest echoed slice",
+  "category": "optimization",
+  "entry_point": "longest_echo",
+  "code": "def longest_echo(s: str) -> int:\n    n = len(s)\n    if n < 2:\n        return 0\n\n    # Suffix automaton state data.\n    transitions = [{}]   # transitions[state][character] -> state\n    suffix_link = [-1]\n    max_len = [0]        # longest substring length represented by state\n    occurrences = [0]    # eventually, size of the state's end-position set\n\n    last = 0\n\n    for ch in s:\n        c = ord(ch) - 97\n        cur = len(max_len)\n\n        transitions.append({})\n        max_len.append(max_len[last] + 1)\n        suffix_link.append(0)\n        occurrences.append(1)\n\n        p = last\n        while p != -1:\n            edges = transitions[p]\n            q = edges.get(c, -1)\n            if q != -1:\n                break\n            edges[c] = cur\n            p = suffix_link[p]\n\n        if p == -1:\n            suffix_link[cur] = 0\n        else:\n            if max_len[p] + 1 == max_len[q]:\n                suffix_link[cur] = q\n            else:\n                clone = len(max_len)\n\n                transitions.append(transitions[q].copy())\n                max_len.append(max_len[p] + 1)\n                suffix_link.append(suffix_link[q])\n                occurrences.append(0)  # Clones do not add a new end position.\n\n                while p != -1:\n                    edges = transitions[p]\n                    if edges.get(c, -1) != q:\n                        break\n                    edges[c] = clone\n                    p = suffix_link[p]\n\n                suffix_link[q] = clone\n                suffix_link[cur] = clone\n\n        last = cur\n\n    # Counting-sort states by max_len.\n    buckets = [0] * (n + 1)\n    for length in max_len:\n        buckets[length] += 1\n    for i in range(1, n + 1):\n        buckets[i] += buckets[i - 1]\n\n    order = [0] * len(max_len)\n    for i in range(len(max_len) - 1, -1, -1):\n        length = max_len[i]\n        buckets[length] -= 1\n        order[buckets[length]] = i\n\n    # Propagate end-position counts from longer states to suffix links.\n    # order[0] is the root, so it is not propagated to suffix_link[root] == -1.\n    for i in range(len(order) - 1, 0, -1):\n        state = order[i]\n        occurrences[suffix_link[state]] += occurrences[state]\n\n    answer = 0\n    for state, count in enumerate(occurrences):\n        if count >= 2 and max_len[state] > answer:\n            answer = max_len[state]\n\n    return answer",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Longest echoed slice",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 157.32,
+   "tokens_in": 345,
+   "tokens_out": 14496,
+   "cost_usd": 0.216119178,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Parity-locked divisible pairs",
+  "category": "optimization",
+  "entry_point": "count_locked_pairs",
+  "code": "def count_locked_pairs(values: list[int], m: int) -> int:\n    if m < 1:\n        raise ValueError(\"m must be at least 1\")\n\n    # counts[2 * residue + parity] stores how many previous values\n    # have that residue modulo m and that parity.\n    counts = [0] * (2 * m)\n    total = 0\n\n    for v in values:\n        residue = v % m\n        parity = v & 1  # Works for negative integers too.\n\n        complement = m - residue if residue else 0\n\n        # Previous values with the complementary residue and same parity\n        # form a qualifying pair with the current value.\n        total += counts[2 * complement + parity]\n        counts[2 * residue + parity] += 1\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Parity-locked divisible pairs",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 20.05,
+   "tokens_in": 526,
+   "tokens_out": 2346,
+   "cost_usd": 0.036229248,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Peak concurrency and its first instant",
+  "category": "optimization",
+  "entry_point": "peak_load",
+  "code": "def peak_load(intervals: list[tuple[int, int]]) -> tuple[int, int]:\n    # Net change in active sessions at each endpoint.\n    changes: dict[int, int] = {}\n\n    for start, end in intervals:\n        changes[start] = changes.get(start, 0) + 1\n        changes[end] = changes.get(end, 0) - 1\n\n    current_load = 0\n    max_load = 0\n    earliest_t = 0\n\n    # All changes at the same time are applied together, correctly\n    # handling half-open intervals such as (3, 5) and (5, 8).\n    for t in sorted(changes):\n        current_load += changes[t]\n\n        if current_load > max_load:\n            max_load = current_load\n            earliest_t = t\n\n    return max_load, earliest_t",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Peak concurrency and its first instant",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 25.21,
+   "tokens_in": 507,
+   "tokens_out": 1831,
+   "cost_usd": 0.04304421,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recurring values over many windows",
+  "category": "optimization",
+  "entry_point": "recurring_counts",
+  "code": "def recurring_counts(data: list[int], queries: list[tuple[int, int]]) -> list[int]:\n    n = len(data)\n    q = len(queries)\n    ans = [0] * q\n    if q == 0:\n        return ans\n\n    # Process queries grouped by their right endpoint, in increasing r.\n    order = sorted(range(q), key=lambda i: queries[i][1])\n\n    bit = [0] * (n + 1)      # 1-indexed Fenwick tree over positions 0..n-1\n    occ = {}                 # value -> [most recent pos, 2nd most recent pos]\n    occ_get = occ.get\n    total = 0                # # values currently having >= 2 occurrences\n    ptr = 0\n\n    for r in range(n + 1):\n        if r:\n            j = r - 1        # position being added to the window [0, r)\n            v = data[j]\n            rec = occ_get(v)\n            if rec is None:\n                occ[v] = [j, -1]\n            else:\n                p = rec[0]           # previous occurrence -> new 2nd-most-recent\n                i = p + 1\n                while i <= n:        # BIT: +1 at p\n                    bit[i] += 1\n                    i += i & -i\n                total += 1\n                h = rec[1]           # old 2nd-most-recent is no longer relevant\n                if h >= 0:\n                    i = h + 1\n                    while i <= n:    # BIT: -1 at h\n                        bit[i] -= 1\n                        i += i & -i\n                    total -= 1\n                rec[1] = p\n                rec[0] = j\n\n        while ptr < q:               # answer all queries with this r\n            qi = order[ptr]\n            l, rr = queries[qi]\n            if rr != r:\n                break\n            s = 0\n            i = l                    # prefix sum over positions [0, l-1]\n            while i > 0:\n                s += bit[i]\n                i -= i & -i\n            ans[qi] = total - s      # markers at positions >= l\n            ptr += 1\n\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Recurring values over many windows",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 108.38,
+   "tokens_in": 551,
+   "tokens_out": 7548,
+   "cost_usd": 0.113553198,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Stable sensor stretches",
+  "category": "optimization",
+  "entry_point": "count_stable_windows",
+  "code": "from collections import deque\n\ndef count_stable_windows(readings: list[int], tol: int) -> int:\n    max_q = deque()  # Indices of decreasing values\n    min_q = deque()  # Indices of increasing values\n    left = 0\n    total = 0\n\n    for right, value in enumerate(readings):\n        while max_q and readings[max_q[-1]] <= value:\n            max_q.pop()\n        max_q.append(right)\n\n        while min_q and readings[min_q[-1]] >= value:\n            min_q.pop()\n        min_q.append(right)\n\n        # Move left until [left, right] satisfies the tolerance.\n        while readings[max_q[0]] - readings[min_q[0]] > tol:\n            left += 1\n            if max_q[0] < left:\n                max_q.popleft()\n            if min_q[0] < left:\n                min_q.popleft()\n\n        # Every window starting at left, left+1, ..., right is valid.\n        total += right - left + 1\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Stable sensor stretches",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 30.41,
+   "tokens_in": 405,
+   "tokens_out": 2681,
+   "cost_usd": 0.040844628,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Triple-dominance pair counting",
+  "category": "optimization",
+  "entry_point": "count_dominant_pairs",
+  "code": "def count_dominant_pairs(seq: list[int]) -> int:\n    n = len(seq)\n    if n < 2:\n        return 0\n\n    arr = list(seq)   # working copy; sorted in place during the recursion\n    tmp = [0] * n     # scratch buffer for merging\n\n    def sort_and_count(lo: int, hi: int) -> int:\n        \"\"\"Sort arr[lo:hi] ascending; return # of dominant pairs inside it.\"\"\"\n        if hi - lo < 2:\n            return 0\n        mid = (lo + hi) >> 1\n        count = sort_and_count(lo, mid) + sort_and_count(mid, hi)\n\n        # Count cross pairs: i in [lo, mid), j in [mid, hi), arr[i] > 3*arr[j].\n        # Both halves are sorted, so j only advances across the whole sweep.\n        j = mid\n        for i in range(lo, mid):\n            ai = arr[i]\n            while j < hi and ai > 3 * arr[j]:\n                j += 1\n            count += j - mid\n\n        # Merge the two sorted halves (skip if already ordered).\n        if arr[mid - 1] > arr[mid]:\n            tmp[lo:hi] = arr[lo:hi]\n            p, q = lo, mid\n            for k in range(lo, hi):\n                if q >= hi or (p < mid and tmp[p] <= tmp[q]):\n                    arr[k] = tmp[p]\n                    p += 1\n                else:\n                    arr[k] = tmp[q]\n                    q += 1\n        return count\n\n    return sort_and_count(0, n)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Triple-dominance pair counting",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 32.47,
+   "tokens_in": 406,
+   "tokens_out": 4082,
+   "cost_usd": 0.061652448,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Category summarizer with indexed validation errors",
+  "category": "spec_compliance",
+  "entry_point": "summarize_by_category",
+  "code": "def summarize_by_category(rows):\n    if not isinstance(rows, list):\n        raise TypeError(\"rows must be a list\")\n\n    result = {}\n    for i, row in enumerate(rows):\n        # a. structure check\n        if not isinstance(row, tuple) or len(row) != 3:\n            raise TypeError(\n                \"row {0} must be a tuple of exactly 3 elements\".format(i))\n        category, amount, refunded = row\n\n        # b. category check\n        if not isinstance(category, str) or category == \"\":\n            raise ValueError(\n                \"row {0} category must be a non-empty str\".format(i))\n\n        # c. amount type check (bool rejected before int/float)\n        if isinstance(amount, bool) or not isinstance(amount, (int, float)):\n            raise TypeError(\n                \"row {0} amount must be an int or float\".format(i))\n\n        # d. amount value check\n        if amount < 0:\n            raise ValueError(\n                \"row {0} amount must be >= 0\".format(i))\n\n        # e. refunded check\n        if not isinstance(refunded, bool):\n            raise TypeError(\n                \"row {0} refunded must be a bool\".format(i))\n\n        amount = float(amount)  # guarantees float outputs even for int inputs\n\n        if category in result:\n            summary = result[category]\n            summary[\"count\"] += 1\n            summary[\"gross\"] += amount\n            if not refunded:\n                summary[\"net\"] += amount\n            if amount > summary[\"largest\"]:\n                summary[\"largest\"] = amount\n        else:\n            result[category] = {\n                \"count\": 1,\n                \"gross\": amount,\n                \"net\": 0.0 if refunded else amount,\n                \"largest\": amount,\n            }\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Category summarizer with indexed validation errors",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 8.19,
+   "tokens_in": 733,
+   "tokens_out": 1413,
+   "cost_usd": 0.022988988,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Clamp list values without min/max",
+  "category": "spec_compliance",
+  "entry_point": "clamp_values",
+  "code": "def clamp_values(values, low, high):\n    if not isinstance(values, list):\n        raise TypeError(\"values must be a list\")\n    if (\n        isinstance(low, bool)\n        or isinstance(high, bool)\n        or not isinstance(low, (int, float))\n        or not isinstance(high, (int, float))\n    ):\n        raise TypeError(\"bounds must be numbers\")\n    if low > high:\n        raise ValueError(\"low must not exceed high\")\n\n    result = []\n    for i in range(len(values)):\n        item = values[i]\n        if isinstance(item, bool) or not isinstance(item, (int, float)):\n            raise TypeError(f\"index {i} must be a number\")\n        if item < low:\n            result.append(low)\n        elif item > high:\n            result.append(high)\n        else:\n            result.append(item)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Clamp list values without min/max",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 19.7,
+   "tokens_in": 537,
+   "tokens_out": 2245,
+   "cost_usd": 0.034762068,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Depth-limited flatten, iteration only",
+  "category": "spec_compliance",
+  "entry_point": "flatten_depth",
+  "code": "def flatten_depth(nested, max_depth):\n    if not isinstance(nested, list):\n        raise TypeError(\"nested must be a list\")\n    if isinstance(max_depth, bool) or not isinstance(max_depth, int):\n        raise TypeError(\"max_depth must be an int\")\n    if max_depth < 0:\n        raise ValueError(\"max_depth must be >= 0\")\n\n    result = []\n    # Explicit stack of (element, depth) pairs, processed LIFO.\n    # Push children in reverse so left-to-right order is preserved on pop.\n    stack = []\n    for i in range(len(nested) - 1, -1, -1):\n        stack.append((nested[i], 0))\n\n    while stack:\n        item, depth = stack.pop()\n        if isinstance(item, list) and depth < max_depth:\n            for i in range(len(item) - 1, -1, -1):\n                stack.append((item[i], depth + 1))\n        else:\n            result.append(item)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Depth-limited flatten, iteration only",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 14.99,
+   "tokens_in": 529,
+   "tokens_out": 1439,
+   "cost_usd": 0.022769208,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Duration string parser under a no-import contract",
+  "category": "spec_compliance",
+  "entry_point": "parse_duration",
+  "code": "def parse_duration(text):\n    if not isinstance(text, str):\n        raise TypeError(\"expected str for duration text\")\n    if len(text) == 0 or text.isspace():\n        raise ValueError(\"empty duration\")\n\n    total_seconds = 0\n    seen_h = False\n    seen_m = False\n    seen_s = False\n    i = 0\n    n = len(text)\n\n    while i < n:\n        value = 0\n        digits = 0\n\n        while i < n:\n            ch = text[i]\n            if ch < \"0\" or ch > \"9\":\n                break\n            value = value * 10 + (ord(ch) - 48)\n            i += 1\n            digits += 1\n\n        if digits == 0 or i == n:\n            raise ValueError(\"malformed duration\")\n\n        unit = text[i]\n        i += 1\n\n        if unit == \"h\":\n            if seen_h or seen_m or seen_s:\n                raise ValueError(\"malformed duration\")\n            seen_h = True\n            total_seconds += value * 3600\n        elif unit == \"m\":\n            if seen_m or seen_s:\n                raise ValueError(\"malformed duration\")\n            seen_m = True\n            total_seconds += value * 60\n        elif unit == \"s\":\n            if seen_s:\n                raise ValueError(\"malformed duration\")\n            seen_s = True\n            total_seconds += value\n        else:\n            raise ValueError(\"malformed duration\")\n\n    return total_seconds",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Duration string parser under a no-import contract",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 39.94,
+   "tokens_in": 504,
+   "tokens_out": 3776,
+   "cost_usd": 0.08635572,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Placeholder template renderer with exact error positions",
+  "category": "spec_compliance",
+  "entry_point": "render_template",
+  "code": "def render_template(template, context):\n    if not isinstance(template, str):\n        raise TypeError(\"template must be a string\")\n    if not isinstance(context, dict):\n        raise TypeError(\"context must be a dict\")\n\n    name_chars = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_\"\n    out = []\n    i = 0\n    n = len(template)\n\n    while i < n:\n        ch = template[i]\n\n        if ch == \"{\":\n            if i + 1 < n and template[i + 1] == \"{\":\n                out.append(\"{\")\n                i += 2\n                continue\n\n            p = i\n            i += 1\n            name_start = i\n\n            while i < n and template[i] in name_chars:\n                i += 1\n\n            if i == n:\n                raise ValueError(\"unclosed placeholder at position \" + str(p))\n            if template[i] != \"}\":\n                raise ValueError(\"invalid placeholder at position \" + str(p))\n            if i == name_start:\n                raise ValueError(\"empty placeholder at position \" + str(p))\n\n            name = template[name_start:i]\n            out.append(str(context[name]))\n            i += 1\n\n        elif ch == \"}\":\n            if i + 1 < n and template[i + 1] == \"}\":\n                out.append(\"}\")\n                i += 2\n            else:\n                raise ValueError(\"stray '}' at position \" + str(i))\n\n        else:\n            out.append(ch)\n            i += 1\n\n    return \"\".join(out)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Placeholder template renderer with exact error positions",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 50.79,
+   "tokens_in": 632,
+   "tokens_out": 4979,
+   "cost_usd": 0.075644118,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "RPN evaluator with truncating division and indexed errors",
+  "category": "spec_compliance",
+  "entry_point": "eval_rpn",
+  "code": "def eval_rpn(tokens):\n    if not isinstance(tokens, list):\n        raise TypeError(\"tokens must be a list\")\n    if tokens == []:\n        raise ValueError(\"empty expression\")\n\n    stack = []\n    operators = (\"+\", \"-\", \"*\", \"/\")\n\n    for i, token in enumerate(tokens):\n        if not isinstance(token, str):\n            raise TypeError(f\"token {i} must be a string\")\n\n        if token in operators:\n            if len(stack) < 2:\n                raise ValueError(f\"stack underflow at token {i}\")\n            right = stack.pop()\n            left = stack.pop()\n\n            if token == \"+\":\n                stack.append(left + right)\n            elif token == \"-\":\n                stack.append(left - right)\n            elif token == \"*\":\n                stack.append(left * right)\n            else:\n                if right == 0:\n                    raise ZeroDivisionError(f\"division by zero at token {i}\")\n                quotient = abs(left) // abs(right)\n                if (left < 0) != (right < 0):\n                    quotient = -quotient\n                stack.append(quotient)\n            continue\n\n        start = 0\n        if token and (token[0] == \"+\" or token[0] == \"-\"):\n            start = 1\n        if start == len(token):\n            raise ValueError(f\"unknown token at token {i}\")\n\n        for ch in token[start:]:\n            if ch < \"0\" or ch > \"9\":\n                raise ValueError(f\"unknown token at token {i}\")\n\n        stack.append(int(token))\n\n    if len(stack) > 1:\n        raise ValueError(\"leftover operands\")\n    return stack[0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "RPN evaluator with truncating division and indexed errors",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 53.19,
+   "tokens_in": 643,
+   "tokens_out": 4164,
+   "cost_usd": 0.095617665,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive deep_get with loop ban",
+  "category": "spec_compliance",
+  "entry_point": "deep_get",
+  "code": "def deep_get(data, path):\n    if not isinstance(path, str):\n        raise TypeError(\"path must be a string\")\n    if path == \"\":\n        raise ValueError(\"path must not be empty\")\n    segments = path.split(\".\")\n    _reject_empty_segments(segments)   # up front, before any navigation\n    return _descend(data, segments)\n\n\ndef _reject_empty_segments(segments):\n    if segments:\n        if segments[0] == \"\":\n            raise ValueError(\"empty segment in path\")\n        _reject_empty_segments(segments[1:])\n\n\ndef _is_index_literal(segment):\n    # optional single leading \"-\", then one or more ASCII digits\n    digits = segment[1:] if segment.startswith(\"-\") else segment\n    return digits != \"\" and digits.strip(\"0123456789\") == \"\"\n\n\ndef _descend(node, segments):\n    if not segments:\n        return node\n    segment = segments[0]\n    rest = segments[1:]\n    if isinstance(node, dict):\n        if segment not in node:\n            raise KeyError(segment)\n        return _descend(node[segment], rest)\n    if isinstance(node, list):\n        if not _is_index_literal(segment):\n            raise ValueError(\"invalid index: \" + segment)\n        index = int(segment)\n        if index >= len(node) or index < -len(node):\n            raise IndexError(\"index out of range: \" + segment)\n        return _descend(node[index], rest)\n    raise TypeError(\"cannot descend into \" + type(node).__name__)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Recursive deep_get with loop ban",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 23.45,
+   "tokens_in": 588,
+   "tokens_out": 3432,
+   "cost_usd": 0.052540488,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Top-k frequent without sorting builtins",
+  "category": "spec_compliance",
+  "entry_point": "top_k_frequent",
+  "code": "def top_k_frequent(items, k):\n    if not isinstance(items, list):\n        raise TypeError(\"items must be a list\")\n    if isinstance(k, bool) or not isinstance(k, int):\n        raise TypeError(\"k must be an int\")\n    if k < 0:\n        raise ValueError(\"k must be >= 0\")\n\n    counts = {}\n    first_seen = []\n    for value in items:\n        if value in counts:\n            counts[value] += 1\n        else:\n            counts[value] = 1\n            first_seen.append(value)\n\n    result = []\n    pool = list(first_seen)\n    while pool and len(result) < k:\n        best_at = 0\n        best_count = counts[pool[0]]\n        i = 1\n        while i < len(pool):\n            current = counts[pool[i]]\n            if current > best_count:\n                best_count = current\n                best_at = i\n            i += 1\n        chosen = pool.pop(best_at)\n        result.append((chosen, counts[chosen]))\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Top-k frequent without sorting builtins",
+   "model": "moonshotai/kimi-k3",
+   "provider": "openrouter",
+   "latency_s": 15.75,
+   "tokens_in": 495,
+   "tokens_out": 2589,
+   "cost_usd": 0.039745728,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ }
+]

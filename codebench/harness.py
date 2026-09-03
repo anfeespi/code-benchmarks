@@ -35,6 +35,23 @@ TESTS_DIR = ROOT / "tests"
 DEFAULT_TIMEOUT = 5.0
 MEM_LIMIT_MB = 1024
 
+
+def _pick_python():
+    """Interpreter for the sandboxed child. The prompts never pin a Python version, so
+    candidates are run on a modern interpreter (3.10+ syntax such as `int | None` and
+    `bisect(key=)` must not count as failures). Override with CODEBENCH_PYTHON."""
+    if os.environ.get("CODEBENCH_PYTHON"):
+        return os.environ["CODEBENCH_PYTHON"]
+    for cand in ("python3.13", "python3.12", "python3.11", "python3.10"):
+        for d in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"):
+            p = Path(d) / cand
+            if p.exists():
+                return str(p)
+    return sys.executable
+
+
+PYTHON = _pick_python()
+
 CHILD = r'''
 import json, sys, resource, importlib.util, traceback, math
 spec = json.loads(sys.stdin.read())
@@ -101,7 +118,7 @@ def load_tests(slug):
 def run_case(sol_path, entry_point, code, timeout, mem=MEM_LIMIT_MB):
     spec = {"sol_path": str(sol_path), "entry_point": entry_point, "code": code, "mem": mem}
     try:
-        proc = subprocess.run([sys.executable, "-I", "-c", CHILD], input=json.dumps(spec), capture_output=True,
+        proc = subprocess.run([PYTHON, "-I", "-c", CHILD], input=json.dumps(spec), capture_output=True,
                               text=True, timeout=timeout, cwd=os.path.dirname(sol_path))
     except subprocess.TimeoutExpired:
         return {"ok": False, "timeout": True}

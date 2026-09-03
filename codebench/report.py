@@ -44,7 +44,8 @@ def main(out):
                     f.append((p["category"], p["slug"], (r.get("detail") or ["?"])[0]))
         n_pass = sum(v[0] for v in g.values())
         n_empty = sum(v[1] for v in g.values())
-        refusal = any((r.get("metadata") or {}).get("stop_reason") == "refusal" or (r.get("metadata") or {}).get("refused") for r in rows if not (r["code"] or "").strip())
+        # July rows carry no stop_reason: per the July 25 run notes, Claude 5 empties are API refusals, GLM empties hit max_tokens
+        refusal = tag.startswith(("fable", "opus")) or any((r.get("metadata") or {}).get("stop_reason") == "refusal" for r in rows)
         stats[tag] = dict(name=name, src=src, n_pass=n_pass, n_empty=n_empty, empty_kind="refusals" if refusal else ("max_tokens" if n_empty else ""),
                           att=len(att), acc=100 * n_pass / len(att) if att else 0,
                           lat=statistics.mean((r["metadata"].get("latency_s") or 0) for r in att) if att else 0,

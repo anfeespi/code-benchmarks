@@ -1,0 +1,1250 @@
+[
+ {
+  "title": "Cheapest walk with color-switch surcharge",
+  "category": "algorithms",
+  "entry_point": "min_cost_route",
+  "code": "import heapq\n\ndef min_cost_route(n, edges, s, t, switch_cost):\n    if s == t:\n        return 0\n    ids = {}\n    adj = [[] for _ in range(n)]  # hubs are 0..n-1\n\n    def get(v, c):\n        key = (v, c)\n        i = ids.get(key)\n        if i is None:\n            i = len(adj)\n            ids[key] = i\n            adj.append([(v, switch_cost)])  # to hub\n            adj[v].append((i, 0))           # hub -> state\n        return i\n\n    for u, v, w, c in edges:\n        a = get(u, c)\n        b = get(v, c)\n        adj[a].append((b, w))\n        adj[b].append((a, w))\n\n    INF = float('inf')\n    dist = [INF] * len(adj)\n    dist[s] = 0\n    pq = [(0, s)]\n    while pq:\n        d, x = heapq.heappop(pq)\n        if d > dist[x]:\n            continue\n        for y, w in adj[x]:\n            nd = d + w\n            if nd < dist[y]:\n                dist[y] = nd\n                heapq.heappush(pq, (nd, y))\n\n    best = INF\n    for (v, c), i in ids.items():\n        if v == t and dist[i] < best:\n            best = dist[i]\n    return -1 if best == INF else best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest walk with color-switch surcharge",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 15.38,
+   "tokens_in": 619,
+   "tokens_out": 1813,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exactly-k non-adjacent picks on a circle",
+  "category": "algorithms",
+  "entry_point": "best_circular_selection",
+  "code": "def best_circular_selection(values, k):\n    n = len(values)\n    if k == 0:\n        return 0\n    if n == 1:\n        if k == 1:\n            return values[0]\n        raise ValueError(\"no valid selection\")\n    if k > n // 2:\n        raise ValueError(\"no valid selection\")\n\n    NEG = -10**18\n\n    def linear(arr):\n        base = [NEG] * (k + 1)\n        base[0] = 0\n        p2 = base\n        p1 = base\n        for v in arr:\n            cur = p1[:]  # skip current element\n            for j in range(1, k + 1):\n                t = p2[j - 1]\n                if t > NEG // 2:\n                    t += v\n                    if t > cur[j]:\n                        cur[j] = t\n            p2, p1 = p1, cur\n        return p1[k]\n\n    # Either the last element is unused, or the first element is unused\n    # (at least one of them is unused in any valid circular selection).\n    best = max(linear(values[:-1]), linear(values[1:]))\n    if best < NEG // 2:\n        raise ValueError(\"no valid selection\")\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Exactly-k non-adjacent picks on a circle",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 11.17,
+   "tokens_in": 490,
+   "tokens_out": 1425,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Grid shortest path with one same-label teleport",
+  "category": "algorithms",
+  "entry_point": "min_steps",
+  "code": "from collections import deque\n\ndef min_steps(grid, c):\n    R = len(grid)\n    C = len(grid[0])\n    if grid[0][0] == -1 or grid[R-1][C-1] == -1:\n        return -1\n    INF = float('inf')\n\n    def bfs(sr, sc):\n        dist = [[INF] * C for _ in range(R)]\n        dist[sr][sc] = 0\n        dq = deque([(sr, sc)])\n        while dq:\n            r, q = dq.popleft()\n            d = dist[r][q] + 1\n            for nr, nc in ((r+1, q), (r-1, q), (r, q+1), (r, q-1)):\n                if 0 <= nr < R and 0 <= nc < C and grid[nr][nc] != -1 and dist[nr][nc] == INF:\n                    dist[nr][nc] = d\n                    dq.append((nr, nc))\n        return dist\n\n    d1 = bfs(0, 0)\n    d2 = bfs(R-1, C-1)\n    best = d1[R-1][C-1]\n\n    m1 = {}\n    m2 = {}\n    for r in range(R):\n        row = grid[r]\n        for q in range(C):\n            L = row[q]\n            if L == -1:\n                continue\n            a = d1[r][q]\n            b = d2[r][q]\n            if a < m1.get(L, INF):\n                m1[L] = a\n            if b < m2.get(L, INF):\n                m2[L] = b\n    for L, a in m1.items():\n        if a == INF:\n            continue\n        b = m2.get(L, INF)\n        if b == INF:\n            continue\n        t = a + b + c\n        if t < best:\n            best = t\n    return -1 if best == INF else best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Grid shortest path with one same-label teleport",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 11.29,
+   "tokens_in": 593,
+   "tokens_out": 1509,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Interval scheduling with mandatory cooldown gap",
+  "category": "algorithms",
+  "entry_point": "max_sessions",
+  "code": "def max_sessions(intervals, gap):\n    if not intervals:\n        return 0\n    # Sort by end time (ties by start; either works)\n    items = sorted(intervals, key=lambda x: (x[1], x[0]))\n    count = 0\n    next_free = None  # earliest allowed start for the next session\n    for s, e in items:\n        if next_free is None or s >= next_free:\n            count += 1\n            next_free = e + gap\n    return count",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Interval scheduling with mandatory cooldown gap",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 4.65,
+   "tokens_in": 514,
+   "tokens_out": 567,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lexicographically smallest balanced bracket completion",
+  "category": "algorithms",
+  "entry_point": "smallest_balanced",
+  "code": "def smallest_balanced(s):\n    n = len(s)\n    if n % 2:\n        raise ValueError(\"no balanced replacement\")\n    q = s.count('?')\n    need = n // 2 - s.count('(')   # number of '?' that must become '('\n    if need < 0 or need > q:\n        raise ValueError(\"no balanced replacement\")\n\n    res = []\n    bal = 0\n    used = 0\n    for c in s:\n        if c == '?':\n            if used < need:\n                c = '('\n                used += 1\n            else:\n                c = ')'\n        res.append(c)\n        bal += 1 if c == '(' else -1\n        if bal < 0:\n            raise ValueError(\"no balanced replacement\")\n    if bal != 0:\n        raise ValueError(\"no balanced replacement\")\n    return ''.join(res)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Lexicographically smallest balanced bracket completion",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.6,
+   "tokens_in": 318,
+   "tokens_out": 1112,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest repeated substring with enforced spacing",
+  "category": "algorithms",
+  "entry_point": "longest_spaced_repeat",
+  "code": "def longest_spaced_repeat(s, gap):\n    n = len(s)\n    best = 0\n    prev = [0] * (n + 2)  # prev[j] = lcp(i+1, j)\n    for i in range(n - 1, -1, -1):\n        cur = [0] * (n + 2)\n        si = s[i]\n        for j in range(n - 1, i, -1):\n            if s[j] == si:\n                cur[j] = prev[j + 1] + 1\n                # Longest usable length is capped by the non-overlap + gap constraint\n                v = min(cur[j], j - i - gap)\n                if v > best:\n                    best = v\n        prev = cur\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Longest repeated substring with enforced spacing",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.95,
+   "tokens_in": 454,
+   "tokens_out": 1123,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Palindrome insertions from a restricted alphabet",
+  "category": "algorithms",
+  "entry_point": "min_insertions",
+  "code": "def min_insertions(s, allowed):\n    n = len(s)\n    if n <= 1:\n        return 0\n    allow = set(allowed)\n    INF = float('inf')\n    # dp[i][j]: min insertions to make s[i..j] a palindrome (0 if i >= j)\n    dp = [[0] * n for _ in range(n)]\n    for length in range(2, n + 1):\n        for i in range(0, n - length + 1):\n            j = i + length - 1\n            best = INF\n            if s[i] == s[j]:\n                best = dp[i + 1][j - 1] if i + 1 <= j - 1 else 0\n            # insert a copy of s[i] after position j (mirrors s[i])\n            if s[i] in allow:\n                v = dp[i + 1][j] + 1\n                if v < best:\n                    best = v\n            # insert a copy of s[j] before position i (mirrors s[j])\n            if s[j] in allow:\n                v = dp[i][j - 1] + 1\n                if v < best:\n                    best = v\n            dp[i][j] = best\n    res = dp[0][n - 1]\n    return -1 if res == INF else res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Palindrome insertions from a restricted alphabet",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 11.41,
+   "tokens_in": 390,
+   "tokens_out": 1509,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Smallest solution of congruences with non-coprime moduli",
+  "category": "algorithms",
+  "entry_point": "solve_congruences",
+  "code": "from math import gcd\n\n\ndef solve_congruences(pairs):\n    def egcd(a, b):\n        # returns (g, x, y) with a*x + b*y = g\n        x0, y0, x1, y1 = 1, 0, 0, 1\n        while b:\n            q = a // b\n            a, b = b, a - q * b\n            x0, x1 = x1, x0 - q * x1\n            y0, y1 = y1, y0 - q * y1\n        return a, x0, y0\n\n    def inv(a, n):\n        if n == 1:\n            return 0\n        g, x, _ = egcd(a % n, n)\n        return x % n\n\n    r, m = 0, 1\n    for ri, mi in pairs:\n        ri %= mi\n        g = gcd(m, mi)\n        diff = ri - r\n        if diff % g != 0:\n            raise ValueError(\"No solution\")\n        m2g = mi // g\n        t = ((diff // g) % m2g) * inv((m // g) % m2g, m2g) % m2g if m2g > 1 else 0\n        r = r + m * t\n        m = m * m2g\n        r %= m\n    return r",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Smallest solution of congruences with non-coprime moduli",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.74,
+   "tokens_in": 393,
+   "tokens_out": 983,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Build-order resolver reports phantom dependency cycles",
+  "category": "bug_fixing",
+  "entry_point": "resolve_build_order",
+  "code": "def resolve_build_order(deps):\n    graph = {}\n    for pkg, ds in deps.items():\n        graph.setdefault(pkg, set())\n        for d in ds:\n            graph.setdefault(d, set())\n            graph[pkg].add(d)\n\n    order = []\n    done = set()\n    visiting = set()\n\n    for root in sorted(graph):\n        if root in done:\n            continue\n        visiting.add(root)\n        stack = [(root, iter(sorted(graph[root])))]\n        while stack:\n            node, it = stack[-1]\n            advanced = False\n            for dep in it:\n                if dep in done:\n                    continue\n                if dep in visiting:\n                    raise ValueError(\"dependency cycle detected at \" + dep)\n                visiting.add(dep)\n                stack.append((dep, iter(sorted(graph[dep]))))\n                advanced = True\n                break\n            if not advanced:\n                stack.pop()\n                visiting.discard(node)\n                done.add(node)\n                order.append(node)\n    return order",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Build-order resolver reports phantom dependency cycles",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 5.97,
+   "tokens_in": 761,
+   "tokens_out": 775,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Ledger balances drift by one cent",
+  "category": "bug_fixing",
+  "entry_point": "compute_balances",
+  "code": "import re\n\n_AMOUNT_RE = re.compile(r\"[0-9]+(?:\\.[0-9]{1,2})?\")\n\n\ndef compute_balances(transactions):\n    balances = {}\n    for tx in transactions:\n        amount = tx[\"amount\"]\n        if not isinstance(amount, str) or _AMOUNT_RE.fullmatch(amount) is None:\n            raise ValueError(\"invalid amount: %r\" % (amount,))\n\n        whole, _, frac = amount.partition(\".\")\n        cents = int(whole) * 100 + int(frac.ljust(2, \"0\") or \"0\")\n\n        if cents <= 0:\n            raise ValueError(\"amount must be positive\")\n\n        sender, receiver = tx[\"from\"], tx[\"to\"]\n        balances[sender] = balances.get(sender, 0) - cents\n        balances[receiver] = balances.get(receiver, 0) + cents\n    return balances",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Ledger balances drift by one cent",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.4,
+   "tokens_in": 786,
+   "tokens_out": 959,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Memoization decorator returns results for the wrong keyword arguments",
+  "category": "bug_fixing",
+  "entry_point": "memoize",
+  "code": "from functools import wraps\n\ndef memoize(func):\n    cache = {}\n\n    @wraps(func)\n    def wrapper(*args, **kwargs):\n        key = (args, frozenset(kwargs.items()))\n        if key in cache:\n            wrapper.hits += 1\n            return cache[key]\n        wrapper.misses += 1              # counted even if func raises\n        result = func(*args, **kwargs)   # exception propagates, nothing cached\n        cache[key] = result\n        return result\n\n    wrapper.hits = 0\n    wrapper.misses = 0\n    return wrapper",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Memoization decorator returns results for the wrong keyword arguments",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.43,
+   "tokens_in": 759,
+   "tokens_out": 1115,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Patch applier lands hunks on the wrong lines",
+  "category": "bug_fixing",
+  "entry_point": "apply_hunks",
+  "code": "def apply_hunks(lines, hunks):\n    ordered = sorted(hunks, key=lambda h: h[0])\n\n    # Range validation (against the original document)\n    for start, delete, _ in ordered:\n        if start < 0 or delete < 0 or start + delete > len(lines):\n            raise ValueError(\"hunk out of range\")\n\n    # Conflict detection: same start, or overlapping delete ranges.\n    # Touching ranges (next start == prev end, with different starts) are fine.\n    for i in range(1, len(ordered)):\n        prev = ordered[i - 1]\n        cur = ordered[i]\n        if cur[0] == prev[0] or cur[0] < prev[0] + prev[1]:\n            raise ValueError(\"conflicting hunks\")\n\n    result = list(lines)\n    # Apply from the end backwards so earlier positions stay valid.\n    for start, delete, insert in reversed(ordered):\n        result[start:start + delete] = list(insert)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Patch applier lands hunks on the wrong lines",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 10.34,
+   "tokens_in": 934,
+   "tokens_out": 1314,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive settings merger drops falsy overrides",
+  "category": "bug_fixing",
+  "entry_point": "merge_settings",
+  "code": "import copy\n\ndef merge_settings(defaults, overrides):\n    result = {key: copy.deepcopy(value) for key, value in defaults.items()}\n    for key, value in overrides.items():\n        if isinstance(value, dict) and isinstance(result.get(key), dict):\n            result[key] = merge_settings(result[key], value)\n        else:\n            result[key] = copy.deepcopy(value)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Recursive settings merger drops falsy overrides",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 5.91,
+   "tokens_in": 597,
+   "tokens_out": 773,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking insert wrongly merges back-to-back reservations",
+  "category": "bug_fixing",
+  "entry_point": "insert_booking",
+  "code": "def insert_booking(bookings, new):\n    start, end = new\n    if start >= end:\n        raise ValueError(\"empty booking\")\n    result = []\n    i = 0\n    # Bookings that end at or before the new start don't overlap (touching is allowed)\n    while i < len(bookings) and bookings[i][1] <= start:\n        result.append(bookings[i])\n        i += 1\n    # Bookings that start strictly before the new end overlap with it\n    while i < len(bookings) and bookings[i][0] < end:\n        start = min(start, bookings[i][0])\n        end = max(end, bookings[i][1])\n        i += 1\n    result.append((start, end))\n    result.extend(bookings[i:])\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Room booking insert wrongly merges back-to-back reservations",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.44,
+   "tokens_in": 739,
+   "tokens_out": 1187,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Session purge crashes and keeps just-expired sessions",
+  "category": "bug_fixing",
+  "entry_point": "purge_expired",
+  "code": "def purge_expired(sessions, now):\n    purged = [sid for sid, expiry in sessions.items() if expiry <= now]\n    for sid in purged:\n        del sessions[sid]\n    return purged",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Session purge crashes and keeps just-expired sessions",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 4.11,
+   "tokens_in": 493,
+   "tokens_out": 524,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Sliding-window rate limiter admits one extra call",
+  "category": "bug_fixing",
+  "entry_point": "RateLimiter",
+  "code": "class RateLimiter:\n    def __init__(self, max_calls, window_seconds):\n        self.max_calls = max_calls\n        self.window = window_seconds\n        self.calls = []\n\n    def allow(self, timestamp):\n        # Drop expired calls: expired when timestamp - t >= window\n        self.calls = [t for t in self.calls if timestamp - t < self.window]\n        # Admit only if strictly fewer than max_calls are still in the window\n        if len(self.calls) < self.max_calls:\n            self.calls.append(timestamp)\n            return True\n        return False",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Sliding-window rate limiter admits one extra call",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 5.11,
+   "tokens_in": 755,
+   "tokens_out": 689,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Counting bag with deterministic most-common ordering",
+  "category": "data_structures",
+  "entry_point": "CountingBag",
+  "code": "import heapq\n\n\nclass CountingBag:\n    def __init__(self):\n        self._counts = {}   # item -> count (only count >= 1 stored)\n        self._entry = {}    # item -> entry sequence number\n        self._seq = 0       # monotonically increasing entry clock\n        self._total = 0     # total occurrences\n\n    def add(self, item) -> int:\n        c = self._counts.get(item, 0)\n        if c == 0:\n            self._entry[item] = self._seq\n            self._seq += 1\n        c += 1\n        self._counts[item] = c\n        self._total += 1\n        return c\n\n    def discard(self, item) -> bool:\n        c = self._counts.get(item, 0)\n        if c == 0:\n            return False\n        if c == 1:\n            del self._counts[item]\n            del self._entry[item]\n        else:\n            self._counts[item] = c - 1\n        self._total -= 1\n        return True\n\n    def count(self, item) -> int:\n        return self._counts.get(item, 0)\n\n    def __len__(self) -> int:\n        return self._total\n\n    def distinct(self) -> int:\n        return len(self._counts)\n\n    def most_common(self, k) -> list:\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        if k == 0:\n            return []\n        entry = self._entry\n        counts = self._counts\n        if k >= len(counts):\n            keys = sorted(counts, key=lambda it: (-counts[it], entry[it]))\n        else:\n            keys = heapq.nsmallest(\n                k, counts, key=lambda it: (-counts[it], entry[it])\n            )\n        return [(it, counts[it]) for it in keys]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Counting bag with deterministic most-common ordering",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.61,
+   "tokens_in": 727,
+   "tokens_out": 1005,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "LRU cache with TTL and stats",
+  "category": "data_structures",
+  "entry_point": "TTLCache",
+  "code": "from collections import OrderedDict\n\n\nclass TTLCache:\n    def __init__(self, capacity):\n        if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1:\n            raise ValueError(\"capacity must be an integer >= 1\")\n        self._capacity = capacity\n        self._data = OrderedDict()  # key -> (value, stored_time, ttl)\n        self._hits = 0\n        self._misses = 0\n        self._evictions = 0\n        self._expirations = 0\n\n    def _purge(self, now):\n        dead = [\n            k for k, (_, t, ttl) in self._data.items()\n            if ttl is not None and now >= t + ttl\n        ]\n        for k in dead:\n            del self._data[k]\n            self._expirations += 1\n\n    def put(self, key, value, now, ttl=None):\n        if ttl is not None and ttl <= 0:\n            raise ValueError(\"ttl must be positive or None\")\n        self._purge(now)\n        if key in self._data:\n            self._data[key] = (value, now, ttl)\n            self._data.move_to_end(key)\n            return\n        if len(self._data) >= self._capacity:\n            self._data.popitem(last=False)\n            self._evictions += 1\n        self._data[key] = (value, now, ttl)\n\n    def get(self, key, now):\n        self._purge(now)\n        if key in self._data:\n            self._hits += 1\n            self._data.move_to_end(key)\n            return self._data[key][0]\n        self._misses += 1\n        return None\n\n    def stats(self):\n        return {\n            \"hits\": self._hits,\n            \"misses\": self._misses,\n            \"evictions\": self._evictions,\n            \"expirations\": self._expirations,\n        }\n\n    def __len__(self):\n        return len(self._data)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "LRU cache with TTL and stats",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.83,
+   "tokens_in": 1127,
+   "tokens_out": 1000,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard with competition ranks and stable ties",
+  "category": "data_structures",
+  "entry_point": "Leaderboard",
+  "code": "from bisect import bisect_left, insort\n\n\nclass Leaderboard:\n    def __init__(self):\n        # player -> (best, seq)\n        self._info = {}\n        # sorted list of (-best, seq, player); seq is unique, so players are never compared\n        self._order = []\n        self._seq = 0\n\n    def submit(self, player, score) -> bool:\n        cur = self._info.get(player)\n        if cur is not None and score <= cur[0]:\n            return False  # no change at all\n        if cur is not None:\n            old_key = (-cur[0], cur[1], player)\n            idx = bisect_left(self._order, old_key)\n            del self._order[idx]\n        self._seq += 1\n        self._info[player] = (score, self._seq)\n        insort(self._order, (-score, self._seq, player))\n        return True\n\n    def best(self, player) -> int:\n        return self._info[player][0]  # raises KeyError if unknown\n\n    def rank(self, player) -> int:\n        score = self._info[player][0]  # raises KeyError if unknown\n        # number of entries with -best < -score, i.e. best strictly greater\n        return 1 + bisect_left(self._order, (-score,))\n\n    def top(self, k) -> list:\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        return [(p, -negs) for negs, _, p in self._order[:k]]\n\n    def player_count(self) -> int:\n        return len(self._info)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Leaderboard with competition ranks and stable ties",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.48,
+   "tokens_in": 660,
+   "tokens_out": 1089,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Mergeable component ledger with undo",
+  "category": "data_structures",
+  "entry_point": "MergeLedger",
+  "code": "class MergeLedger:\n    \"\"\"Union-find with rollback (union by size, no path compression).\n\n    Each node stores the size and value-sum of its subtree in the union-find\n    forest. A root's figures are therefore the component's aggregates.\n    \"\"\"\n\n    def __init__(self):\n        self._parent = {}\n        self._size = {}\n        self._sum = {}      # subtree sums\n        self._history = []  # stack of (child_root, parent_root)\n        self._count = 0\n\n    def _find(self, x):\n        if x not in self._parent:\n            raise KeyError(x)\n        while self._parent[x] != x:\n            x = self._parent[x]\n        return x\n\n    def add(self, x, value=0):\n        if x in self._parent:\n            raise ValueError(f\"element {x!r} already exists\")\n        self._parent[x] = x\n        self._size[x] = 1\n        self._sum[x] = value\n        self._count += 1\n\n    def merge(self, a, b):\n        ra = self._find(a)\n        rb = self._find(b)\n        if ra == rb:\n            return False\n        if self._size[ra] < self._size[rb]:\n            ra, rb = rb, ra\n        # attach rb (child) under ra (root)\n        self._parent[rb] = ra\n        self._size[ra] += self._size[rb]\n        self._sum[ra] += self._sum[rb]\n        self._history.append((rb, ra))\n        self._count -= 1\n        return True\n\n    def same(self, a, b):\n        return self._find(a) == self._find(b)\n\n    def component_size(self, x):\n        return self._size[self._find(x)]\n\n    def component_value(self, x):\n        return self._sum[self._find(x)]\n\n    def add_value(self, x, delta):\n        if x not in self._parent:\n            raise KeyError(x)\n        # update x and all its ancestors (path length is O(log n))\n        while True:\n            self._sum[x] += delta\n            p = self._parent[x]\n            if p == x:\n                break\n            x = p\n\n    def components(self):\n        return self._count\n\n    def undo(self):\n        if not self._history:\n            raise RuntimeError(\"nothing to undo\")\n        child, root = self._history.pop()\n        self._parent[child] = child\n        self._size[root] -= self._size[child]\n        self._sum[root] -= self._sum[child]\n        self._count += 1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Mergeable component ledger with undo",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 15.42,
+   "tokens_in": 1077,
+   "tokens_out": 1770,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Normalized integer interval set",
+  "category": "data_structures",
+  "entry_point": "IntervalSet",
+  "code": "from bisect import bisect_left, bisect_right\n\n\nclass IntervalSet:\n    def __init__(self):\n        self._los = []   # sorted starts\n        self._his = []   # corresponding ends\n\n    @staticmethod\n    def _check(lo, hi):\n        if lo >= hi:\n            raise ValueError(f\"invalid interval: lo={lo} must be < hi={hi}\")\n\n    def add(self, lo, hi):\n        self._check(lo, hi)\n        los, his = self._los, self._his\n        # First interval whose end >= lo (overlapping or touching on the left)\n        i = bisect_left(his, lo)\n        # First interval whose start > hi (anything before it overlaps or touches)\n        j = bisect_right(los, hi)\n        if i < j:\n            lo = min(lo, los[i])\n            hi = max(hi, his[j - 1])\n        los[i:j] = [lo]\n        his[i:j] = [hi]\n\n    def remove(self, lo, hi):\n        self._check(lo, hi)\n        los, his = self._los, self._his\n        # Intervals that actually overlap [lo, hi): end > lo and start < hi\n        i = bisect_right(his, lo)\n        j = bisect_left(los, hi)\n        if i >= j:\n            return\n        new_los, new_his = [], []\n        if los[i] < lo:\n            new_los.append(los[i])\n            new_his.append(lo)\n        if his[j - 1] > hi:\n            new_los.append(hi)\n            new_his.append(his[j - 1])\n        los[i:j] = new_los\n        his[i:j] = new_his\n\n    def contains(self, x):\n        i = bisect_right(self._los, x) - 1\n        return i >= 0 and x < self._his[i]\n\n    def total(self):\n        return sum(h - l for l, h in zip(self._los, self._his))\n\n    def intervals(self):\n        return list(zip(self._los, self._his))\n\n    def gaps(self, lo, hi):\n        self._check(lo, hi)\n        los, his = self._los, self._his\n        result = []\n        cur = lo\n        i = bisect_right(his, lo)  # first interval with end > lo\n        while i < len(los) and los[i] < hi:\n            if los[i] > cur:\n                result.append((cur, los[i]))\n            cur = max(cur, his[i])\n            i += 1\n        if cur < hi:\n            result.append((cur, hi))\n        return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Normalized integer interval set",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.72,
+   "tokens_in": 667,
+   "tokens_out": 1339,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Reprioritizable task scheduler with FIFO ties",
+  "category": "data_structures",
+  "entry_point": "TaskScheduler",
+  "code": "import heapq\nimport itertools\n\n\nclass TaskScheduler:\n    def __init__(self):\n        self._active = {}   # task_id -> [priority, seq, version]\n        self._heap = []     # (-priority, seq, version, task_id)\n        self._seq = itertools.count()\n        self._ver = itertools.count()\n\n    def __len__(self):\n        return len(self._active)\n\n    def _maybe_compact(self):\n        # Rebuild if stale entries dominate the heap.\n        if len(self._heap) > 32 and len(self._heap) > 3 * len(self._active):\n            self._heap = [(-p, s, v, t) for t, (p, s, v) in self._active.items()]\n            heapq.heapify(self._heap)\n\n    def submit(self, task_id, priority):\n        if task_id in self._active:\n            raise ValueError(f\"task {task_id!r} already active\")\n        seq = next(self._seq)\n        ver = next(self._ver)\n        self._active[task_id] = [priority, seq, ver]\n        heapq.heappush(self._heap, (-priority, seq, ver, task_id))\n        self._maybe_compact()\n\n    def reprioritize(self, task_id, priority):\n        rec = self._active.get(task_id)\n        if rec is None:\n            raise KeyError(task_id)\n        ver = next(self._ver)\n        rec[0] = priority\n        rec[2] = ver\n        heapq.heappush(self._heap, (-priority, rec[1], ver, task_id))\n        self._maybe_compact()\n\n    def cancel(self, task_id):\n        if task_id not in self._active:\n            raise KeyError(task_id)\n        del self._active[task_id]\n        self._maybe_compact()\n\n    def _clean(self):\n        heap = self._heap\n        active = self._active\n        while heap:\n            _, _, ver, tid = heap[0]\n            rec = active.get(tid)\n            if rec is not None and rec[2] == ver:\n                return\n            heapq.heappop(heap)\n\n    def pop(self):\n        self._clean()\n        if not self._heap:\n            raise IndexError(\"pop from empty scheduler\")\n        _, _, _, tid = heapq.heappop(self._heap)\n        del self._active[tid]\n        return tid\n\n    def peek(self):\n        self._clean()\n        if not self._heap:\n            raise IndexError(\"peek from empty scheduler\")\n        return self._heap[0][3]\n\n    def priority_of(self, task_id):\n        rec = self._active.get(task_id)\n        if rec is None:\n            raise KeyError(task_id)\n        return rec[0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Reprioritizable task scheduler with FIFO ties",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.59,
+   "tokens_in": 853,
+   "tokens_out": 1318,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Undoable stack",
+  "category": "data_structures",
+  "entry_point": "UndoStack",
+  "code": "class UndoStack:\n    def __init__(self):\n        self._items = []\n        self._history = []  # entries: (\"push\", None) or (\"pop\", value)\n\n    def push(self, x) -> None:\n        self._items.append(x)\n        self._history.append((\"push\", None))\n\n    def pop(self):\n        if not self._items:\n            raise IndexError(\"pop from empty stack\")\n        value = self._items.pop()\n        self._history.append((\"pop\", value))\n        return value\n\n    def peek(self):\n        if not self._items:\n            raise IndexError(\"peek from empty stack\")\n        return self._items[-1]\n\n    def undo(self) -> None:\n        if not self._history:\n            raise RuntimeError(\"nothing to undo\")\n        kind, value = self._history.pop()\n        if kind == \"push\":\n            self._items.pop()\n        else:\n            self._items.append(value)\n\n    def __len__(self) -> int:\n        return len(self._items)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Undoable stack",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.06,
+   "tokens_in": 691,
+   "tokens_out": 798,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Versioned key-value store with rollback",
+  "category": "data_structures",
+  "entry_point": "VersionedKV",
+  "code": "class VersionedKV:\n    \"\"\"Key-value store with commit snapshots, point-in-time reads, and rollback.\"\"\"\n\n    def __init__(self):\n        self._working = {}\n        self._snapshots = []  # _snapshots[v - 1] is the immutable state at version v\n\n    # ---- working state ----\n    def set(self, key, value) -> None:\n        self._working[key] = value\n\n    def delete(self, key) -> None:\n        if key not in self._working:\n            raise KeyError(key)\n        del self._working[key]\n\n    def get(self, key):\n        if key not in self._working:\n            raise KeyError(key)\n        return self._working[key]\n\n    def has(self, key) -> bool:\n        return key in self._working\n\n    # ---- history ----\n    def commit(self) -> int:\n        self._snapshots.append(dict(self._working))  # independent copy\n        return len(self._snapshots)\n\n    def get_at(self, key, version):\n        if not (1 <= version <= len(self._snapshots)):\n            raise ValueError(f\"invalid version: {version}\")\n        snap = self._snapshots[version - 1]\n        if key not in snap:\n            raise KeyError(key)\n        return snap[key]\n\n    def rollback(self, version) -> None:\n        if not (0 <= version <= len(self._snapshots)):\n            raise ValueError(f\"invalid version: {version}\")\n        if version == 0:\n            self._working = {}\n        else:\n            # copy so later writes to the working state can't alter the snapshot\n            self._working = dict(self._snapshots[version - 1])\n\n    def latest(self) -> int:\n        return len(self._snapshots)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Versioned key-value store with rollback",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.37,
+   "tokens_in": 811,
+   "tokens_out": 1015,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Competition ranks with ties and NaN guard",
+  "category": "edge_cases",
+  "entry_point": "rank_scores",
+  "code": "def rank_scores(scores: list) -> list[int]:\n    # NaN is the only value not equal to itself; this check also avoids\n    # math.isnan overflowing on very large ints.\n    for s in scores:\n        if s != s:\n            raise ValueError(\"NaN scores are not allowed\")\n\n    # Sort a copy (the input is not mutated), best score first.\n    ordered = sorted(scores, reverse=True)\n\n    # The first occurrence of a value in descending order sits at index\n    # equal to the number of strictly greater scores, so rank = index + 1.\n    # Dict lookup uses ==/hash, so 2 and 2.0, or 0.0 and -0.0, share a key.\n    rank_of = {}\n    for i, s in enumerate(ordered):\n        if s not in rank_of:\n            rank_of[s] = i + 1\n\n    return [rank_of[s] for s in scores]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Competition ranks with ties and NaN guard",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.37,
+   "tokens_in": 485,
+   "tokens_out": 837,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Display-width truncation with combining marks",
+  "category": "edge_cases",
+  "entry_point": "truncate_display",
+  "code": "import unicodedata\n\ndef truncate_display(s: str, width: int) -> str:\n    if width < 0:\n        raise ValueError(\"width must be non-negative\")\n    if width == 0:\n        return \"\"\n\n    units = 0\n    prev_is_mark = False  # whether the previous code point was a mark joined to the current unit\n    for i, ch in enumerate(s):\n        is_mark = unicodedata.category(ch) in ('Mn', 'Mc', 'Me')\n        if i == 0:\n            # The first code point always starts a unit, mark or not.\n            units = 1\n        elif not is_mark:\n            # A base character starts a new unit.\n            if units == width:\n                return s[:i]\n            units += 1\n        # A mark after the first code point joins the current unit.\n    return s",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Display-width truncation with combining marks",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 5.72,
+   "tokens_in": 575,
+   "tokens_out": 731,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Even chunking of arbitrary iterables",
+  "category": "edge_cases",
+  "entry_point": "chunk_evenly",
+  "code": "def chunk_evenly(items, n: int) -> list[list]:\n    if n < 1:\n        raise ValueError(\"n must be >= 1\")\n    data = list(items)  # consumes the iterable exactly once\n    q, r = divmod(len(data), n)\n    result = []\n    start = 0\n    for i in range(n):\n        size = q + 1 if i < r else q\n        result.append(data[start:start + size])\n        start += size\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Even chunking of arbitrary iterables",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 5.2,
+   "tokens_in": 489,
+   "tokens_out": 685,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact integer k-th root floor",
+  "category": "edge_cases",
+  "entry_point": "kth_root_floor",
+  "code": "def kth_root_floor(n: int, k: int) -> int:\n    if not isinstance(n, int) or not isinstance(k, int):\n        raise ValueError(\"n and k must be integers\")\n    if n < 0 or k < 1:\n        raise ValueError(\"n must be >= 0 and k must be >= 1\")\n    if n < 2 or k == 1:\n        return n\n    bl = n.bit_length()\n    if k >= bl:\n        # 2**k > n (since n < 2**bl <= 2**k), and 1**k <= n\n        return 1\n    x = 1 << (-(-bl // k))  # >= true root\n    while True:\n        y = ((k - 1) * x + n // x ** (k - 1)) // k\n        if y >= x:\n            break\n        x = y\n    return x",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Exact integer k-th root floor",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.33,
+   "tokens_in": 440,
+   "tokens_out": 990,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Largest-remainder integer allocation",
+  "category": "edge_cases",
+  "entry_point": "allocate_shares",
+  "code": "from fractions import Fraction\nimport math\n\n\ndef allocate_shares(total: int, weights: list) -> list[int]:\n    \"\"\"Split `total` into integer shares proportional to `weights` using the\n    largest-remainder method (ties in remainder go to the lower index).\n\n    Exact rational arithmetic (Fraction) is used, so float weights cannot cause\n    rounding errors in the quotas or the ordering of remainders.\n    \"\"\"\n    if isinstance(total, bool) or not isinstance(total, int):\n        raise TypeError(\"total must be an integer\")\n    if total < 0:\n        raise ValueError(\"total must be >= 0\")\n\n    if weights is None or len(weights) == 0:\n        raise ValueError(\"weights must be non-empty\")\n\n    fracs = []\n    for w in weights:\n        if isinstance(w, float) and not math.isfinite(w):\n            raise ValueError(\"weights must be finite\")\n        try:\n            f = Fraction(w)\n        except (ValueError, OverflowError, TypeError) as e:\n            raise ValueError(f\"invalid weight: {w!r}\") from e\n        if f < 0:\n            raise ValueError(\"weights must be non-negative\")\n        fracs.append(f)\n\n    W = sum(fracs)\n    if W == 0:\n        raise ValueError(\"sum of weights must be > 0\")\n\n    floors = []\n    remainders = []\n    for f in fracs:\n        q = total * f / W\n        fl = q.numerator // q.denominator\n        floors.append(fl)\n        remainders.append(q - fl)\n\n    leftover = total - sum(floors)  # 0 <= leftover < number of parties\n\n    order = sorted(range(len(fracs)), key=lambda i: (-remainders[i], i))\n    for i in order[:leftover]:\n        floors[i] += 1\n\n    return floors",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Largest-remainder integer allocation",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.98,
+   "tokens_in": 560,
+   "tokens_out": 1329,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lazy round-robin interleaver",
+  "category": "edge_cases",
+  "entry_point": "round_robin",
+  "code": "from collections import deque\n\n\ndef round_robin(iterables: list) -> \"iterator\":\n    def gen():\n        # Only iter() is called on each input here; no items are consumed up front.\n        active = deque(iter(x) for x in iterables)\n        while active:\n            it = active.popleft()\n            try:\n                value = next(it)\n            except StopIteration:\n                # This iterable is exhausted, so it drops out of the rotation.\n                continue\n            active.append(it)  # goes to the back of the rotation\n            yield value        # suspends here until the next value is requested\n\n    return gen()",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lazy round-robin interleaver",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.59,
+   "tokens_in": 669,
+   "tokens_out": 734,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lower weighted median with tolerance",
+  "category": "edge_cases",
+  "entry_point": "weighted_median",
+  "code": "import math\n\ndef weighted_median(values: list, weights: list) -> float:\n    if len(values) != len(weights):\n        raise ValueError(\"values and weights must have the same length\")\n    if any(w < 0 for w in weights):\n        raise ValueError(\"weights must be non-negative\")\n    if len(values) == 0:\n        raise ValueError(\"empty input\")\n\n    W = math.fsum(weights)\n    if not W > 0:\n        raise ValueError(\"total weight must be positive\")\n\n    # Zero-weight entries contribute nothing and must never be returned.\n    pairs = sorted(\n        ((v, w) for v, w in zip(values, weights) if w > 0),\n        key=lambda p: p[0],\n    )\n\n    threshold = W / 2 - 1e-9\n    cum = 0.0\n    for v, w in pairs:\n        cum += w\n        # For duplicate values, reaching the threshold partway through the\n        # group returns the same value, so no explicit grouping is needed.\n        if cum >= threshold:\n            return v\n    # Floating-point safety fallback: the largest positive-weight value.\n    return pairs[-1][0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lower weighted median with tolerance",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.55,
+   "tokens_in": 581,
+   "tokens_out": 948,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Overflow-safe Euclidean norm",
+  "category": "edge_cases",
+  "entry_point": "vector_norm",
+  "code": "import math\n\n\ndef vector_norm(v: list[float]) -> float:\n    xs = []\n    for x in v:\n        x = float(x)\n        if not math.isfinite(x):  # NaN, +inf, -inf\n            raise ValueError(\"vector entries must be finite\")\n        xs.append(abs(x))\n\n    if not xs:\n        return 0.0\n\n    m = max(xs)\n    if m == 0.0:\n        return 0.0\n\n    # Scale by the largest magnitude so every ratio is in [0, 1]. Squares then\n    # cannot overflow. Tiny ratios that underflow to zero contribute a relative\n    # error below 1e-300, which is negligible. The largest entry contributes\n    # exactly 1, so the sum lies in [1, n].\n    s = math.fsum((x / m) ** 2 for x in xs)\n    return m * math.sqrt(s)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Overflow-safe Euclidean norm",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.6,
+   "tokens_in": 457,
+   "tokens_out": 1171,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Bounty scheduling with slot capacity",
+  "category": "optimization",
+  "entry_point": "max_bounty",
+  "code": "import heapq\n\ndef max_bounty(jobs: list[tuple[int, int]], cap: int) -> int:\n    if cap < 1:\n        raise ValueError(\"cap must be at least 1\")\n    if not jobs:\n        return 0\n    order = sorted(jobs, key=lambda j: j[0])\n    heap = []\n    push = heapq.heappush\n    pushpop = heapq.heappushpop\n    size = 0\n    for d, p in order:\n        if size < cap * d:\n            push(heap, p)\n            size += 1\n        else:\n            pushpop(heap, p)\n    return sum(heap)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Bounty scheduling with slot capacity",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 10.63,
+   "tokens_in": 633,
+   "tokens_out": 1339,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Divisible pulse windows with bounded length",
+  "category": "optimization",
+  "entry_point": "count_pulses",
+  "code": "def count_pulses(deltas: list[int], k: int, lo: int, hi: int) -> int:\n    n = len(deltas)\n    if not (1 <= lo <= hi <= n):\n        raise ValueError(\"require 1 <= lo <= hi <= len(deltas)\")\n\n    # Prefix sums mod k, mapped to compact ids.\n    try:\n        import numpy as np\n        p = np.zeros(n + 1, dtype=np.int64)\n        np.cumsum(np.asarray(deltas, dtype=np.int64), out=p[1:])\n        r = p % k  # non-negative for k > 0\n        _, inv = np.unique(r, return_inverse=True)\n        ids = inv.reshape(-1).tolist()\n        m = int(inv.max()) + 1\n    except ImportError:\n        ids = []\n        table = {}\n        s = 0\n        ids.append(table.setdefault(0, len(table)))\n        for d in deltas:\n            s = (s + d) % k\n            ids.append(table.setdefault(s, len(table)))\n        m = len(table)\n\n    # Count pairs (i, j) of prefix indices with lo <= j - i <= hi and equal residues.\n    # Sliding window over i in [j-hi, j-lo].\n    cnt = [0] * m\n    ans = 0\n    for j in range(lo, n + 1):\n        cnt[ids[j - lo]] += 1\n        old = j - hi - 1\n        if old >= 0:\n            cnt[ids[old]] -= 1\n        ans += cnt[ids[j]]\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Divisible pulse windows with bounded length",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 10.82,
+   "tokens_in": 660,
+   "tokens_out": 1460,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest echoed slice",
+  "category": "optimization",
+  "entry_point": "longest_echo",
+  "code": "def longest_echo(s: str) -> int:\n    n = len(s)\n    if n < 2:\n        return 0\n    maxn = 2 * n + 1\n    nxt = [None] * maxn\n    link = [-1] * maxn\n    length = [0] * maxn\n    cnt = [0] * maxn\n    nxt[0] = {}\n    sz = 1\n    last = 0\n    for ch in s:\n        cur = sz\n        sz += 1\n        length[cur] = length[last] + 1\n        cnt[cur] = 1          # non-clone states own one end position\n        nxt[cur] = {}\n        p = last\n        while p != -1 and ch not in nxt[p]:\n            nxt[p][ch] = cur\n            p = link[p]\n        if p == -1:\n            link[cur] = 0\n        else:\n            q = nxt[p][ch]\n            if length[p] + 1 == length[q]:\n                link[cur] = q\n            else:\n                clone = sz\n                sz += 1\n                length[clone] = length[p] + 1\n                nxt[clone] = nxt[q].copy()\n                link[clone] = link[q]\n                # cnt[clone] stays 0\n                while p != -1 and nxt[p].get(ch) == q:\n                    nxt[p][ch] = clone\n                    p = link[p]\n                link[q] = clone\n                link[cur] = clone\n        last = cur\n\n    # Propagate occurrence counts up suffix links, longest states first.\n    order = sorted(range(1, sz), key=length.__getitem__, reverse=True)\n    ans = 0\n    for v in order:\n        if cnt[v] >= 2 and length[v] > ans:\n            ans = length[v]\n        cnt[link[v]] += cnt[v]\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Longest echoed slice",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 10.75,
+   "tokens_in": 395,
+   "tokens_out": 1683,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Parity-locked divisible pairs",
+  "category": "optimization",
+  "entry_point": "count_locked_pairs",
+  "code": "def count_locked_pairs(values: list[int], m: int) -> int:\n    if m < 1:\n        raise ValueError(\"m must be >= 1\")\n    n = len(values)\n    if n < 2:\n        return 0\n\n    try:\n        import numpy as np\n    except ImportError:\n        np = None\n\n    if np is None:\n        from collections import Counter\n        cnt = Counter((v % m, v & 1) for v in values)\n        total = 0\n        for (r, p), c in cnt.items():\n            q = (m - r) % m\n            if r == q:\n                total += c * (c - 1) // 2\n            elif r < q:\n                total += c * cnt.get((q, p), 0)\n        return total\n\n    arr = np.array(values, dtype=np.int64)\n    key = (arr % m) * 2 + (arr & 1)\n    cnt = np.bincount(key, minlength=2 * m).astype(np.int64).reshape(m, 2)\n\n    idx = np.arange(m, dtype=np.int64)\n    part = (m - idx) % m\n    less = idx < part\n    same = idx == part\n    part_less = part[less]\n\n    total = 0\n    for p in (0, 1):\n        c = cnt[:, p]\n        total += int((c[less] * c[part_less]).sum())\n        cs = c[same]\n        total += int((cs * (cs - 1) // 2).sum())\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Parity-locked divisible pairs",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 12.42,
+   "tokens_in": 593,
+   "tokens_out": 1716,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Peak concurrency and its first instant",
+  "category": "optimization",
+  "entry_point": "peak_load",
+  "code": "def peak_load(intervals: list[tuple[int, int]]) -> tuple[int, int]:\n    n = len(intervals)\n    starts = sorted(iv[0] for iv in intervals)\n    ends = sorted(iv[1] for iv in intervals)\n    best = 0\n    best_t = 0\n    j = 0\n    for i in range(n):\n        t = starts[i]\n        if i + 1 < n and starts[i + 1] == t:\n            continue\n        while j < n and ends[j] <= t:\n            j += 1\n        load = i + 1 - j\n        if load > best:\n            best = load\n            best_t = t\n    return (best, best_t)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Peak concurrency and its first instant",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.13,
+   "tokens_in": 581,
+   "tokens_out": 890,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recurring values over many windows",
+  "category": "optimization",
+  "entry_point": "recurring_counts",
+  "code": "def recurring_counts(data: list[int], queries: list[tuple[int, int]]) -> list[int]:\n    n = len(data)\n    m = len(queries)\n    res = [0] * m\n    if m == 0:\n        return res\n\n    # bucket queries by r\n    buckets = [[] for _ in range(n + 1)]\n    for qi, (l, r) in enumerate(queries):\n        if r - l >= 2:\n            buckets[r].append(qi)\n        # else answer stays 0\n\n    tree = [0] * (n + 2)\n    total = 0\n    last = {}\n    prev = [-1] * n\n\n    for r in range(n + 1):\n        # answer queries with this r (indices < r processed)\n        for qi in buckets[r]:\n            l = queries[qi][0]\n            # prefix sum of positions 0..l-1 -> BIT indices 1..l\n            s = 0\n            j = l\n            while j > 0:\n                s += tree[j]\n                j &= j - 1\n            res[qi] = total - s\n        if r == n:\n            break\n        v = data[r]\n        p = last.get(v, -1)\n        prev[r] = p\n        last[v] = r\n        if p >= 0:\n            q = prev[p]\n            if q >= 0:\n                j = q + 1\n                while j <= n:\n                    tree[j] -= 1\n                    j += j & -j\n                total -= 1\n            j = p + 1\n            while j <= n:\n                tree[j] += 1\n                j += j & -j\n            total += 1\n    return res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Recurring values over many windows",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 13.02,
+   "tokens_in": 644,
+   "tokens_out": 1728,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Stable sensor stretches",
+  "category": "optimization",
+  "entry_point": "count_stable_windows",
+  "code": "from collections import deque\n\ndef count_stable_windows(readings: list[int], tol: int) -> int:\n    n = len(readings)\n    if n == 0:\n        return 0\n    maxd = deque()  # indices, values decreasing\n    mind = deque()  # indices, values increasing\n    l = 0\n    total = 0\n    a = readings\n    for r in range(n):\n        v = a[r]\n        while maxd and a[maxd[-1]] <= v:\n            maxd.pop()\n        maxd.append(r)\n        while mind and a[mind[-1]] >= v:\n            mind.pop()\n        mind.append(r)\n        while a[maxd[0]] - a[mind[0]] > tol:\n            l += 1\n            if maxd[0] < l:\n                maxd.popleft()\n            if mind[0] < l:\n                mind.popleft()\n        total += r - l + 1\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Stable sensor stretches",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.37,
+   "tokens_in": 438,
+   "tokens_out": 839,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Triple-dominance pair counting",
+  "category": "optimization",
+  "entry_point": "count_dominant_pairs",
+  "code": "from bisect import bisect_right\n\ndef count_dominant_pairs(seq: list[int]) -> int:\n    n = len(seq)\n    if n < 2:\n        return 0\n    vals = sorted(set(seq))\n    m = len(vals)\n    rank = {v: i + 1 for i, v in enumerate(vals)}\n    tree = [0] * (m + 1)\n    total = 0\n    inserted = 0\n    for x in seq:\n        # count previous elements y with y > 3*x\n        idx = bisect_right(vals, 3 * x)  # number of distinct values <= 3x\n        s = 0\n        k = idx\n        while k > 0:\n            s += tree[k]\n            k &= k - 1\n        total += inserted - s\n        # insert x\n        k = rank[x]\n        while k <= m:\n            tree[k] += 1\n            k += k & -k\n        inserted += 1\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Triple-dominance pair counting",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.56,
+   "tokens_in": 461,
+   "tokens_out": 870,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Category summarizer with indexed validation errors",
+  "category": "spec_compliance",
+  "entry_point": "summarize_by_category",
+  "code": "def summarize_by_category(rows):\n    if not isinstance(rows, list):\n        raise TypeError(\"rows must be a list\")\n\n    result = {}\n    for i, row in enumerate(rows):\n        if not isinstance(row, tuple) or len(row) != 3:\n            raise TypeError(f\"row {i}: must be a tuple of exactly 3 elements\")\n        category, amount, refunded = row\n\n        if not isinstance(category, str) or category == \"\":\n            raise ValueError(f\"row {i}: category must be a non-empty str\")\n\n        if isinstance(amount, bool) or not isinstance(amount, (int, float)):\n            raise TypeError(f\"row {i}: amount must be an int or float (not bool)\")\n\n        # `not amount >= 0` also rejects NaN, which is not a valid amount >= 0\n        if not amount >= 0:\n            raise ValueError(f\"row {i}: amount must be >= 0\")\n\n        if not isinstance(refunded, bool):\n            raise TypeError(f\"row {i}: refunded must be a bool\")\n\n        value = float(amount)\n        entry = result.get(category)\n        if entry is None:\n            result[category] = {\n                \"count\": 1,\n                \"gross\": value,\n                \"net\": 0.0 if refunded else value,\n                \"largest\": value,\n            }\n        else:\n            entry[\"count\"] += 1\n            entry[\"gross\"] += value\n            if not refunded:\n                entry[\"net\"] += value\n            if value > entry[\"largest\"]:\n                entry[\"largest\"] = value\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Category summarizer with indexed validation errors",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.75,
+   "tokens_in": 884,
+   "tokens_out": 966,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Clamp list values without min/max",
+  "category": "spec_compliance",
+  "entry_point": "clamp_values",
+  "code": "def clamp_values(values, low, high):\n    if not isinstance(values, list):\n        raise TypeError(\"values must be a list\")\n\n    for bound in (low, high):\n        if isinstance(bound, bool) or not isinstance(bound, (int, float)):\n            raise TypeError(\"bounds must be numbers\")\n\n    if low > high:\n        raise ValueError(\"low must not exceed high\")\n\n    result = []\n    for i, item in enumerate(values):\n        if isinstance(item, bool) or not isinstance(item, (int, float)):\n            raise TypeError(f\"element at index {i} must be an int or float\")\n        if item < low:\n            result.append(low)\n        elif item > high:\n            result.append(high)\n        else:\n            result.append(item)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Clamp list values without min/max",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 6.27,
+   "tokens_in": 605,
+   "tokens_out": 789,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Depth-limited flatten, iteration only",
+  "category": "spec_compliance",
+  "entry_point": "flatten_depth",
+  "code": "def flatten_depth(nested, max_depth):\n    if not isinstance(nested, list):\n        raise TypeError(\"nested must be a list\")\n    if isinstance(max_depth, bool) or not isinstance(max_depth, int):\n        raise TypeError(\"max_depth must be an int\")\n    if max_depth < 0:\n        raise ValueError(\"max_depth must be >= 0\")\n\n    result = []\n    # Explicit stack of iterators; len(stack) - 1 is the current nesting depth\n    # of the list being iterated (top-level list is depth 0).\n    stack = [iter(nested)]\n    while stack:\n        try:\n            item = next(stack[-1])\n        except StopIteration:\n            stack.pop()\n            continue\n        if isinstance(item, list) and len(stack) <= max_depth:\n            stack.append(iter(item))\n        else:\n            result.append(item)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Depth-limited flatten, iteration only",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.63,
+   "tokens_in": 643,
+   "tokens_out": 1001,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Duration string parser under a no-import contract",
+  "category": "spec_compliance",
+  "entry_point": "parse_duration",
+  "code": "def parse_duration(text):\n    if not isinstance(text, str):\n        raise TypeError(\"expected str, got %s\" % type(text).__name__)\n    if text.strip() == \"\":\n        raise ValueError(\"empty duration\")\n\n    digits = \"0123456789\"\n    units = \"hms\"\n    multipliers = (3600, 60, 1)\n\n    n = len(text)\n    i = 0\n    last_idx = -1\n    total = 0\n\n    while i < n:\n        start = i\n        value = 0\n        while i < n and text[i] in digits:\n            value = value * 10 + (ord(text[i]) - 48)\n            i += 1\n        # need at least one digit, and a unit letter must follow\n        if i == start or i >= n:\n            raise ValueError(\"malformed duration: %r\" % (text,))\n        idx = units.find(text[i])\n        # idx == -1 (unknown unit) or idx <= last_idx (repeated / out of order)\n        if idx == -1 or idx <= last_idx:\n            raise ValueError(\"malformed duration: %r\" % (text,))\n        total += value * multipliers[idx]\n        last_idx = idx\n        i += 1\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Duration string parser under a no-import contract",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 8.28,
+   "tokens_in": 607,
+   "tokens_out": 1074,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Placeholder template renderer with exact error positions",
+  "category": "spec_compliance",
+  "entry_point": "render_template",
+  "code": "def render_template(template, context):\n    if not isinstance(template, str):\n        raise TypeError(\"template must be a string\")\n    if not isinstance(context, dict):\n        raise TypeError(\"context must be a dict\")\n\n    name_chars = set(\"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_\")\n    out = []\n    n = len(template)\n    i = 0\n    while i < n:\n        c = template[i]\n        if c == \"{\":\n            if i + 1 < n and template[i + 1] == \"{\":\n                out.append(\"{\")\n                i += 2\n                continue\n            j = i + 1\n            while j < n and template[j] in name_chars:\n                j += 1\n            if j >= n:\n                raise ValueError(\"unclosed placeholder at position %d\" % i)\n            if template[j] != \"}\":\n                raise ValueError(\"invalid placeholder at position %d\" % i)\n            if j == i + 1:\n                raise ValueError(\"empty placeholder at position %d\" % i)\n            name = template[i + 1:j]\n            try:\n                value = context[name]\n            except KeyError:\n                raise KeyError(name)\n            out.append(str(value))\n            i = j + 1\n        elif c == \"}\":\n            if i + 1 < n and template[i + 1] == \"}\":\n                out.append(\"}\")\n                i += 2\n            else:\n                raise ValueError(\"stray '}' at position %d\" % i)\n        else:\n            out.append(c)\n            i += 1\n    return \"\".join(out)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Placeholder template renderer with exact error positions",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.97,
+   "tokens_in": 806,
+   "tokens_out": 1398,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "RPN evaluator with truncating division and indexed errors",
+  "category": "spec_compliance",
+  "entry_point": "eval_rpn",
+  "code": "def eval_rpn(tokens):\n    if not isinstance(tokens, list):\n        raise TypeError(\"tokens must be a list\")\n    if tokens == []:\n        raise ValueError(\"empty expression\")\n\n    digits = \"0123456789\"\n    ops = (\"+\", \"-\", \"*\", \"/\")\n\n    def parse_int(tok):\n        # Returns an int, or None if tok is not a valid literal.\n        # Parsed in chunks to avoid the interpreter's int/str digit limit.\n        sign = 1\n        body = tok\n        if body[:1] in (\"+\", \"-\"):\n            if body[0] == \"-\":\n                sign = -1\n            body = body[1:]\n        if body == \"\":\n            return None\n        for ch in body:\n            if ch not in digits:\n                return None\n        v = 0\n        step = 1000\n        for j in range(0, len(body), step):\n            chunk = body[j:j + step]\n            v = v * (10 ** len(chunk)) + int(chunk)\n        return sign * v\n\n    stack = []\n    for i, tok in enumerate(tokens):\n        if not isinstance(tok, str):\n            raise TypeError(\"token %d is not a string\" % i)\n        if tok in ops:\n            if len(stack) < 2:\n                raise ValueError(\"stack underflow at token %d\" % i)\n            right = stack.pop()\n            left = stack.pop()\n            if tok == \"+\":\n                stack.append(left + right)\n            elif tok == \"-\":\n                stack.append(left - right)\n            elif tok == \"*\":\n                stack.append(left * right)\n            else:\n                if right == 0:\n                    raise ZeroDivisionError(\"division by zero at token %d\" % i)\n                q = abs(left) // abs(right)\n                if (left < 0) != (right < 0):\n                    q = -q\n                stack.append(q)\n        else:\n            v = parse_int(tok)\n            if v is None:\n                raise ValueError(\"unknown token at token %d: %r\" % (i, tok))\n            stack.append(v)\n\n    if len(stack) > 1:\n        raise ValueError(\"leftover operands\")\n    return stack[0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "RPN evaluator with truncating division and indexed errors",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 10.63,
+   "tokens_in": 846,
+   "tokens_out": 1464,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive deep_get with loop ban",
+  "category": "spec_compliance",
+  "entry_point": "deep_get",
+  "code": "def _walk(node, parts):\n    if not parts:\n        return node\n    seg = parts[0]\n    rest = parts[1:]\n    if isinstance(node, dict):\n        if seg not in node:\n            raise KeyError(seg)\n        return _walk(node[seg], rest)\n    if isinstance(node, list):\n        body = seg[1:] if seg.startswith(\"-\") else seg\n        if not (body and body.isascii() and body.isdigit()):\n            raise ValueError(\"invalid index: %r\" % (seg,))\n        try:\n            idx = int(seg)\n        except ValueError:\n            # absurdly long digit strings hit int's conversion limit\n            raise IndexError(\"index %s out of range\" % seg)\n        if idx < -len(node) or idx >= len(node):\n            raise IndexError(\"index %s out of range\" % seg)\n        return _walk(node[idx], rest)\n    raise TypeError(\n        \"cannot descend into %s with remaining segment %r\"\n        % (type(node).__name__, seg)\n    )\n\n\ndef deep_get(data, path):\n    if not isinstance(path, str):\n        raise TypeError(\"path must be a string\")\n    if path == \"\":\n        raise ValueError(\"path must not be empty\")\n    parts = path.split(\".\")\n    if \"\" in parts:\n        raise ValueError(\"empty segment in path %r\" % (path,))\n    return _walk(data, parts)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Recursive deep_get with loop ban",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 9.95,
+   "tokens_in": 727,
+   "tokens_out": 1328,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Top-k frequent without sorting builtins",
+  "category": "spec_compliance",
+  "entry_point": "top_k_frequent",
+  "code": "def top_k_frequent(items, k):\n    if not isinstance(items, list):\n        raise TypeError(\"items must be a list\")\n    if isinstance(k, bool) or not isinstance(k, int):\n        raise TypeError(\"k must be an int\")\n    if k < 0:\n        raise ValueError(\"k must be >= 0\")\n\n    # Count occurrences; dicts preserve insertion order, so the keys\n    # are in order of first occurrence.\n    counts = {}\n    for item in items:\n        if item in counts:\n            counts[item] += 1\n        else:\n            counts[item] = 1\n\n    candidates = [(value, cnt) for value, cnt in counts.items()]\n    n = len(candidates)\n    limit = k if k < n else n\n\n    result = []\n    for _ in range(limit):\n        best_idx = 0\n        best_count = candidates[0][1]\n        for i in range(1, len(candidates)):\n            c = candidates[i][1]\n            # Strict comparison keeps the earliest-occurring value on ties.\n            if c > best_count:\n                best_count = c\n                best_idx = i\n        value, cnt = candidates.pop(best_idx)\n        result.append((value, cnt))\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Top-k frequent without sorting builtins",
+   "model": "global.anthropic.claude-sonnet-5-5",
+   "provider": "bedrock",
+   "latency_s": 7.07,
+   "tokens_in": 579,
+   "tokens_out": 950,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ }
+]

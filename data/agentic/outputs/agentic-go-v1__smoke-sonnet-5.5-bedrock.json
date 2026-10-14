@@ -1,0 +1,54 @@
+{
+ "suite": "agentic-go-v1",
+ "tag": "smoke-sonnet-5.5-bedrock",
+ "model": "global.anthropic.claude-sonnet-5-5",
+ "provider": "bedrock",
+ "budget": {
+  "max_calls": 40,
+  "max_context_tokens": 150000,
+  "max_tokens_per_response": 32000
+ },
+ "totals": {
+  "tasks": 1,
+  "passed": 1,
+  "pass_rate": 1.0,
+  "hidden_tests_passed": 3,
+  "hidden_tests_total": 3,
+  "cost_usd": 0.0787,
+  "tool_calls": 15,
+  "tokens_in": 112564,
+  "tokens_out": 1825,
+  "wall_s": 23.5,
+  "broke_visible_tasks": 0,
+  "unclean_tasks": 0,
+  "skipped_for_cost_cap": []
+ },
+ "tasks": [
+  {
+   "task": "02-cumulative-refund-limit",
+   "type": "bug",
+   "title": "Multiple partial refunds can exceed the captured amount",
+   "pass": true,
+   "hidden_passed": 3,
+   "hidden_total": 3,
+   "hidden_failed": [],
+   "tool_calls": 15,
+   "turns": 10,
+   "nudges": 0,
+   "tokens_in": 112564,
+   "tokens_out": 1825,
+   "cache_read_tokens": 96083,
+   "cache_write_tokens": 16459,
+   "cost_usd": 0.07866,
+   "wall_s": 23.5,
+   "stop_reason": "finished",
+   "finished": true,
+   "summary": "Fixed the over-refund bug in payment/service.go. Refund compared the requested amount to the full payment amount instead of what was left. It now compares against Amount - Refunded. An oversized refund returns ErrRefundExceedsRemaining, which the API maps to 422 refund_exceeds_remaining, and the payment isn't changed. A refund of exactly the remaining amount is still allowed and moves the payment to REFUNDED. I added a regression test (600 then 600 on 1000 is rejected, then 400 succeeds and the status becomes REFUNDED). The full suite passes with -race, and gofmt reports nothing.",
+   "broke_visible": [],
+   "build_ok": true,
+   "vet_clean": true,
+   "gofmt_clean": true,
+   "error": null
+  }
+ ]
+}

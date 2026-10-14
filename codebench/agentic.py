@@ -46,7 +46,8 @@ TASKS = ROOT / "agentic" / "tasks"
 RUNS = ROOT / "data" / "agentic" / "runs"
 OUTPUTS = ROOT / "data" / "agentic" / "outputs"
 MODULE = "example.com/gopayments"
-MAX_TOKENS = int(os.environ.get("AGENTIC_MAX_TOKENS", "16000"))
+MAX_TOKENS = int(os.environ.get("AGENTIC_MAX_TOKENS", "32000"))
+MAX_NUDGES = 3
 TOOL_OUTPUT_LIMIT = 12000
 RUN_TIMEOUT_S = 180
 GRADE_TIMEOUT_S = 600
@@ -493,9 +494,11 @@ def run_task(task, provider, a, spend: Spend, log_path: Path):
             emit(event="assistant", turn=turns, text=r["text"], calls=[{"id": c[0], "name": c[1], "args": c[2]} for c in r["calls"]],
                  stop=r["stop"], usage=u, message=r["assistant"])
             if not r["calls"]:
-                if nudges < 1 and r["stop"] not in ("refusal", "content_filtered"):
+                if nudges < MAX_NUDGES and r["stop"] not in ("refusal", "content_filtered"):
                     nudges += 1
-                    provider.nudge(messages, "Continue working with the tools. Call finish when the ticket is resolved.")
+                    truncated = r["stop"] in ("length", "max_tokens")
+                    provider.nudge(messages, "Your last response hit the output token limit before any tool call. Be concise and act through the tools."
+                                   if truncated else "Continue working with the tools. Call finish when the ticket is resolved.")
                     continue
                 stop = "no_tool_call"
                 break
@@ -524,7 +527,7 @@ def run_task(task, provider, a, spend: Spend, log_path: Path):
     row = {"task": task["id"], "type": task["type"], "title": task["title"], "pass": g["pass"],
            "hidden_passed": g["hidden_passed"], "hidden_total": g["hidden_total"],
            "hidden_failed": sorted(k for k, v in g["hidden"].items() if v != "pass"),
-           "tool_calls": calls, "turns": turns, "tokens_in": tok["in"], "tokens_out": tok["out"],
+           "tool_calls": calls, "turns": turns, "nudges": nudges, "tokens_in": tok["in"], "tokens_out": tok["out"],
            "cache_read_tokens": tok["cache_read"], "cache_write_tokens": tok["cache_write"],
            "cost_usd": round(cost, 5), "wall_s": round(wall, 1), "stop_reason": stop, "finished": stop == "finished",
            "summary": summary, "broke_visible": g["broke_visible"], "build_ok": g["build_ok"], "vet_clean": g["vet_clean"],

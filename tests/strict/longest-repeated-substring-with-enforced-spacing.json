@@ -1,0 +1,483 @@
+{
+ "title": "Longest repeated substring with enforced spacing",
+ "entry_point": "longest_spaced_repeat",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "for every L, p, q with q >= p + L + gap compare slices directly"
+ },
+ "cases": [
+  {
+   "name": "v4:example_touching_ok",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:example_gap_one",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "v4:example_overlapping_run",
+   "code": "result = sol.longest_spaced_repeat('aaaa', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "v4:example_gap_too_large",
+   "code": "result = sol.longest_spaced_repeat('xy', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "v4:empty_and_single",
+   "code": "result = (sol.longest_spaced_repeat('', 0), sol.longest_spaced_repeat('a', 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:aaaa_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('aaaa', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "v4:no_repeat_at_all",
+   "code": "result = sol.longest_spaced_repeat('abcdef', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "v4:gap_pushes_answer_to_zero",
+   "code": "result = sol.longest_spaced_repeat('abcabc', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "v4:distant_repeat_with_spacing",
+   "code": "result = sol.longest_spaced_repeat('abcdxxxxxxabcd', 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "v4:large_seeded",
+   "code": "import random\nrnd = random.Random(0)\ns = ''.join(rnd.choice('abc') for _ in range(1000))\nresult = (sol.longest_spaced_repeat(s, 0), sol.longest_spaced_repeat(s, 50))",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     11,
+     11
+    ]
+   }
+  },
+  {
+   "name": "empty_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "two_same_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('aa', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "two_same_gap_one",
+   "code": "result = sol.longest_spaced_repeat('aa', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "aba_gap_one",
+   "code": "result = sol.longest_spaced_repeat('aba', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "aaaaa_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('aaaaa', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "aaaaaa_gap_zero",
+   "code": "result = sol.longest_spaced_repeat('aaaaaa', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "aaaaaa_gap_two",
+   "code": "result = sol.longest_spaced_repeat('aaaaaa', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "gap_equals_len",
+   "code": "result = sol.longest_spaced_repeat('abab', 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "punctuation_and_spaces",
+   "code": "result = sol.longest_spaced_repeat('a b!a b!', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "case_sensitive",
+   "code": "result = sol.longest_spaced_repeat('abcABC', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "later_pair_longer",
+   "code": "result = sol.longest_spaced_repeat('xyzxyz--abcdabcd', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "gap_trims_overlong_match",
+   "code": "result = sol.longest_spaced_repeat('abcdefgabcdefg', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('aaaa', 3), ('aaa', 0), ('b ~~ ~ ~b~aaa', 1), ('a ~a~~ab bab', 9), ('cabcbccac', 7), ('abcbcaabccaabb', 11), ('aaaaaaaaaaa', 10), ('abbaaaaaaabaab', 3), (' a ~bb', 6), ('aaaaaaa', 5), ('bcbbabbab', 9), ('aaaa', 1)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     2,
+     1,
+     1,
+     1,
+     0,
+     3,
+     0,
+     1,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('', 0), ('~abbaaa~ ~~', 9), ('ac', 0), ('aacbccaccaa', 4), ('abbbcbccaa', 9), ('aaaaaaaaaa', 1), ('ccaacb', 3), (' a ~b ~b ba', 9), ('caaab', 5), ('baabcbcb', 1), ('aaaaaaaaa', 9), ('aaabaaababa', 8)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     0,
+     2,
+     0,
+     4,
+     1,
+     0,
+     0,
+     1,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('bbaabbbaba', 5), ('aaa', 1), ('bbabaabbbbbbb', 4), ('ccbbc', 4), ('aaaaaacbcab', 0), ('~~a', 0), ('~b~   ~aa~', 9), ('~bbb ~ b~a ', 11), ('aaaba', 3), ('bcca', 2), (' ab~aa  ', 8), ('baabbab', 3)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1,
+     2,
+     0,
+     3,
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('bcacbcaccbabcb', 14), ('b', 1), ('acbaaa', 3), ('aa', 1), ('  aabbb', 7), ('abbb', 3), ('baabb', 5), ('bbbbb', 3), ('~aa~b ', 6), ('', 0), ('aaaaa', 1), ('bcaca', 3)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('bbaaccaaaccb', 2), ('ccbbcaccab', 3), ('aa', 1), ('a~a', 2), ('~ba~bb~ ', 5), ('~~~ baabaa', 5), ('babbaaaa', 8), ('bb', 0), ('bbabbba', 2), ('abbbaaa', 1), ('acb', 1), (' ~a  ~aab~', 4)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     2,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     2,
+     1,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('a', 0), ('bbbba', 4), ('aaaaaaaaaaaa', 7), ('bbbcbcaccacb', 0), ('aaaaaaaaaaaaa', 4), ('bbbbbbbab', 9), ('babbaaa', 6), ('', 0), ('aaaaaaaaa', 3), ('bbbbbababbbbab', 13), ('abcbabaabc', 3), ('a', 1)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     2,
+     3,
+     4,
+     0,
+     0,
+     0,
+     3,
+     0,
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('ababb~  bb ', 2), ('aab ', 4), ('babab', 4), ('aaaaaaaaaaaa', 9), ('b a~~ b~', 1), ('aabbbababbaaaa', 5), ('aaa', 1), ('  ~ ~', 3), ('bababaaba', 0), ('abababaa', 5), ('a  ~bbb ~ba a', 3), (' babaa~bb ', 7)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     0,
+     0,
+     1,
+     1,
+     2,
+     1,
+     0,
+     3,
+     1,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('caab', 4), ('bb~bba~b ~~ a', 10), ('', 0), ('', 0), ('', 0), ('cbaacacacb', 0), ('bc', 1), ('caaabaa', 2), ('aaaa', 0), ('~~ ~ bbb', 0), ('aaaaaaaaa', 7), ('aaaaaaaa', 2)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     2,
+     0,
+     2,
+     2,
+     2,
+     1,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('cacacbc', 3), ('cac', 2), ('aaaaaaaaaaaa', 6), ('aaaaababbbbaa', 9), ('cbaa', 2), ('aaaaaaaaaaaaaa', 10), (' ~b ~~  ~ba   ', 8), ('baccb', 3), ('aaaaaaaaaaa', 9), (' a~~bb a b ', 0), ('ab bb  b~~bb a', 0), ('bba ~ b~b', 8)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     0,
+     3,
+     2,
+     0,
+     2,
+     1,
+     1,
+     1,
+     2,
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('abcabcbbccb', 8), ('baaabaabb', 4), ('bbbabcaabca', 11), ('bbba', 1), ('a', 0), ('aabbbabbaaaaba', 11), ('baaabbbbba', 4), ('cacbbacabaabc', 7), ('aaaaaaaaaaaaa', 2), ('', 0), ('aaaaaaaaaaa', 10), ('cbcaaccbc', 2)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     2,
+     1,
+     5,
+     0,
+     0,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_10",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('a~a~a~ ', 6), ('aabbbbbabab', 9), ('bbcaacab', 6), ('aaabba', 5), ('cbaabaca', 6), ('aaaa', 1), ('', 0), ('caaca', 0), ('bab', 1), ('abbbbbbbbabbab', 0), ('caab', 0), (' a~aa   a~~ aa', 9)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     2,
+     1,
+     4,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "random_batch_11",
+   "code": "result = [sol.longest_spaced_repeat(*a) for a in [('~aa~ b', 1), ('bbabbabaaa', 1), ('bbbaababaa', 7), ('~baaa~b ', 3), ('aaaaaaa', 6), ('', 0), ('abc', 0), ('aaaa', 3), ('aaccaacccac', 2), ('baabbacccbaba', 3), ('aaaaaaa', 6), ('acaccccbaaccb', 6)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     0,
+     2,
+     0,
+     0,
+     0,
+     0,
+     3,
+     2,
+     0,
+     2
+    ]
+   }
+  },
+  {
+   "name": "stress_all_same_1000",
+   "code": "s = 'a' * 1000\nresult = [sol.longest_spaced_repeat(s, g) for g in (0, 1, 333, 998, 1000)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     500,
+     499,
+     333,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "stress_printable_random_1000",
+   "code": "import random\nrnd = random.Random(51)\ns = ''.join(chr(rnd.randint(32, 126)) for _ in range(1000))\nresult = [sol.longest_spaced_repeat(s, 0), sol.longest_spaced_repeat(s, 10)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     3,
+     3
+    ]
+   }
+  },
+  {
+   "name": "stress_planted_repeat_1000",
+   "code": "import random\nrnd = random.Random(52)\nblock = ''.join(rnd.choice('ab') for _ in range(300))\ns = block + ''.join(rnd.choice('ab') for _ in range(400)) + block\nresult = [sol.longest_spaced_repeat(s, 0), sol.longest_spaced_repeat(s, 400), sol.longest_spaced_repeat(s, 401)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     300,
+     300,
+     299
+    ]
+   }
+  }
+ ]
+}

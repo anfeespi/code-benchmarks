@@ -1,0 +1,373 @@
+{
+ "title": "Longest echoed slice",
+ "entry_point": "longest_echo",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "brute force: largest L such that two distinct start positions carry the same length-L substring"
+ },
+ "cases": [
+  {
+   "name": "v4:example_banana",
+   "code": "result = sol.longest_echo('banana')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:example_abcabc",
+   "code": "result = sol.longest_echo('abcabc')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:example_aaaa",
+   "code": "result = sol.longest_echo('aaaa')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:example_none",
+   "code": "result = sol.longest_echo('abcd')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "v4:tiny_inputs",
+   "code": "result = (sol.longest_echo(''), sol.longest_echo('a'), sol.longest_echo('aa'), sol.longest_echo('ab'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:random_small_batch",
+   "code": "import random\nrnd = random.Random(11)\nresult = [sol.longest_echo(''.join(rnd.choice('abc') for _ in range(n))) for n in (5, 12, 30, 80, 200)]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     3,
+     5,
+     6,
+     9
+    ]
+   }
+  },
+  {
+   "name": "v4:large_planted_block",
+   "code": "import random\nrnd = random.Random(0)\nalpha = 'abcdefghijklmnopqrstuvwxyz'\nblock = ''.join(rnd.choice(alpha) for _ in range(400))\nnoise = ''.join(rnd.choice(alpha) for _ in range(149200))\ns = block + noise[:74600] + block + noise[74600:]\nresult = sol.longest_echo(s)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 400
+   }
+  },
+  {
+   "name": "v4:large_doubled_string",
+   "code": "import random\nrnd = random.Random(1)\nt = ''.join(rnd.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(75000))\nresult = sol.longest_echo(t + t)",
+   "timeout_s": 6,
+   "expected": {
+    "value": 75000
+   }
+  },
+  {
+   "name": "alphabet_no_repeat",
+   "code": "result = sol.longest_echo('abcdefghijklmnopqrstuvwxyz')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "alphabet_twice",
+   "code": "result = sol.longest_echo('abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 26
+   }
+  },
+  {
+   "name": "single_repeated_letter_far",
+   "code": "result = sol.longest_echo('zyxwvutsrqponmlkjihgfedcbazz')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "all_same_1000",
+   "code": "result = sol.longest_echo('qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 999
+   }
+  },
+  {
+   "name": "period_two",
+   "code": "result = sol.longest_echo('abababababababababababababababababababababababababababababababababababababababababababababababababab')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 98
+   }
+  },
+  {
+   "name": "overlap_aba",
+   "code": "result = sol.longest_echo('abababa')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5
+   }
+  },
+  {
+   "name": "repeat_at_ends",
+   "code": "result = sol.longest_echo('xyzabcdefxyz')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "prefix_suffix_overlap",
+   "code": "result = sol.longest_echo('abcabcabca')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 7
+   }
+  },
+  {
+   "name": "three_letters",
+   "code": "result = sol.longest_echo('aab')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [sol.longest_echo(*a) for a in [('tthpmgtwpewfqqxzqztenugmatdimv',), ('lylhnzorbvejlmdqozzrapfjnjmojovrajsccqwzrqsvqzcwqpyi',), ('baaacabbcbcbbccabbb',), ('babacbacbabbabcbabacbacbbcccacaacaccccbbac',), ('bbabbab',), ('abcbbcacaaaacaca',), ('aacabaabbbbaaabcbabbbbbcaacacaaabcccacbcbcbcaaabbbbaaa',), ('frrtqihpyxkntlriqx',), ('ccbbbbccabcbccaaacbabbabbaacaacbbaabcaccbbbacbcccaaaacbbbcaccbbba',), ('ncwvc',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     4,
+     9,
+     4,
+     4,
+     9,
+     1,
+     9,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [sol.longest_echo(*a) for a in [('bccbaaacbacaaccbccaaabaccbbba',), ('baabbbaaaaaababbb',), ('acabaaaccccbacacccbbababcaaabccbcabcb',), ('aaacabaacbabccbbcabaccc',), ('abaaabbaabbaaaabbbaaabababaaabbbaaa',), ('baabbaabbbabbbaaababbb',), ('bbbbbabbbbbbaabaaaabaabbbbaaabbaaaabaabbbaaaaaa',), ('aababbbabbaaaaabbabbbabbaabaabbaaaabbb',), ('aaa',), ('ababcbc',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     4,
+     5,
+     4,
+     4,
+     9,
+     5,
+     11,
+     10,
+     2,
+     2
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [sol.longest_echo(*a) for a in [('abaababaaaaabaababaaabababbbbbbbaababaaaaaabbbbabaababaaaaabbbb',), ('jrmkpmtgqevcvavwkgsfhjhsyygbtfhcknszzojukswlacszxasselzhbw',), ('ss',), ('guvrgxtlcbszceessxaeogvwzceessxaeovdw',), ('',), ('nhekttfnfyuvxtgfnfyuvxtgaq',), ('abbbbaccacbcccccbccaaccacaacacaccccbccaacccbccaccccabacba',), ('cababbaaaccbbbabab',), ('abbaabaabaaaaaaaababaaabaaaababbbaabaaabbbaa',), ('ghvzhzzpgflopgfquqkayvfzbmbuxctnwpmdxpumpsvjlbhwfd',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     13,
+     2,
+     1,
+     10,
+     0,
+     9,
+     11,
+     4,
+     7,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [sol.longest_echo(*a) for a in [('aaabaa',), ('bbccaaaccabbcbbacbcbcbbbabacbabbbaaaaabbbaacaabbbacbaaa',), ('abccacbacbcbbcbabcbcab',), ('aaaab',), ('cccacbbbccacabababacccbaabababaabcaccaccabcbabaabccbcc',), ('pevzfvkyglrdv',), ('mvdvhgzndqykleovltzjzjfraxhfpgmfkumyafwvjwnszkhdvzdcrceb',), ('acccbcccab',), ('ybkiwhyroetuxkjibkiwhyroetuxkjqfpvygaldvfjoobyczigwgehzph',), ('lwtiajhmfpffrvudseawjeretjqxticfmhcwwjeretjqpna',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     6,
+     3,
+     3,
+     7,
+     1,
+     2,
+     3,
+     14,
+     8
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [sol.longest_echo(*a) for a in [('bbccabccaacbacaccacabccaa',), ('bccabbabccabccaccccabababaabaccbaabacbc',), ('bcbbbccaabbabccabc',), ('cca',), ('a',), ('bbbbabaababaaabababaaabaabaaaaabaaaabbbabbabaaab',), ('aaaaaaaaaaaa',), ('bbbbbbaaababbababaaabbbaaaba',), ('clizhkpazwfeaggwruy',), ('bbbbbbaaabbbaabaaaaababbaaaaabbabbaaabbaabaaabba',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     7,
+     6,
+     4,
+     1,
+     0,
+     9,
+     11,
+     8,
+     1,
+     8
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [sol.longest_echo(*a) for a in [('ababbaaaaaaabbbbaababaabbaabbbbbaabbabaaabaabbabaaababbbabbbababaaaaaa',), ('aaaababaaa',), ('abbbacabcbbaccaabccb',), ('pwcyvdksvd',), ('auehjzfvrzxbjitrlxxymdglevcslglevcszizaqcfuzpjqbhdoxmiehah',), ('aabcaabcbcbacabcbbcccaabacaaabcbaabcbaccacaacbcaaacacacbc',), ('bcbccbbcbaa',), ('caacababbaaacababbababa',), ('cabcab',), ('caaacaabb',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     12,
+     3,
+     4,
+     2,
+     6,
+     6,
+     3,
+     9,
+     3,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [sol.longest_echo(*a) for a in [('bc',), ('bbaaaabaaaaababaaaaaababbbbabbbbabaabbbbbbbbabbaababbbbaaaaa',), ('caccbacaabcbccacaabccbcbbacbbccbbbc',), ('',), ('xjxkgahjx',), ('acbaacbabacaccccbabacacccb',), ('cccacabbbcbaccaacabcabcacabbbc',), ('jcdehdccgoyceeumbuczfzchyfvjhndtzegolbjqxxhfzz',), ('abcccacaa',), ('cabacabaaaaaaacbacb',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     9,
+     6,
+     0,
+     2,
+     10,
+     8,
+     2,
+     2,
+     6
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [sol.longest_echo(*a) for a in [('aacaccbccbbabbcbcccbccacaacb',), ('cacbaacbaabbcccacabcbacccacbaabbcccacabcaaababbc',), ('jajxjyildultwqantgrigtx',), ('bbaacbaaac',), ('caaaccbaacc',), ('mamdcasoalgjyejjvvnoamoiby',), ('abbababbaababbb',), ('aaabbaaaaabbbbabaabaaba',), ('jtgtxn',), ('acbcccacaaaaabbacbaacaccabccbabacabbbcabbccbbabaaabaccbcb',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     15,
+     1,
+     3,
+     4,
+     2,
+     5,
+     6,
+     1,
+     4
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "result = [sol.longest_echo(*a) for a in [('aabaaaababbbabbbabbaaaabbaabbaababbababbabaaabb',), ('babbbabbcacabbcacbcccbaaacccbaccbcabbcacbcccacbcacbabaaaacbbcbbcbab',), ('teeswcgphaaoopwvmthucx',), ('aab',), ('',), ('nojhksuwojh',), ('gkebxkwqynnwozuahqvsweynwcmg',), ('bulnfqeezucsbqmdjqtzdxlnz',), ('baabbbabbaabbabbbbbbaaa',), ('baabbabbabaababaaabaabbbaabbaaaabbaabbbbbaaabb',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     8,
+     11,
+     1,
+     1,
+     0,
+     3,
+     2,
+     2,
+     5,
+     6
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "result = [sol.longest_echo(*a) for a in [('bcabbbbbaacbbcaabbbabaaabbcbcacbca',), ('rxvpad',), ('baaaabbbbbaaaabbbbbbb',), ('isvqgcmzgzinzgzinaabglvqaabglvqvfjueqlkl',), ('abba',), ('vskpenzqotsbptqtuulxcpethgbtssekgawnzrhzpyd',), ('abaabaaacaaabaaacabcacbaccbacbbaaacbbbcbccabc',), ('cbbaaaccbcaca',), ('bbbaabaaaaaabbbbaaaabbabaabaaaaaabbbababbabaabbbbbaabbaaabaabbaaabaaab',), ('accbcccaabccbabcbcc',)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     4,
+     0,
+     10,
+     7,
+     1,
+     2,
+     8,
+     2,
+     13,
+     4
+    ]
+   }
+  },
+  {
+   "name": "stress_binary_alphabet_planted_600",
+   "code": "import random\nr = random.Random(71)\ns = [r.choice('ab') for _ in range(148800)]\nblk = [r.choice('ab') for _ in range(600)]\ns[1000:1600] = blk\ns[120000:120600] = blk\nresult = sol.longest_echo(''.join(s)[:150000])",
+   "timeout_s": 15,
+   "expected": {
+    "value": 602
+   }
+  },
+  {
+   "name": "stress_overlapping_planted_500",
+   "code": "import random\nr = random.Random(72)\nal = 'abcdefghijklmnopqrstuvwxyz'\np = ''.join(r.choice(al) for _ in range(50))\nrep = p * 11\ns = ''.join(r.choice(al) for _ in range(75000)) + rep + ''.join(r.choice(al) for _ in range(74450))\nresult = sol.longest_echo(s)",
+   "timeout_s": 15,
+   "expected": {
+    "value": 500
+   }
+  },
+  {
+   "name": "stress_three_copies_spread",
+   "code": "import random\nr = random.Random(73)\nal = 'abc'\nblk = ''.join(r.choice(al) for _ in range(350))\nparts = [''.join(r.choice(al) for _ in range(49650)) for _ in range(3)]\ns = parts[0] + blk + parts[1] + blk + parts[2][:-350] + blk\nresult = sol.longest_echo(s)",
+   "timeout_s": 15,
+   "expected": {
+    "value": 351
+   }
+  }
+ ]
+}

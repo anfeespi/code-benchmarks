@@ -1,0 +1,761 @@
+{
+ "title": "Build-order resolver reports phantom dependency cycles",
+ "entry_point": "resolve_build_order",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "Kahn's algorithm (in-degree peeling); cycle iff not every node peeled; compared on validity"
+ },
+ "cases": [
+  {
+   "name": "v4:diamond_shared_dependency",
+   "code": "r = sol.resolve_build_order({'app': ['net', 'ui'], 'net': ['core'], 'ui': ['core']})\npos = {p: i for i, p in enumerate(r)}\nresult = (sorted(r), len(r), pos['core'] < pos['net'], pos['core'] < pos['ui'], pos['net'] < pos['app'], pos['ui'] < pos['app'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "app",
+      "core",
+      "net",
+      "ui"
+     ],
+     4,
+     true,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "v4:simple_chain",
+   "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['c']})",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "c",
+     "b",
+     "a"
+    ]
+   }
+  },
+  {
+   "name": "v4:empty_graph",
+   "code": "result = sol.resolve_build_order({})",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "v4:dependency_only_packages",
+   "code": "r = sol.resolve_build_order({'app': ['lib', 'util']})\npos = {p: i for i, p in enumerate(r)}\nresult = (sorted(r), len(r), pos['lib'] < pos['app'], pos['util'] < pos['app'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "app",
+      "lib",
+      "util"
+     ],
+     3,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "v4:duplicate_dependency_entries",
+   "code": "result = sol.resolve_build_order({'a': ['b', 'b', 'b'], 'b': []})",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "b",
+     "a"
+    ]
+   }
+  },
+  {
+   "name": "v4:wide_shared_fanin",
+   "code": "deps = {'top': ['m1', 'm2', 'm3'], 'm1': ['base'], 'm2': ['base'], 'm3': ['base', 'm1'], 'base': []}\nr = sol.resolve_build_order(deps)\npos = {p: i for i, p in enumerate(r)}\nok = all(pos[d] < pos[p] for p, ds in deps.items() for d in ds)\nresult = (sorted(r), len(r), ok)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "base",
+      "m1",
+      "m2",
+      "m3",
+      "top"
+     ],
+     5,
+     true
+    ]
+   }
+  },
+  {
+   "name": "v4:isolated_packages",
+   "code": "r = sol.resolve_build_order({'a': [], 'b': [], 'c': []})\nresult = (sorted(r), len(r))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b",
+      "c"
+     ],
+     3
+    ]
+   }
+  },
+  {
+   "name": "v4:deterministic_repeat",
+   "code": "d = {'app': ['net', 'ui'], 'net': ['core'], 'ui': ['core'], 'core': []}\nresult = sol.resolve_build_order(d) == sol.resolve_build_order(d)",
+   "timeout_s": 5,
+   "expected": {
+    "value": true
+   }
+  },
+  {
+   "name": "v4:two_node_cycle",
+   "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['a']})",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:self_dependency_cycle",
+   "code": "result = sol.resolve_build_order({'a': ['a']})",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:cycle_behind_valid_prefix",
+   "code": "result = sol.resolve_build_order({'a': ['b'], 'b': ['c'], 'c': ['b'], 'd': []})",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "diamond_shared_dep",
+   "code": "deps = {'a': ['b', 'c'], 'b': ['d'], 'c': ['d'], 'd': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'a': ['b', 'c'], 'b': ['d'], 'c': ['d'], 'd': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "a",
+      "b",
+      "c",
+      "d"
+     ],
+     4,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "shared_dep_only_in_lists",
+   "code": "deps = {'x': ['base'], 'y': ['base'], 'z': ['base', 'x', 'y']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'x': ['base'], 'y': ['base'], 'z': ['base', 'x', 'y']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "base",
+      "x",
+      "y",
+      "z"
+     ],
+     4,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "many_dependents_one_base",
+   "code": "deps = {'p00': ['core'], 'p01': ['core'], 'p02': ['core'], 'p03': ['core'], 'p04': ['core'], 'p05': ['core'], 'p06': ['core'], 'p07': ['core'], 'p08': ['core'], 'p09': ['core'], 'p10': ['core'], 'p11': ['core'], 'p12': ['core'], 'p13': ['core'], 'p14': ['core'], 'p15': ['core'], 'p16': ['core'], 'p17': ['core'], 'p18': ['core'], 'p19': ['core'], 'p20': ['core'], 'p21': ['core'], 'p22': ['core'], 'p23': ['core'], 'p24': ['core'], 'p25': ['core'], 'p26': ['core'], 'p27': ['core'], 'p28': ['core'], 'p29': ['core']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p00': ['core'], 'p01': ['core'], 'p02': ['core'], 'p03': ['core'], 'p04': ['core'], 'p05': ['core'], 'p06': ['core'], 'p07': ['core'], 'p08': ['core'], 'p09': ['core'], 'p10': ['core'], 'p11': ['core'], 'p12': ['core'], 'p13': ['core'], 'p14': ['core'], 'p15': ['core'], 'p16': ['core'], 'p17': ['core'], 'p18': ['core'], 'p19': ['core'], 'p20': ['core'], 'p21': ['core'], 'p22': ['core'], 'p23': ['core'], 'p24': ['core'], 'p25': ['core'], 'p26': ['core'], 'p27': ['core'], 'p28': ['core'], 'p29': ['core']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "core",
+      "p00",
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14",
+      "p15",
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22",
+      "p23",
+      "p24",
+      "p25",
+      "p26",
+      "p27",
+      "p28",
+      "p29"
+     ],
+     31,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "dependency_only_packages",
+   "code": "deps = {'app': ['lib1', 'lib2', 'lib3']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'app': ['lib1', 'lib2', 'lib3']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "app",
+      "lib1",
+      "lib2",
+      "lib3"
+     ],
+     4,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "duplicate_entries_shared",
+   "code": "deps = {'a': ['c', 'c', 'b'], 'b': ['c', 'c'], 'c': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'a': ['c', 'c', 'b'], 'b': ['c', 'c'], 'c': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "a",
+      "b",
+      "c"
+     ],
+     3,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "single_package_no_deps",
+   "code": "deps = {'solo': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'solo': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "solo"
+     ],
+     1,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "self_dependency_among_valid",
+   "code": "deps = {'a': ['b'], 'b': [], 'c': ['c']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'a': ['b'], 'b': [], 'c': ['c']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  },
+  {
+   "name": "cycle_via_dependency_only_key",
+   "code": "deps = {'a': ['b'], 'b': ['c'], 'c': ['a']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'a': ['b'], 'b': ['c'], 'c': ['a']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  },
+  {
+   "name": "long_cycle",
+   "code": "deps = {'n0': ['n1'], 'n1': ['n2'], 'n2': ['n3'], 'n3': ['n4'], 'n4': ['n5'], 'n5': ['n6'], 'n6': ['n7'], 'n7': ['n8'], 'n8': ['n9'], 'n9': ['n10'], 'n10': ['n11'], 'n11': ['n0']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'n0': ['n1'], 'n1': ['n2'], 'n2': ['n3'], 'n3': ['n4'], 'n4': ['n5'], 'n5': ['n6'], 'n6': ['n7'], 'n7': ['n8'], 'n8': ['n9'], 'n9': ['n10'], 'n10': ['n11'], 'n11': ['n0']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  },
+  {
+   "name": "cycle_reached_from_shared",
+   "code": "deps = {'top': ['m1', 'm2'], 'm1': ['x'], 'm2': ['x'], 'x': ['y'], 'y': ['x']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'top': ['m1', 'm2'], 'm1': ['x'], 'm2': ['x'], 'x': ['y'], 'y': ['x']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  },
+  {
+   "name": "chain_depth_60",
+   "code": "deps = {'c000': ['c001'], 'c001': ['c002'], 'c002': ['c003'], 'c003': ['c004'], 'c004': ['c005'], 'c005': ['c006'], 'c006': ['c007'], 'c007': ['c008'], 'c008': ['c009'], 'c009': ['c010'], 'c010': ['c011'], 'c011': ['c012'], 'c012': ['c013'], 'c013': ['c014'], 'c014': ['c015'], 'c015': ['c016'], 'c016': ['c017'], 'c017': ['c018'], 'c018': ['c019'], 'c019': ['c020'], 'c020': ['c021'], 'c021': ['c022'], 'c022': ['c023'], 'c023': ['c024'], 'c024': ['c025'], 'c025': ['c026'], 'c026': ['c027'], 'c027': ['c028'], 'c028': ['c029'], 'c029': ['c030'], 'c030': ['c031'], 'c031': ['c032'], 'c032': ['c033'], 'c033': ['c034'], 'c034': ['c035'], 'c035': ['c036'], 'c036': ['c037'], 'c037': ['c038'], 'c038': ['c039'], 'c039': ['c040'], 'c040': ['c041'], 'c041': ['c042'], 'c042': ['c043'], 'c043': ['c044'], 'c044': ['c045'], 'c045': ['c046'], 'c046': ['c047'], 'c047': ['c048'], 'c048': ['c049'], 'c049': ['c050'], 'c050': ['c051'], 'c051': ['c052'], 'c052': ['c053'], 'c053': ['c054'], 'c054': ['c055'], 'c055': ['c056'], 'c056': ['c057'], 'c057': ['c058'], 'c058': ['c059'], 'c059': ['c060']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'c000': ['c001'], 'c001': ['c002'], 'c002': ['c003'], 'c003': ['c004'], 'c004': ['c005'], 'c005': ['c006'], 'c006': ['c007'], 'c007': ['c008'], 'c008': ['c009'], 'c009': ['c010'], 'c010': ['c011'], 'c011': ['c012'], 'c012': ['c013'], 'c013': ['c014'], 'c014': ['c015'], 'c015': ['c016'], 'c016': ['c017'], 'c017': ['c018'], 'c018': ['c019'], 'c019': ['c020'], 'c020': ['c021'], 'c021': ['c022'], 'c022': ['c023'], 'c023': ['c024'], 'c024': ['c025'], 'c025': ['c026'], 'c026': ['c027'], 'c027': ['c028'], 'c028': ['c029'], 'c029': ['c030'], 'c030': ['c031'], 'c031': ['c032'], 'c032': ['c033'], 'c033': ['c034'], 'c034': ['c035'], 'c035': ['c036'], 'c036': ['c037'], 'c037': ['c038'], 'c038': ['c039'], 'c039': ['c040'], 'c040': ['c041'], 'c041': ['c042'], 'c042': ['c043'], 'c043': ['c044'], 'c044': ['c045'], 'c045': ['c046'], 'c046': ['c047'], 'c047': ['c048'], 'c048': ['c049'], 'c049': ['c050'], 'c050': ['c051'], 'c051': ['c052'], 'c052': ['c053'], 'c053': ['c054'], 'c054': ['c055'], 'c055': ['c056'], 'c056': ['c057'], 'c057': ['c058'], 'c058': ['c059'], 'c059': ['c060']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "c000",
+      "c001",
+      "c002",
+      "c003",
+      "c004",
+      "c005",
+      "c006",
+      "c007",
+      "c008",
+      "c009",
+      "c010",
+      "c011",
+      "c012",
+      "c013",
+      "c014",
+      "c015",
+      "c016",
+      "c017",
+      "c018",
+      "c019",
+      "c020",
+      "c021",
+      "c022",
+      "c023",
+      "c024",
+      "c025",
+      "c026",
+      "c027",
+      "c028",
+      "c029",
+      "c030",
+      "c031",
+      "c032",
+      "c033",
+      "c034",
+      "c035",
+      "c036",
+      "c037",
+      "c038",
+      "c039",
+      "c040",
+      "c041",
+      "c042",
+      "c043",
+      "c044",
+      "c045",
+      "c046",
+      "c047",
+      "c048",
+      "c049",
+      "c050",
+      "c051",
+      "c052",
+      "c053",
+      "c054",
+      "c055",
+      "c056",
+      "c057",
+      "c058",
+      "c059",
+      "c060"
+     ],
+     61,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "wide_lattice",
+   "code": "deps = {'l0_0': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_1': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_2': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_3': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_4': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l1_0': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_1': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_2': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_3': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_4': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l2_0': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_1': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_2': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_3': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_4': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l3_0': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_1': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_2': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_3': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_4': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l4_0': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_1': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_2': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_3': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_4': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'l0_0': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_1': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_2': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_3': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l0_4': ['l1_0', 'l1_1', 'l1_2', 'l1_3', 'l1_4'], 'l1_0': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_1': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_2': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_3': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l1_4': ['l2_0', 'l2_1', 'l2_2', 'l2_3', 'l2_4'], 'l2_0': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_1': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_2': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_3': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l2_4': ['l3_0', 'l3_1', 'l3_2', 'l3_3', 'l3_4'], 'l3_0': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_1': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_2': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_3': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l3_4': ['l4_0', 'l4_1', 'l4_2', 'l4_3', 'l4_4'], 'l4_0': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_1': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_2': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_3': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4'], 'l4_4': ['l5_0', 'l5_1', 'l5_2', 'l5_3', 'l5_4']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "l0_0",
+      "l0_1",
+      "l0_2",
+      "l0_3",
+      "l0_4",
+      "l1_0",
+      "l1_1",
+      "l1_2",
+      "l1_3",
+      "l1_4",
+      "l2_0",
+      "l2_1",
+      "l2_2",
+      "l2_3",
+      "l2_4",
+      "l3_0",
+      "l3_1",
+      "l3_2",
+      "l3_3",
+      "l3_4",
+      "l4_0",
+      "l4_1",
+      "l4_2",
+      "l4_3",
+      "l4_4",
+      "l5_0",
+      "l5_1",
+      "l5_2",
+      "l5_3",
+      "l5_4"
+     ],
+     30,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "unicode_names",
+   "code": "deps = {'app': ['núcleo', '网络'], '网络': ['núcleo']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'app': ['núcleo', '网络'], '网络': ['núcleo']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "app",
+      "núcleo",
+      "网络"
+     ],
+     3,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "keys_out_of_order",
+   "code": "deps = {'z': ['a'], 'm': ['z', 'a'], 'a': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'z': ['a'], 'm': ['z', 'a'], 'a': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "a",
+      "m",
+      "z"
+     ],
+     3,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_00",
+   "code": "deps = {'p2': [], 'p6': ['p11', 'p9'], 'p3': ['p8', 'p8'], 'p7': [], 'p8': ['p11', 'p9', 'p11', 'p10', 'p11'], 'p1': ['p5', 'p5', 'p3', 'p6'], 'p5': ['p8'], 'p4': ['p7', 'p7', 'p7'], 'p0': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p2': [], 'p6': ['p11', 'p9'], 'p3': ['p8', 'p8'], 'p7': [], 'p8': ['p11', 'p9', 'p11', 'p10', 'p11'], 'p1': ['p5', 'p5', 'p3', 'p6'], 'p5': ['p8'], 'p4': ['p7', 'p7', 'p7'], 'p0': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p11",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     12,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_01",
+   "code": "deps = {'p3': ['p6', 'p11', 'p7', 'p10'], 'p7': ['p11', 'p11'], 'p0': ['p6'], 'p2': ['p10', 'p3', 'p6'], 'p4': ['p8', 'p8', 'p6', 'p9'], 'p9': ['p10'], 'p6': ['p9', 'p9', 'p9', 'p10'], 'p1': ['p8', 'p12', 'p12', 'p2'], 'p8': ['p12', 'p10', 'p12', 'p11'], 'p5': ['p6', 'p7']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p3': ['p6', 'p11', 'p7', 'p10'], 'p7': ['p11', 'p11'], 'p0': ['p6'], 'p2': ['p10', 'p3', 'p6'], 'p4': ['p8', 'p8', 'p6', 'p9'], 'p9': ['p10'], 'p6': ['p9', 'p9', 'p9', 'p10'], 'p1': ['p8', 'p12', 'p12', 'p2'], 'p8': ['p12', 'p10', 'p12', 'p11'], 'p5': ['p6', 'p7']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p11",
+      "p12",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     13,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_maybe_cycle_02",
+   "code": "deps = {'p4': ['p10', 'p10'], 'p7': ['p8', 'p10'], 'p2': ['p10', 'p11', 'p9'], 'p8': ['p10', 'p11', 'p9'], 'p5': ['p10', 'p7', 'p11', 'p6'], 'p6': ['p0'], 'p0': ['p4', 'p10'], 'p3': [], 'p1': ['p10', 'p2']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p4': ['p10', 'p10'], 'p7': ['p8', 'p10'], 'p2': ['p10', 'p11', 'p9'], 'p8': ['p10', 'p11', 'p9'], 'p5': ['p10', 'p7', 'p11', 'p6'], 'p6': ['p0'], 'p0': ['p4', 'p10'], 'p3': [], 'p1': ['p10', 'p2']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p11",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     12,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_03",
+   "code": "deps = {'p4': ['p5', 'p5'], 'p0': [], 'p5': ['p6', 'p7'], 'p1': ['p3', 'p2'], 'p2': ['p4', 'p3', 'p4'], 'p3': ['p7', 'p4']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p4': ['p5', 'p5'], 'p0': [], 'p5': ['p6', 'p7'], 'p1': ['p3', 'p2'], 'p2': ['p4', 'p3', 'p4'], 'p3': ['p7', 'p4']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7"
+     ],
+     8,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_04",
+   "code": "deps = {'p1': ['p3', 'p5', 'p7', 'p10'], 'p0': ['p8', 'p9', 'p7', 'p4'], 'p3': [], 'p2': [], 'p7': ['p9'], 'p4': [], 'p6': ['p8', 'p7', 'p7', 'p8'], 'p5': ['p10', 'p7', 'p7']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p1': ['p3', 'p5', 'p7', 'p10'], 'p0': ['p8', 'p9', 'p7', 'p4'], 'p3': [], 'p2': [], 'p7': ['p9'], 'p4': [], 'p6': ['p8', 'p7', 'p7', 'p8'], 'p5': ['p10', 'p7', 'p7']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     11,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_maybe_cycle_05",
+   "code": "deps = {'p7': ['p11', 'p10', 'p12', 'p8'], 'p8': [], 'p4': ['p7', 'p12'], 'p1': ['p9', 'p11'], 'p6': ['p7', 'p8'], 'p3': ['p10', 'p11', 'p6', 'p4'], 'p9': [], 'p5': ['p6'], 'p2': ['p2'], 'p0': ['p4', 'p11', 'p10', 'p7']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p7': ['p11', 'p10', 'p12', 'p8'], 'p8': [], 'p4': ['p7', 'p12'], 'p1': ['p9', 'p11'], 'p6': ['p7', 'p8'], 'p3': ['p10', 'p11', 'p6', 'p4'], 'p9': [], 'p5': ['p6'], 'p2': ['p2'], 'p0': ['p4', 'p11', 'p10', 'p7']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  },
+  {
+   "name": "random_dag_06",
+   "code": "deps = {'p0': ['p3', 'p2'], 'p3': ['p5', 'p5'], 'p1': [], 'p2': ['p4', 'p6', 'p5']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p0': ['p3', 'p2'], 'p3': ['p5', 'p5'], 'p1': [], 'p2': ['p4', 'p6', 'p5']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ],
+     7,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_07",
+   "code": "deps = {'p6': ['p7'], 'p3': ['p5', 'p4', 'p10'], 'p0': ['p10'], 'p7': ['p9', 'p9'], 'p8': ['p9'], 'p5': ['p10', 'p10', 'p11'], 'p2': ['p6', 'p6', 'p9', 'p9'], 'p4': ['p9', 'p7', 'p9'], 'p1': ['p3']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p6': ['p7'], 'p3': ['p5', 'p4', 'p10'], 'p0': ['p10'], 'p7': ['p9', 'p9'], 'p8': ['p9'], 'p5': ['p10', 'p10', 'p11'], 'p2': ['p6', 'p6', 'p9', 'p9'], 'p4': ['p9', 'p7', 'p9'], 'p1': ['p3']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p11",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     12,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_maybe_cycle_08",
+   "code": "deps = {'p9': ['p11'], 'p6': ['p12'], 'p8': ['p10', 'p14', 'p12', 'p10'], 'p10': ['p13', 'p12'], 'p4': ['p9', 'p9'], 'p5': ['p6', 'p11', 'p9', 'p9'], 'p0': [], 'p3': ['p6', 'p6'], 'p7': ['p8', 'p11'], 'p2': [], 'p1': ['p12', 'p13', 'p10'], 'p11': ['p12', 'p14', 'p1']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p9': ['p11'], 'p6': ['p12'], 'p8': ['p10', 'p14', 'p12', 'p10'], 'p10': ['p13', 'p12'], 'p4': ['p9', 'p9'], 'p5': ['p6', 'p11', 'p9', 'p9'], 'p0': [], 'p3': ['p6', 'p6'], 'p7': ['p8', 'p11'], 'p2': [], 'p1': ['p12', 'p13', 'p10'], 'p11': ['p12', 'p14', 'p1']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     15,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_09",
+   "code": "deps = {'p2': ['p4', 'p3', 'p4'], 'p1': ['p5'], 'p3': ['p6', 'p4', 'p7', 'p4', 'p6'], 'p0': ['p3', 'p8', 'p9', 'p6'], 'p5': ['p8', 'p6'], 'p7': ['p10'], 'p4': [], 'p6': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p2': ['p4', 'p3', 'p4'], 'p1': ['p5'], 'p3': ['p6', 'p4', 'p7', 'p4', 'p6'], 'p0': ['p3', 'p8', 'p9', 'p6'], 'p5': ['p8', 'p6'], 'p7': ['p10'], 'p4': [], 'p6': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p10",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+      "p9"
+     ],
+     11,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_dag_10",
+   "code": "deps = {'p1': ['p9', 'p8'], 'p5': ['p8', 'p6'], 'p2': ['p4', 'p3', 'p5'], 'p3': ['p6'], 'p6': ['p9', 'p9', 'p8', 'p9'], 'p0': [], 'p4': []}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p1': ['p9', 'p8'], 'p5': ['p8', 'p6'], 'p2': ['p4', 'p3', 'p5'], 'p3': ['p6'], 'p6': ['p9', 'p9', 'p8', 'p9'], 'p0': [], 'p4': []}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6",
+      "p8",
+      "p9"
+     ],
+     9,
+     true,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "random_maybe_cycle_11",
+   "code": "deps = {'p0': ['p11', 'p5', 'p3'], 'p9': ['p14', 'p9'], 'p10': ['p11', 'p11', 'p12', 'p11'], 'p8': ['p9', 'p10', 'p11'], 'p6': ['p7', 'p11', 'p12'], 'p1': ['p13', 'p14', 'p5', 'p10', 'p13'], 'p5': ['p8'], 'p2': ['p8'], 'p7': [], 'p11': ['p13', 'p14', 'p14'], 'p4': ['p5', 'p8', 'p6'], 'p3': ['p4', 'p4', 'p4', 'p6']}\ntry:\n    r = sol.resolve_build_order(deps)\n    pos = {p: i for i, p in enumerate(r)}\n    result = ('ok', sorted(r), len(r),\n              all(d in pos and p in pos and pos[d] < pos[p] for p, ds in deps.items() for d in ds),\n              r == sol.resolve_build_order(deps), r == sol.resolve_build_order({'p0': ['p11', 'p5', 'p3'], 'p9': ['p14', 'p9'], 'p10': ['p11', 'p11', 'p12', 'p11'], 'p8': ['p9', 'p10', 'p11'], 'p6': ['p7', 'p11', 'p12'], 'p1': ['p13', 'p14', 'p5', 'p10', 'p13'], 'p5': ['p8'], 'p2': ['p8'], 'p7': [], 'p11': ['p13', 'p14', 'p14'], 'p4': ['p5', 'p8', 'p6'], 'p3': ['p4', 'p4', 'p4', 'p6']}))\nexcept ValueError:\n    result = 'ValueError'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ValueError"
+   }
+  }
+ ]
+}

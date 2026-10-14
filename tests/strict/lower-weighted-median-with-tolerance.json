@@ -1,0 +1,446 @@
+{
+ "title": "Lower weighted median with tolerance",
+ "entry_point": "weighted_median",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "group by distinct value, cumulative per distinct value with float sum, threshold W/2 - 1e-9"
+ },
+ "cases": [
+  {
+   "name": "v4:odd_uniform",
+   "code": "result = sol.weighted_median([3, 1, 2], [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "v4:even_uniform_exact_half",
+   "code": "result = sol.weighted_median([1, 2, 3, 4], [1, 1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "v4:zero_weight_ignored",
+   "code": "result = sol.weighted_median([10, 20], [0.0, 5.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 20
+   }
+  },
+  {
+   "name": "v4:single_pair",
+   "code": "result = sol.weighted_median([7.5], [3.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 7.5
+   }
+  },
+  {
+   "name": "v4:all_identical_values",
+   "code": "result = sol.weighted_median([5, 5, 5], [1, 2, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5
+   }
+  },
+  {
+   "name": "v4:negative_values",
+   "code": "result = sol.weighted_median([-5, -1, -3], [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": -3
+   }
+  },
+  {
+   "name": "v4:trailing_zero_weight",
+   "code": "result = sol.weighted_median([1, 2, 3], [1.0, 1.0, 0.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "v4:tolerance_just_under_half",
+   "code": "result = sol.weighted_median([1, 2], [0.9999999999, 1.0000000001])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "v4:length_mismatch_raises",
+   "code": "result = sol.weighted_median([1, 2], [1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:empty_raises",
+   "code": "result = sol.weighted_median([], [])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:all_zero_weights_raises",
+   "code": "result = sol.weighted_median([1, 2], [0.0, 0.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:negative_weight_raises",
+   "code": "result = sol.weighted_median([1, 2], [1.0, -1.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:larger_deterministic",
+   "code": "values = [((i * 37) % 101) - 50 for i in range(101)]\nweights = [1.0] * 101\nresult = (sol.weighted_median(values, weights), sol.weighted_median(values, [float(i % 3) for i in range(101)]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     2
+    ]
+   }
+  },
+  {
+   "name": "two_equal_weights_lower",
+   "code": "result = sol.weighted_median([5, 9], [1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5
+   }
+  },
+  {
+   "name": "heavy_last",
+   "code": "result = sol.weighted_median([1, 2, 3], [1, 1, 5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "heavy_first",
+   "code": "result = sol.weighted_median([1, 2, 3], [5, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "unsorted_with_heavy_middle",
+   "code": "result = sol.weighted_median([30, 10, 20], [1, 1, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 20
+   }
+  },
+  {
+   "name": "zero_weight_smallest_value",
+   "code": "result = sol.weighted_median([-100, 1, 2], [0, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "zero_weight_leading_and_trailing",
+   "code": "result = sol.weighted_median([0, 5, 6, 99], [0.0, 2.0, 2.0, 0.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 5
+   }
+  },
+  {
+   "name": "duplicate_values_split_weight",
+   "code": "result = sol.weighted_median([2, 1, 2, 3], [1, 2, 1, 4])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "duplicates_cross_half",
+   "code": "result = sol.weighted_median([4, 4, 1, 9], [1, 1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 4
+   }
+  },
+  {
+   "name": "single_with_zero_others",
+   "code": "result = sol.weighted_median([3, 8, 1], [0, 7.5, 0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 8
+   }
+  },
+  {
+   "name": "negative_floats",
+   "code": "result = sol.weighted_median([-1.5, -2.5, -0.5], [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1.5
+   }
+  },
+  {
+   "name": "all_identical_values_float",
+   "code": "result = sol.weighted_median([2.5, 2.5], [0.1, 0.2])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2.5
+   }
+  },
+  {
+   "name": "decimal_weights_tolerance",
+   "code": "result = sol.weighted_median([1, 2, 3], [0.1, 0.2, 0.3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "within_tolerance_reaches",
+   "code": "result = sol.weighted_median([1, 2], [1.0, 1.000000000002])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "beyond_tolerance_does_not_reach",
+   "code": "result = sol.weighted_median([1, 2], [1.0, 1.000000004])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "tiny_weights",
+   "code": "result = sol.weighted_median([1, 2, 3], [1e-12, 1e-12, 1e-12])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "large_weights",
+   "code": "result = sol.weighted_median([1, 2, 3], [1000000000000000.0, 1000000000000000.0, 2000000000000004.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "single_negative_value",
+   "code": "result = sol.weighted_median([-42], [0.5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": -42
+   }
+  },
+  {
+   "name": "length_mismatch_longer_weights_raises",
+   "code": "result = sol.weighted_median([1], [1, 1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "length_mismatch_empty_values_raises",
+   "code": "result = sol.weighted_median([], [1.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_weight_with_positive_total_raises",
+   "code": "result = sol.weighted_median([1, 2, 3], [5.0, -0.5, 1.0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "all_zero_int_weights_raises",
+   "code": "result = sol.weighted_median([1, 2, 3], [0, 0, 0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "result_is_input_value",
+   "code": "vals = [0.1, 0.7, 0.3]\nr = sol.weighted_median(vals, [1, 1, 1])\nresult = (r in vals, r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     0.3
+    ]
+   }
+  },
+  {
+   "name": "inputs_not_reordered_matter",
+   "code": "a = sol.weighted_median([3, 1, 2], [1, 1, 1])\nb = sol.weighted_median([1, 2, 3], [1, 1, 1])\nc = sol.weighted_median([2, 3, 1], [1, 1, 1])\nresult = (a, b, c)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     2,
+     2
+    ]
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [sol.weighted_median(*a) for a in [([16, -10, -14, -7, 5, -17, 17], [1.5, 1.5, 0.25, 0.25, 2, 0, 0.5]), ([-17, 8, 15], [0.25, 0.5, 2]), ([-5, 3, 2, 1, 5, 4, 17, 17, 20, -6, -14, -15, 5, 14], [0.25, 2, 1.5, 1, 0.25, 1.5, 0, 1.5, 0, 1.5, 3, 1.5, 0.25, 3]), ([-1, 20, 9, -8, -3, -8, -14, 0, 12, 7, 4], [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 0.5, 3, 3, 0.5]), ([-7], [0.25]), ([7, -13], [2, 0]), ([-15, 19, 20, -2, -9, 6, -2, -17, 4, 11, 19], [1, 0.25, 0.25, 0, 3, 2, 0.25, 3, 1, 1.5, 0.5]), ([-4, -16, 13, 12, -3, 8, 11, 16, -4], [2, 1, 0.25, 0, 1, 1.5, 0.25, 0.5, 0]), ([20, 9, -15, -13, 8, 9, 6], [2, 3, 1, 1.5, 3, 0.25, 2]), ([-8], [1.5])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     15,
+     2,
+     7,
+     -7,
+     7,
+     -9,
+     -3,
+     8,
+     -8
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [sol.weighted_median(*a) for a in [([1, -17, 15, -18, 20, -20], [1, 3, 0.25, 1, 0.5, 0.5]), ([-18, -18], [0.5, 0]), ([-11, 8, 14], [0, 0.5, 0.25]), ([5, -13, -17, -9, -17, -3, 15, -17, -6, 4, 11, 10], [3, 0, 1, 3, 1, 1.5, 0.5, 1, 0.5, 1, 0.25, 0.25]), ([20, 14, 0, -18, 11, 9, 16, -15, 17, -20], [0.25, 0, 2, 0.5, 0.25, 0.5, 1.5, 0.5, 0, 2]), ([4, 8, -14, -10, -10], [3, 0.5, 3, 2, 3]), ([14, 9, -18, 20, 14, 9, 11, -16, 7, -15, 16, -1], [1.5, 0, 2, 2, 2, 0.25, 0.25, 0.5, 1, 1, 0.25, 1]), ([-19, 13, -13, 4, -18, 9, -9, -19, -17, 13], [0, 2, 0.5, 0.25, 3, 0.5, 1.5, 1, 0, 3]), ([11, 6, -20, 16, 9, 9, -11, 14], [0.25, 0, 0, 1.5, 0, 0, 2, 1]), ([12, 7, -3, -14, -3, 18, -10, -2, -14], [1, 2, 1.5, 2, 0.25, 3, 1.5, 2, 3])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -17,
+     -18,
+     8,
+     -6,
+     0,
+     -10,
+     11,
+     -9,
+     14,
+     -3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [sol.weighted_median(*a) for a in [([-6, -3, 12, -2, 3, 8], [1.5, 3, 3, 0, 1.5, 0]), ([3, 2, -3], [0.5, 2, 1.5]), ([-6, 14, -18, -11, -1, -13, 11], [0, 0.25, 2, 0.25, 1.5, 0.25, 0.5]), ([-6, -1, 6, 3, 6, 11, 5, -16, -20, -16, 0, -10], [0.25, 0.5, 1, 3, 0.5, 0, 1.5, 3, 2, 2, 1.5, 0]), ([-13], [0.5]), ([13, -20, -16], [3, 0.5, 1]), ([-3, -11, -13, 13, -9, -3, -4, 6, 11, 19, 20, 11, 6, 11, -4], [2, 0, 2, 2, 3, 0.5, 1, 3, 0, 1.5, 3, 0.5, 0, 3, 0.25]), ([0, 9, -10, 20], [0, 0, 2, 0]), ([13, -9, 15, 10, -6, -5, -7, 16, 14], [0, 0, 3, 3, 0.25, 1, 0, 0.25, 2]), ([-3, -18, 4, 15, -15, 13, -2, -1, -8, 5, 5, -15, -4], [0, 1, 0.5, 1.5, 1.5, 0.25, 0, 0, 2, 0, 1.5, 1, 3])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -3,
+     2,
+     -11,
+     -1,
+     -13,
+     13,
+     6,
+     -10,
+     14,
+     -4
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [sol.weighted_median(*a) for a in [([17], [3]), ([-8, -5, 2, 18, 15, 18, -5, 9, 6], [1.5, 0.25, 3, 0.5, 1.5, 2, 1, 0.5, 3]), ([14, 10, 13, 19, 11, -12, -7, 3, -2, 10, 1, 10, 15], [0, 0, 1, 0, 0, 2, 0.25, 0.25, 3, 0.25, 0.5, 0, 0.5]), ([5], [1]), ([-4, -20, -20, -10, 4], [2, 1.5, 0.25, 1.5, 0]), ([4, 9, 18, -18], [2, 0, 1.5, 0]), ([-11, 4, 8, 1, 13, 11, 13, 2, 14, 2, 19], [1, 1, 2, 3, 1.5, 0.5, 2, 1, 3, 2, 0.5]), ([9, -11, 11, 11, 20, -10], [3, 1.5, 0.25, 1.5, 0, 0.5]), ([17, 9, 20], [1, 0, 1]), ([0, 4, 15, 18, 10, 13, 17, 16, 6], [0, 1.5, 1, 0.25, 1, 1, 3, 1.5, 2])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     17,
+     6,
+     -2,
+     5,
+     -10,
+     4,
+     8,
+     9,
+     17,
+     15
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [sol.weighted_median(*a) for a in [([5, -8, 6, 2, -20, 5], [1.5, 0, 2, 1, 3, 1]), ([-3, -19, 17, 2, 19, -6, 0, 18, -7], [3, 1, 2, 0.25, 0.5, 0, 1, 3, 1.5]), ([20, -5, -9, -1, 15], [0.5, 1.5, 3, 2, 0]), ([19, -16, -20, -20, -16, 14, 4, 13, -16, -13, 8, -9, 10], [3, 1.5, 0.5, 1, 1.5, 3, 0.25, 0.25, 1.5, 3, 1, 2, 0.5]), ([0, 0, 1, -19, 20, 11, 13, 4, -16, -6, 18, 4], [0.5, 3, 0, 0.25, 1, 0, 1, 0.5, 3, 1, 2, 3]), ([-17, 13, 18, 11, -16, 15, -11, -8, -8, 11, 12, -15, -9], [1.5, 3, 3, 1, 0, 0.5, 2, 3, 0.5, 1.5, 3, 1, 1.5]), ([3, 13], [0.25, 0.25]), ([11, -17, 17, -5, -20, -13], [1, 1.5, 2, 3, 3, 0.5]), ([-5, -20, -15, -12, 0, -16, -14, -4, 18], [3, 3, 0.25, 0.5, 3, 0, 1.5, 0, 0.5]), ([13, -3, 20, -17, -20, -7, -3, -15], [3, 0.5, 3, 2, 1, 3, 1.5, 0.5])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     0,
+     -5,
+     -9,
+     0,
+     11,
+     3,
+     -5,
+     -5,
+     -3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [sol.weighted_median(*a) for a in [([9, 20, -12, 9, -14, 16, -15, 14, 18, -13, 4, -19], [1.5, 1.5, 1.5, 0.25, 1, 0.5, 2, 0, 0.5, 3, 2, 1.5]), ([5, 6, 12, -15, -5, -2, -1, 16, -8, 17, 4, 11, 18, -11], [1, 2, 3, 0.25, 0, 1.5, 1.5, 0.5, 1, 1, 0.25, 1.5, 3, 1]), ([-13, 6, -20, 12, -18, 18, -14, 18, 1, -4, 11], [3, 3, 1.5, 0.5, 0.25, 2, 0.25, 0.25, 3, 0.25, 0.25]), ([16, 7, 2, 4, -12, 11, -4, 20, 14, -20, -13, 5], [0.25, 3, 1.5, 2, 1, 2, 1.5, 1, 1, 1.5, 1, 0]), ([-1, 9, -15, -1, -19, 16, -6, -18, -9, 3], [2, 1.5, 2, 1.5, 0.5, 1.5, 0.25, 0.25, 2, 0.5]), ([0, 15], [1, 0]), ([-19, 8, 4, -8, -13], [3, 0.25, 3, 0.25, 0.5]), ([-8, 12, -4, 8, -8, -18, 9, -9], [2, 1, 0.5, 0.5, 1.5, 0.5, 0, 0.25]), ([3, -19, 11, -13, -13, -11], [0, 0, 0.5, 0.25, 0.25, 0.5]), ([13, -20, -18, 11, -14, 4, 5, 6, 14, -16, 4, -1, 14, -12], [2, 0, 3, 0.25, 3, 1, 1, 1, 0, 1.5, 1.5, 1.5, 3, 2])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -12,
+     11,
+     1,
+     4,
+     -1,
+     0,
+     -13,
+     -8,
+     -11,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [sol.weighted_median(*a) for a in [([-5, 11, 9, 5, 3, 4, -19, -2, 20, -13, 7, -19, 11, 2], [1, 2, 1.5, 0.5, 3, 1, 0, 1, 3, 2, 2, 2, 2, 0]), ([-20, -8, 6, 8, 0], [2, 1, 0.25, 0.5, 3]), ([2, -6, -13, 16, 9, -18, 8, -12], [0, 2, 3, 1.5, 0.25, 1, 0.25, 3]), ([-13, 5, -6, -8, 3, -14, -4], [1.5, 1, 3, 0, 1, 3, 1.5]), ([17, 15, -4, 10, 14, 0, 1, 8, -9], [0, 0.25, 1, 3, 1.5, 2, 2, 1.5, 3]), ([-13, 8, 7], [1, 3, 2]), ([-19], [1]), ([-1, 0, -9, -14, 7, 10, 18, 10, -18], [0.5, 1, 2, 0, 2, 2, 1.5, 2, 1.5]), ([9, 15, -15, -13, -17, 14, 7, 7, -15, -2], [1.5, 3, 0.25, 1, 0.25, 1, 0.25, 3, 2, 1.5]), ([-17, -19, 18, -20, 1, -4], [0.5, 0.5, 1, 2, 1.5, 1.5])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     0,
+     -12,
+     -6,
+     1,
+     7,
+     -19,
+     7,
+     7,
+     -4
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [sol.weighted_median(*a) for a in [([7, -20, 10, -9, 18, -13, 9, -15], [3, 0, 3, 0.5, 0.5, 2, 3, 2]), ([-18, 3, -1, 18, 11, -3, 16, -13, 7, 7, -1, -11, -14, 14], [1, 0.5, 0.25, 1.5, 3, 0.5, 1.5, 3, 1, 0.25, 3, 0.25, 1.5, 0]), ([-19, -6, -7, 16, -12], [1, 2, 1.5, 0, 0.5]), ([-4, 7, -9, -4], [3, 3, 1, 0.25]), ([-8, -7, 9, 3], [0, 3, 1, 1.5]), ([-13, 10, 0, 16, 6, 0, 7, -15, -6, -3, -19], [1, 0.5, 2, 0, 0.5, 2, 1.5, 3, 0, 2, 0.5]), ([-12, 11, -7], [1, 0.25, 1]), ([5, 6, 2, -18, -18, -20, -4, -13, -13, -18, 7, -1, -2], [0, 1.5, 3, 0.25, 0.5, 2, 0, 0.5, 1, 1, 0.25, 2, 1]), ([9], [0.25]), ([1, -17, 16, -14, 19, 17, 12, 12, 14, 12], [0.25, 0, 0, 0, 1.5, 0.25, 1, 0, 0.5, 0])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     7,
+     -1,
+     -7,
+     -4,
+     -7,
+     -3,
+     -7,
+     -1,
+     9,
+     14
+    ]
+   }
+  }
+ ]
+}

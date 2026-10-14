@@ -1,0 +1,1428 @@
+{
+ "title": "Patch applier lands hunks on the wrong lines",
+ "entry_point": "apply_hunks",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "pairwise validity/conflict checks, then rebuild by walking original indices"
+ },
+ "cases": [
+  {
+   "name": "v4:later_hunk_after_growing_edit",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(1, 1, ['X', 'Y']), (3, 1, ['Z'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "a",
+     "X",
+     "Y",
+     "c",
+     "Z"
+    ]
+   }
+  },
+  {
+   "name": "v4:later_hunk_after_shrinking_edit",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd', 'e'], [(0, 2, []), (3, 1, ['W'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "c",
+     "W",
+     "e"
+    ]
+   }
+  },
+  {
+   "name": "v4:hunks_supplied_out_of_order",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd', 'e'], [(4, 1, ['E2']), (0, 1, ['A1', 'A2']), (2, 0, ['ins'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "A1",
+     "A2",
+     "b",
+     "ins",
+     "c",
+     "d",
+     "E2"
+    ]
+   }
+  },
+  {
+   "name": "v4:delete_to_end_example",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c'], [(0, 2, ['K']), (2, 1, [])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "K"
+    ]
+   }
+  },
+  {
+   "name": "v4:touching_ranges_not_conflicting",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(0, 2, ['X']), (2, 2, ['Y', 'Z'])])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "X",
+     "Y",
+     "Z"
+    ]
+   }
+  },
+  {
+   "name": "v4:append_at_end_and_empty_document",
+   "code": "result = (sol.apply_hunks(['a', 'b'], [(2, 0, ['c'])]), sol.apply_hunks([], [(0, 0, ['a', 'b'])]), sol.apply_hunks([], []))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b",
+      "c"
+     ],
+     [
+      "a",
+      "b"
+     ],
+     []
+    ]
+   }
+  },
+  {
+   "name": "v4:empty_hunks_returns_copy",
+   "code": "src = ['a', 'b']\nr = sol.apply_hunks(src, [])\nresult = (r, r is src)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "a",
+      "b"
+     ],
+     false
+    ]
+   }
+  },
+  {
+   "name": "v4:no_mutation_of_inputs",
+   "code": "lines = ['a', 'b', 'c', 'd']\nhunks = [(2, 1, ['P']), (0, 1, [])]\nr = sol.apply_hunks(lines, hunks)\nresult = (r, lines, hunks, len(hunks))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "b",
+      "P",
+      "d"
+     ],
+     [
+      "a",
+      "b",
+      "c",
+      "d"
+     ],
+     [
+      [
+       2,
+       1,
+       [
+        "P"
+       ]
+      ],
+      [
+       0,
+       1,
+       []
+      ]
+     ],
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:duplicate_start_pure_insertions_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(1, 0, ['X']), (1, 0, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:duplicate_start_with_deletes_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c'], [(0, 1, ['X']), (0, 2, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:overlapping_delete_ranges_conflict",
+   "code": "result = sol.apply_hunks(['a', 'b', 'c', 'd'], [(0, 3, ['X']), (2, 1, ['Y'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:negative_start_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(-1, 1, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:delete_past_end_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(1, 5, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:insert_past_end_out_of_range",
+   "code": "result = sol.apply_hunks(['a', 'b'], [(3, 0, ['X'])])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:many_hunks_all_shift",
+   "code": "lines = ['l%d' % i for i in range(10)]\nhunks = [(1, 2, ['A']), (5, 0, ['B', 'C']), (7, 3, []), (4, 1, ['D', 'E', 'F'])]\nresult = sol.apply_hunks(lines, hunks)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "l0",
+     "A",
+     "l3",
+     "D",
+     "E",
+     "F",
+     "B",
+     "C",
+     "l5",
+     "l6"
+    ]
+   }
+  },
+  {
+   "name": "early_insert_shifts_later",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(1, 0, ['A', 'B', 'C']), (5, 1, ['Z'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l0",
+       "A",
+       "B",
+       "C",
+       "l1",
+       "l2",
+       "l3",
+       "l4",
+       "Z",
+       "l6",
+       "l7"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "early_delete_shifts_later",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(0, 3, []), (6, 2, ['END'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l3",
+       "l4",
+       "l5",
+       "END"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "reverse_order_supply",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(7, 1, ['x']), (4, 2, ['y']), (0, 1, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l1",
+       "l2",
+       "l3",
+       "y",
+       "l6",
+       "x"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "insert_at_end_and_touching",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(6, 2, ['T']), (8, 0, ['APP'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l0",
+       "l1",
+       "l2",
+       "l3",
+       "l4",
+       "l5",
+       "T",
+       "APP"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "delete_everything",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(0, 8, [])]), (['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(0, 4, []), (4, 4, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [],
+      true,
+      true,
+      true
+     ],
+     [
+      [],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "replace_everything",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['a'], [(0, 1, ['b', 'c'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "b",
+       "c"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "pure_insert_before_delete_same_region",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(2, 0, ['I']), (3, 2, ['R'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l0",
+       "l1",
+       "I",
+       "l2",
+       "R",
+       "l5",
+       "l6",
+       "l7"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "insert_where_delete_ends",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(1, 2, ['R']), (3, 0, ['I'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l0",
+       "R",
+       "I",
+       "l3",
+       "l4",
+       "l5",
+       "l6",
+       "l7"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "same_start_insert_and_delete_conflict",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(2, 0, ['I']), (2, 1, ['R'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "same_start_two_deletes_conflict",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(3, 1, ['a']), (3, 1, ['b'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "insertion_inside_delete_range_conflict",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(1, 3, ['R']), (2, 0, ['I'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "overlap_far_apart_in_list",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(5, 2, []), (0, 1, []), (2, 1, []), (6, 1, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "out_of_range_start_negative",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(-1, 0, ['x'])]), (['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(-1, 1, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "out_of_range_past_end",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(9, 0, ['x'])]), (['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(7, 2, [])]), ([], [(1, 0, ['a'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "zero_delete_zero_insert_hunks",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'], [(3, 0, []), (5, 0, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "l0",
+       "l1",
+       "l2",
+       "l3",
+       "l4",
+       "l5",
+       "l6",
+       "l7"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "duplicate_lines_and_unicode",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['é', 'é', '😀', ''], [(1, 1, ['é́']), (3, 1, ['', ''])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "é",
+       "é́",
+       "😀",
+       "",
+       ""
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_hunks_copy",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['a', 'b', 'c'], []), ([], [])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "a",
+       "b",
+       "c"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "import copy\nout = []\nfor lines, hunks in [([], [(0, 0, [])]), (['L4', 'L5', 'L2', 'L3', 'L4'], [(1, 1, ['h0_0', 'h0_1', 'h0_2'])]), (['L0', 'L0', 'L1', 'L5', 'L1', 'L0'], [(5, 0, ['dup']), (4, 0, ['h0_0'])]), (['L3', 'L1', 'L4', 'L0'], [(4, 0, ['h0_0'])]), (['L3', 'L3', 'L3', 'L0', 'L1'], [(3, 1, ['h0_0', 'h0_1', 'h0_2'])]), (['L4', 'L2', 'L1', 'L3', 'L1'], [(4, 1, []), (0, 4, ['h0_0']), (5, 0, ['h2_0'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L4",
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L2",
+       "L3",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L0",
+       "L1",
+       "L5",
+       "h0_0",
+       "L1",
+       "dup",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L1",
+       "L4",
+       "L0",
+       "h0_0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L3",
+       "L3",
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h2_0"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L0', 'L5', 'L1', 'L2', 'L3', 'L4', 'L2', 'L2', 'L3'], [(1, 8, ['h0_0', 'h0_1']), (9, 0, ['h1_0'])]), (['L5', 'L2', 'L5', 'L5'], []), ([], [(0, 0, ['h0_0', 'h0_1'])]), (['L0', 'L4', 'L0', 'L1', 'L0', 'L2', 'L3', 'L5', 'L4'], []), (['L3', 'L5', 'L1', 'L4', 'L2', 'L4', 'L4', 'L4', 'L1', 'L2'], [(10, 0, []), (11, 0, ['dup'])]), (['L5', 'L4', 'L5', 'L1', 'L1'], [])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "L0",
+       "h0_0",
+       "h0_1",
+       "h1_0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L2",
+       "L5",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h0_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L4",
+       "L0",
+       "L1",
+       "L0",
+       "L2",
+       "L3",
+       "L5",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L4",
+       "L5",
+       "L1",
+       "L1"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L5'], [(0, 0, ['h0_0'])]), (['L5', 'L0', 'L0'], [(0, 3, []), (3, 0, ['h1_0', 'h1_1', 'h1_2'])]), (['L4', 'L0', 'L0', 'L3', 'L1', 'L4', 'L5', 'L5', 'L0'], []), (['L0', 'L0', 'L4', 'L4', 'L3', 'L4'], [(5, 1, []), (3, 0, ['h0_0', 'h0_1'])]), (['L5', 'L3', 'L0', 'L2', 'L5', 'L4', 'L3', 'L3', 'L0'], []), (['L3', 'L5', 'L2', 'L5', 'L5'], [(5, 0, ['h1_0']), (4, 1, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "h0_0",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h1_0",
+       "h1_1",
+       "h1_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L4",
+       "L0",
+       "L0",
+       "L3",
+       "L1",
+       "L4",
+       "L5",
+       "L5",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L0",
+       "L4",
+       "h0_0",
+       "h0_1",
+       "L4",
+       "L3"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L3",
+       "L0",
+       "L2",
+       "L5",
+       "L4",
+       "L3",
+       "L3",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L5",
+       "L2",
+       "L5",
+       "h1_0"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L0', 'L2', 'L2', 'L3', 'L2'], [(-1, 3, []), (2, 3, [])]), (['L1', 'L4', 'L5', 'L1', 'L1', 'L0', 'L5'], [(4, 2, ['r0'])]), (['L1', 'L5', 'L5'], [(1, 2, []), (2, 1, ['r0', 'r1'])]), (['L4', 'L2', 'L2', 'L2', 'L5', 'L1'], [(1, 3, []), (3, 3, ['r0', 'r1']), (3, 3, ['r0', 'r1']), (-1, 2, [])]), (['L0'], [(0, 1, ['r0']), (2, 3, [])]), (['L1', 'L1'], [(0, 3, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L1",
+       "L4",
+       "L5",
+       "L1",
+       "r0",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L3', 'L4', 'L2', 'L2', 'L3', 'L4', 'L0', 'L0', 'L1'], [(8, 0, ['h0_0', 'h0_1', 'h0_2'])]), (['L4'], [(1, 0, []), (0, 1, ['h0_0', 'h0_1'])]), (['L3', 'L4', 'L1'], [(2, 1, ['h0_0'])]), (['L3', 'L5', 'L4', 'L1', 'L1', 'L3', 'L4', 'L4'], [(7, 0, ['h0_0', 'h0_1'])]), ([], [(0, 0, [])]), (['L1', 'L3', 'L5', 'L3', 'L1', 'L0', 'L5', 'L0', 'L5'], [(9, 0, []), (7, 0, ['h0_0', 'h0_1'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "L3",
+       "L4",
+       "L2",
+       "L2",
+       "L3",
+       "L4",
+       "L0",
+       "L0",
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h0_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L4",
+       "h0_0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L5",
+       "L4",
+       "L1",
+       "L1",
+       "L3",
+       "L4",
+       "h0_0",
+       "h0_1",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L1",
+       "L3",
+       "L5",
+       "L3",
+       "L1",
+       "L0",
+       "L5",
+       "h0_0",
+       "h0_1",
+       "L0",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L3', 'L0', 'L1', 'L4', 'L3', 'L1', 'L5', 'L0', 'L2', 'L3'], [(9, 1, ['h1_0']), (11, 0, ['dup']), (10, 0, ['h2_0', 'h2_1']), (8, 0, ['h0_0', 'h0_1', 'h0_2'])]), (['L0', 'L2', 'L3', 'L2', 'L1', 'L3', 'L0', 'L4'], [(8, 0, []), (7, 1, [])]), (['L1', 'L2', 'L0'], [(0, 1, ['h0_0', 'h0_1']), (3, 0, []), (1, 1, [])]), (['L1', 'L0', 'L1', 'L0', 'L2'], []), (['L2', 'L0', 'L5', 'L1', 'L2', 'L3', 'L0', 'L5', 'L1'], [(8, 1, ['h2_0']), (3, 1, []), (4, 0, []), (9, 0, ['h3_0', 'h3_1', 'h3_2'])]), (['L0', 'L0', 'L2', 'L0', 'L0', 'L0', 'L4'], [(4, 1, ['h1_0', 'h1_1']), (2, 1, ['dup']), (1, 0, ['h0_0', 'h0_1'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L2",
+       "L3",
+       "L2",
+       "L1",
+       "L3",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h0_1",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L1",
+       "L0",
+       "L1",
+       "L0",
+       "L2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L2",
+       "L0",
+       "L5",
+       "L2",
+       "L3",
+       "L0",
+       "L5",
+       "h2_0",
+       "h3_0",
+       "h3_1",
+       "h3_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "h0_0",
+       "h0_1",
+       "L0",
+       "dup",
+       "L0",
+       "h1_0",
+       "h1_1",
+       "L0",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L2', 'L2'], [(0, 1, ['h0_0', 'h0_1']), (1, 0, []), (2, 0, ['h2_0', 'h2_1'])]), (['L5', 'L2', 'L3', 'L2', 'L5', 'L4', 'L4', 'L5'], [(8, 0, ['h3_0', 'h3_1']), (2, 1, ['h0_0']), (7, 1, ['h2_0', 'h2_1']), (5, 1, ['h1_0']), (8, 2, ['dup'])]), (['L5', 'L4', 'L3', 'L0', 'L3', 'L3', 'L3'], []), (['L2', 'L4', 'L1', 'L1', 'L4', 'L1', 'L3', 'L3', 'L2', 'L5'], [(8, 0, ['h0_0']), (10, 0, ['h1_0', 'h1_1', 'h1_2'])]), (['L4', 'L2', 'L1', 'L5', 'L5'], []), ([], [(0, 0, ['h0_0'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "h0_0",
+       "h0_1",
+       "L2",
+       "h2_0",
+       "h2_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L4",
+       "L3",
+       "L0",
+       "L3",
+       "L3",
+       "L3"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L2",
+       "L4",
+       "L1",
+       "L1",
+       "L4",
+       "L1",
+       "L3",
+       "L3",
+       "h0_0",
+       "L2",
+       "L5",
+       "h1_0",
+       "h1_1",
+       "h1_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L4",
+       "L2",
+       "L1",
+       "L5",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L3', 'L3'], [(2, 1, ['r0']), (3, 1, ['r0', 'r1'])]), (['L3'], [(2, 3, ['r0']), (1, 2, []), (1, 2, ['r0', 'r1'])]), (['L1', 'L0'], [(2, 3, ['r0', 'r1']), (3, 1, ['r0', 'r1'])]), (['L2', 'L1', 'L2', 'L5', 'L2', 'L3', 'L2', 'L4', 'L4'], [(2, 0, [])]), (['L1'], [(2, 3, ['r0'])]), (['L1', 'L0', 'L1', 'L0', 'L4'], [(3, 1, ['r0'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L2",
+       "L1",
+       "L2",
+       "L5",
+       "L2",
+       "L3",
+       "L2",
+       "L4",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L1",
+       "L0",
+       "L1",
+       "r0",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L0', 'L3', 'L3', 'L0', 'L0', 'L2', 'L4', 'L1', 'L3', 'L4'], [(6, 1, []), (2, 4, [])]), (['L5', 'L0', 'L0'], []), (['L4', 'L5', 'L0', 'L5', 'L3', 'L1', 'L2', 'L0'], [(6, 2, ['h2_0', 'h2_1', 'h2_2']), (5, 0, []), (2, 1, ['h0_0'])]), (['L2', 'L1'], [(2, 0, ['h0_0'])]), (['L4', 'L3'], [(2, 0, [])]), (['L5', 'L5', 'L0', 'L0', 'L5', 'L2', 'L5'], [])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "L0",
+       "L3",
+       "L1",
+       "L3",
+       "L4"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L0",
+       "L0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L4",
+       "L5",
+       "h0_0",
+       "L5",
+       "L3",
+       "L1",
+       "h2_0",
+       "h2_1",
+       "h2_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L2",
+       "L1",
+       "h0_0"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L4",
+       "L3"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L5",
+       "L5",
+       "L0",
+       "L0",
+       "L5",
+       "L2",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L2', 'L4', 'L1', 'L5', 'L5', 'L4'], [(6, 0, []), (5, 1, ['h1_0']), (1, 4, ['h0_0', 'h0_1']), (0, 2, ['dup'])]), (['L0', 'L4', 'L4', 'L4', 'L2', 'L0', 'L4', 'L4', 'L4', 'L3'], [(6, 0, ['h0_0', 'h0_1', 'h0_2'])]), (['L0', 'L1', 'L5', 'L5', 'L0', 'L4', 'L5', 'L2', 'L1'], [(9, 0, ['h1_0', 'h1_1', 'h1_2']), (8, 0, ['h0_0', 'h0_1', 'h0_2'])]), (['L3', 'L5'], [(2, 0, ['h0_0', 'h0_1'])]), (['L4', 'L3', 'L1'], [(0, 0, ['h0_0', 'h0_1', 'h0_2'])]), ([], [(0, 0, [])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L4",
+       "L4",
+       "L4",
+       "L2",
+       "L0",
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L4",
+       "L4",
+       "L4",
+       "L3"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L1",
+       "L5",
+       "L5",
+       "L0",
+       "L4",
+       "L5",
+       "L2",
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L1",
+       "h1_0",
+       "h1_1",
+       "h1_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "L5",
+       "h0_0",
+       "h0_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h0_1",
+       "h0_2",
+       "L4",
+       "L3",
+       "L1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_10",
+   "code": "import copy\nout = []\nfor lines, hunks in [(['L5', 'L2', 'L5', 'L2', 'L2', 'L5', 'L4'], [(1, 4, ['h0_0']), (7, 0, ['h2_0', 'h2_1', 'h2_2']), (6, 0, ['h1_0', 'h1_1'])]), (['L1', 'L3', 'L0', 'L0', 'L1', 'L4', 'L5', 'L1', 'L0', 'L3'], [(10, 0, []), (7, 1, ['dup']), (6, 4, ['h0_0'])]), (['L1', 'L1', 'L1'], [(2, 1, ['h0_0']), (3, 0, ['h1_0', 'h1_1', 'h1_2']), (3, 2, ['dup'])]), (['L3'], [(1, 0, ['h0_0', 'h0_1'])]), (['L5'], [(1, 0, ['h1_0', 'h1_1']), (0, 0, ['h0_0'])]), (['L5', 'L1', 'L2', 'L3', 'L4'], [(0, 0, ['h0_0', 'h0_1']), (4, 1, ['h1_0', 'h1_1', 'h1_2']), (5, 0, ['h2_0'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      [
+       "L5",
+       "h0_0",
+       "L5",
+       "h1_0",
+       "h1_1",
+       "L4",
+       "h2_0",
+       "h2_1",
+       "h2_2"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L3",
+       "h0_0",
+       "h0_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "L5",
+       "h1_0",
+       "h1_1"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      [
+       "h0_0",
+       "h0_1",
+       "L5",
+       "L1",
+       "L2",
+       "L3",
+       "h1_0",
+       "h1_1",
+       "h1_2",
+       "h2_0"
+      ],
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_11",
+   "code": "import copy\nout = []\nfor lines, hunks in [([], [(0, 1, ['r0', 'r1']), (-1, 3, []), (1, 2, []), (0, 2, ['r0'])]), ([], [(1, 0, ['r0', 'r1']), (1, 1, ['r0', 'r1']), (0, 2, [])]), (['L5', 'L5', 'L4', 'L2', 'L3', 'L5', 'L1'], [(5, 0, ['r0', 'r1']), (4, 2, ['r0']), (6, 3, ['r0'])]), (['L0', 'L2', 'L0', 'L5'], [(1, 0, [])]), (['L2', 'L0', 'L2', 'L0', 'L5'], [(3, 1, ['r0', 'r1']), (2, 0, []), (3, 2, ['r0', 'r1']), (0, 0, [])]), ([], [(0, 1, ['r0', 'r1']), (0, 1, ['r0', 'r1']), (-1, 3, ['r0', 'r1']), (1, 0, ['r0', 'r1'])])]:\n    lc, hc = copy.deepcopy(lines), copy.deepcopy(hunks)\n    try:\n        r = sol.apply_hunks(lines, hunks)\n        out.append((r, r is not lines, lines == lc, hunks == hc))\n    except ValueError:\n        out.append(('ValueError', lines == lc, hunks == hc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      [
+       "L0",
+       "L2",
+       "L0",
+       "L5"
+      ],
+      true,
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ],
+     [
+      "ValueError",
+      true,
+      true
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -25,6 +25,7 @@ def main():
     ap.add_argument("--slug")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--json", help="write per-row results here")
+    ap.add_argument("--tests", choices=["v4", "strict"], default="v4", help="test suite (default v4)")
     a = ap.parse_args()
     probs = {p["title"]: p for p in load_problems()}
     rows, agree, total, missing = [], 0, 0, set()
@@ -34,7 +35,7 @@ def main():
             p = probs.get(r["title"])
             if p is None or (a.category and p["category"] != a.category) or (a.slug and p["slug"] != a.slug):
                 continue
-            tests = load_tests(p["slug"])
+            tests = load_tests(p["slug"], a.tests)
             if tests is None:
                 missing.add(p["slug"])
                 continue

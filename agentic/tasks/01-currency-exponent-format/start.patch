@@ -1,0 +1,44 @@
+diff -ruN a/money/amount.go b/money/amount.go
+--- a/money/amount.go	2026-10-14 11:00:47
++++ b/money/amount.go	2026-10-14 11:20:22
+@@ -94,11 +94,7 @@
+ 		sign = "-"
+ 		m = -m
+ 	}
+-	if a.Currency.Exponent == 0 {
+-		return sign + strconv.FormatInt(m, 10)
+-	}
+-	f := a.Currency.Factor()
+-	return fmt.Sprintf("%s%d.%0*d", sign, m/f, a.Currency.Exponent, m%f)
++	return fmt.Sprintf("%s%d.%02d", sign, m/100, m%100)
+ }
+ 
+ // String renders "10.50 USD".
+diff -ruN a/money/money_test.go b/money/money_test.go
+--- a/money/money_test.go	2026-10-14 11:04:19
++++ b/money/money_test.go	2026-10-14 11:20:22
+@@ -53,24 +53,6 @@
+ 	}
+ }
+ 
+-func TestDecimalOtherExponents(t *testing.T) {
+-	tests := []struct {
+-		minor int64
+-		code  string
+-		want  string
+-	}{
+-		{15000, "CLP", "15000"},
+-		{1500, "JPY", "1500"},
+-		{1234, "KWD", "1.234"},
+-		{5, "KWD", "0.005"},
+-	}
+-	for _, tt := range tests {
+-		if got := MustNew(tt.minor, tt.code).Decimal(); got != tt.want {
+-			t.Errorf("Decimal(%d %s) = %q, want %q", tt.minor, tt.code, got, tt.want)
+-		}
+-	}
+-}
+-
+ func TestAddSub(t *testing.T) {
+ 	a, b := MustNew(1000, "USD"), MustNew(250, "USD")
+ 	sum, err := a.Add(b)

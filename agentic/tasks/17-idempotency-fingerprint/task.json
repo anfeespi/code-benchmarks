@@ -1,0 +1,10 @@
+{
+ "id": "17-idempotency-fingerprint",
+ "type": "trap",
+ "title": "Identical retries rejected as idempotency key reuse",
+ "ticket": "PAY-4593 [Bug] Mobile SDK retries rejected with 422 idempotency_key_reused\n\nSince the new iOS SDK rollout, ~3% of payment creations fail: the first POST /payments\ntimes out on the client, the SDK retries with the same Idempotency-Key and gets\n422 {\"error\":{\"code\":\"idempotency_key_reused\"}}. The customer is then charged on\nthe second manual attempt, but the merchant sees two payments in some cases.\n\nThe SDK rebuilds the JSON on retry. Captured example for one key:\n  first:  {\"merchant_id\":\"m_310\",\"amount\":\"10.50\",\"currency\":\"USD\"}\n  retry:  {\"currency\": \"usd\", \"amount\": \"10.5\", \"merchant_id\": \"m_310\"}\nRefund retries (POST /payments/{id}/refunds) show the same problem\n({\"amount\":\"5.00\"} then {\"amount\": \"5\"}).\n\nMake retries of the same request with the same key replay the original response.",
+ "solution_files": [
+  "api/handlers.go",
+  "api/idempotency.go"
+ ]
+}

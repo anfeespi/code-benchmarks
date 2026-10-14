@@ -1,0 +1,9 @@
+{
+ "id": "06-error-status-mapping",
+ "type": "bug",
+ "title": "Every client error is returned as 500 internal_error",
+ "ticket": "PAY-4475 [Bug] API returns 500 for not-found / conflicts / validation errors\n\nSince last week's release (which added context to error messages across the service),\nGET /payments/pay_unknown returns 500 {\"error\":{\"code\":\"internal_error\"}} instead of 404,\ncapturing an already captured payment returns 500 instead of 409, over-refunds return 500\ninstead of 422 and malformed bodies return 500 instead of 400. Alerting is firing on the\n5xx rate.\n\nExpected: the documented status codes and error codes (see README) for every domain\nerror, regardless of how much context the error carries. Unexpected errors stay 500 with\na generic message.",
+ "solution_files": [
+  "api/errors.go"
+ ]
+}

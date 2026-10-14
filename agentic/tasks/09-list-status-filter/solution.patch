@@ -1,0 +1,49 @@
+diff -ruN a/api/handlers.go b/api/handlers.go
+--- a/api/handlers.go	2026-10-14 11:03:22
++++ b/api/handlers.go	2026-10-14 11:20:23
+@@ -101,6 +101,14 @@
+ 		}
+ 		page.Limit = n
+ 	}
++	if v := q.Get("status"); v != "" {
++		st, err := payment.ParseStatus(v)
++		if err != nil {
++			writeError(w, err)
++			return
++		}
++		page.Status = st
++	}
+ 	ps, next, err := s.svc.List(r.Context(), r.PathValue("merchantID"), page)
+ 	if err != nil {
+ 		writeError(w, err)
+diff -ruN a/payment/payment.go b/payment/payment.go
+--- a/payment/payment.go	2026-10-14 11:01:22
++++ b/payment/payment.go	2026-10-14 11:20:23
+@@ -95,6 +95,8 @@
+ type Page struct {
+ 	Cursor string
+ 	Limit  int
++	// Status, when set, restricts the listing to payments in that status.
++	Status Status
+ }
+ 
+ // Repository persists payments. Implementations must be safe for concurrent use.
+diff -ruN a/store/memory.go b/store/memory.go
+--- a/store/memory.go	2026-10-14 11:01:51
++++ b/store/memory.go	2026-10-14 11:20:23
+@@ -96,6 +96,15 @@
+ 	m.mu.RLock()
+ 	defer m.mu.RUnlock()
+ 	ids := m.byMerchant[merchantID]
++	if page.Status != "" {
++		filtered := make([]string, 0, len(ids))
++		for _, id := range ids {
++			if m.byID[id].Status == page.Status {
++				filtered = append(filtered, id)
++			}
++		}
++		ids = filtered
++	}
+ 	if offset > len(ids) {
+ 		offset = len(ids)
+ 	}

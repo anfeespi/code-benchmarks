@@ -1,0 +1,22 @@
+diff -ruN a/webhook/dispatcher.go b/webhook/dispatcher.go
+--- a/webhook/dispatcher.go	2026-10-14 11:20:23
++++ b/webhook/dispatcher.go	2026-10-14 11:20:23
+@@ -58,11 +58,14 @@
+ // Backoff is the wait after failed attempt n (n >= 1): BaseDelay * 2^(n-1),
+ // capped at MaxDelay.
+ func (p Policy) Backoff(n int) time.Duration {
+-	d := p.BaseDelay << (n - 1)
+-	if d > p.MaxDelay {
+-		return p.MaxDelay
++	d := p.BaseDelay
++	for i := 1; i < n; i++ {
++		if d >= p.MaxDelay/2 {
++			return p.MaxDelay
++		}
++		d *= 2
+ 	}
+-	return d
++	return min(d, p.MaxDelay)
+ }
+ 
+ // DeadLetter is an event that exhausted its retries or failed permanently.

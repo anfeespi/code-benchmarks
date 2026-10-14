@@ -1,0 +1,9 @@
+{
+ "id": "13-idempotency-store-race",
+ "type": "concurrency",
+ "title": "Idempotency store is not safe under concurrent retries",
+ "ticket": "PAY-4555 [Bug][P1] Crash and duplicate refunds under concurrent retries\n\nDuring the Black Friday load test (clients retry aggressively with the same\nIdempotency-Key):\n1. Pods crashed several times with `fatal error: concurrent map read and map write`;\n   the goroutine dump points at package idempotency.\n2. Twice, two refunds were created for a single Idempotency-Key when two retries\n   arrived at the same time.\n`go test -race` on our integration suite also reports DATA RACE in the same package.\n\nExpected: idempotency.Memory is safe for concurrent use by any number of goroutines,\nand for a given key at most one concurrent Begin can start the request (the others get\nErrInProgress or, once completed, the stored response).",
+ "solution_files": [
+  "idempotency/store.go"
+ ]
+}

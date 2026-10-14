@@ -1,0 +1,21 @@
+diff -ruN a/idempotency/store.go b/idempotency/store.go
+--- a/idempotency/store.go	2026-10-14 11:01:51
++++ b/idempotency/store.go	2026-10-14 11:20:22
+@@ -82,7 +82,7 @@
+ 	now := m.clock.Now()
+ 	m.purgeLocked(now)
+ 
+-	if r, ok := m.records[key]; ok && now.Before(r.ExpiresAt) {
++	if r, ok := m.records[key]; ok {
+ 		if r.Fingerprint != fingerprint {
+ 			return Record{}, false, fmt.Errorf("%w: key %q", ErrKeyReuse, key)
+ 		}
+@@ -134,7 +134,7 @@
+ 		return
+ 	}
+ 	for k, r := range m.records {
+-		if !now.Before(r.ExpiresAt) {
++		if now.Sub(r.ExpiresAt) > m.ttl {
+ 			delete(m.records, k)
+ 		}
+ 	}

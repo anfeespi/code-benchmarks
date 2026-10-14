@@ -1,0 +1,46 @@
+diff -ruN a/store/memory.go b/store/memory.go
+--- a/store/memory.go	2026-10-14 11:20:23
++++ b/store/memory.go	2026-10-14 11:20:23
+@@ -41,13 +41,12 @@
+ 	if _, ok := m.byID[p.ID]; ok {
+ 		return fmt.Errorf("%w: %s", payment.ErrDuplicate, p.ID)
+ 	}
+-	m.byID[p.ID] = p
++	m.byID[p.ID] = p.Clone()
+ 	m.byMerchant[p.MerchantID] = append(m.byMerchant[p.MerchantID], p.ID)
+ 	return nil
+ }
+ 
+-// Get returns the stored payment. Payment is a value type, so the caller
+-// gets its own copy.
++// Get returns a copy of the stored payment.
+ func (m *Memory) Get(_ context.Context, id string) (payment.Payment, error) {
+ 	m.mu.RLock()
+ 	defer m.mu.RUnlock()
+@@ -55,7 +54,7 @@
+ 	if !ok {
+ 		return payment.Payment{}, fmt.Errorf("%w: %s", payment.ErrNotFound, id)
+ 	}
+-	return p, nil
++	return p.Clone(), nil
+ }
+ 
+ // Update replaces the stored payment if versions match.
+@@ -69,7 +68,7 @@
+ 	if cur.Version != p.Version {
+ 		return fmt.Errorf("%w: payment %s has version %d, update based on %d", payment.ErrVersionConflict, p.ID, cur.Version, p.Version)
+ 	}
+-	next := p
++	next := p.Clone()
+ 	next.Version++
+ 	m.byID[p.ID] = next
+ 	return nil
+@@ -103,7 +102,7 @@
+ 	end := min(offset+limit, len(ids))
+ 	out := make([]payment.Payment, 0, end-offset)
+ 	for _, id := range ids[offset:end] {
+-		out = append(out, m.byID[id])
++		out = append(out, m.byID[id].Clone())
+ 	}
+ 	next := ""
+ 	if end < len(ids) {

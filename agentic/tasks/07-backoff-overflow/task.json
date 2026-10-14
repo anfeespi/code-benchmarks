@@ -1,0 +1,9 @@
+{
+ "id": "07-backoff-overflow",
+ "type": "bug",
+ "title": "Late webhook retries fire with no delay",
+ "ticket": "PAY-4488 [Bug] Webhook retry storm for enterprise merchants\n\nEnterprise merchants run with a custom policy (MaxAttempts: 48, BaseDelay: 1s,\nMaxDelay: 1h). When their endpoint is down for a long time, the first ~30 retries are\nspaced as expected, but after that the dispatcher fires the remaining attempts\nback-to-back with no wait at all (their logs show ~18 requests in the same second).\n\nExpected: the wait between attempts follows the documented exponential backoff and is\nalways positive, never decreasing, and capped at MaxDelay, for any attempt number and\nany reasonable BaseDelay/MaxDelay.",
+ "solution_files": [
+  "webhook/dispatcher.go"
+ ]
+}

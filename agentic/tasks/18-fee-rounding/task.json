@@ -1,0 +1,9 @@
+{
+ "id": "18-fee-rounding",
+ "type": "trap",
+ "title": "Processing fees overcharged by one cent",
+ "ticket": "PAY-4601 [Bug] Merchants overcharged one cent on processing fees\n\nMerchant statements show fees one minor unit too high on many payments. Example with\nthe standard 290 bps (2.9%) fee: a 10.05 USD payment shows fee 0.30, finance expects 0.29.\nLarge-ticket merchants (KRW-like volumes in minor units, B2B invoices) also report fees\nthat are off by a few units on very large amounts.\n\nFees must follow the finance rounding policy documented on money.Fee for every amount\nthe type can hold.",
+ "solution_files": [
+  "money/fee.go"
+ ]
+}

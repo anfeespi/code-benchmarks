@@ -1,0 +1,69 @@
+diff -ruN a/money/allocate.go b/money/allocate.go
+--- a/money/allocate.go	2026-10-14 11:00:47
++++ b/money/allocate.go	2026-10-14 11:20:23
+@@ -2,7 +2,7 @@
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"math"
+ )
+ 
+ // Allocate splits a into len(ratios) parts proportional to ratios, for example
+@@ -32,22 +32,9 @@
+ 	}
+ 
+ 	parts := make([]Amount, len(ratios))
+-	rems := make([]int64, len(ratios))
+-	var assigned int64
+ 	for i, r := range ratios {
+-		share := a.Minor * r
+-		parts[i] = Amount{Minor: share / total, Currency: a.Currency}
+-		rems[i] = share % total
+-		assigned += parts[i].Minor
+-	}
+-
+-	order := make([]int, len(ratios))
+-	for i := range order {
+-		order[i] = i
+-	}
+-	sort.SliceStable(order, func(x, y int) bool { return rems[order[x]] > rems[order[y]] })
+-	for i := int64(0); i < a.Minor-assigned; i++ {
+-		parts[order[i]].Minor++
++		share := float64(a.Minor) * float64(r) / float64(total)
++		parts[i] = Amount{Minor: int64(math.Round(share)), Currency: a.Currency}
+ 	}
+ 	return parts, nil
+ }
+diff -ruN a/money/money_test.go b/money/money_test.go
+--- a/money/money_test.go	2026-10-14 11:04:19
++++ b/money/money_test.go	2026-10-14 11:20:23
+@@ -99,28 +99,6 @@
+ 	}
+ }
+ 
+-func TestAllocateRemainder(t *testing.T) {
+-	tests := []struct {
+-		amount int64
+-		ratios []int64
+-		want   []int64
+-	}{
+-		{100, []int64{1, 1, 1}, []int64{34, 33, 33}},
+-		{5, []int64{3, 7}, []int64{2, 3}},
+-	}
+-	for _, tt := range tests {
+-		parts, err := Allocate(MustNew(tt.amount, "USD"), tt.ratios)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		for i, p := range parts {
+-			if p.Minor != tt.want[i] {
+-				t.Fatalf("Allocate(%d, %v)[%d] = %d, want %d", tt.amount, tt.ratios, i, p.Minor, tt.want[i])
+-			}
+-		}
+-	}
+-}
+-
+ func TestAllocateErrors(t *testing.T) {
+ 	if _, err := Allocate(MustNew(-1, "USD"), []int64{1}); !errors.Is(err, ErrInvalidAmount) {
+ 		t.Errorf("negative amount: %v", err)

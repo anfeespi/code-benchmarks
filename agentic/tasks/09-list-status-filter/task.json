@@ -1,0 +1,11 @@
+{
+ "id": "09-list-status-filter",
+ "type": "feature",
+ "title": "Filter the merchant payment listing by status",
+ "ticket": "PAY-4510 [Story] Filter payments by status in the listing endpoint\n\nThe merchant dashboard needs \"show only succeeded payments\".\n\nAcceptance criteria:\n- GET /merchants/{merchantID}/payments accepts an optional `status` query parameter\n  (case-insensitive, one of the payment statuses). Only payments in that status are\n  returned.\n- Pagination keeps working on the filtered result: every page except the last one is\n  full (exactly `limit` items), items stay in creation order, walking next_cursor returns\n  each matching payment exactly once and next_cursor is empty after the last match.\n- An unknown status returns 400 invalid_request.\n- Without `status` the endpoint behaves exactly as today.",
+ "solution_files": [
+  "api/handlers.go",
+  "payment/payment.go",
+  "store/memory.go"
+ ]
+}

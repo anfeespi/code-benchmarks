@@ -1,0 +1,12 @@
+diff -ruN a/payment/service.go b/payment/service.go
+--- a/payment/service.go	2026-10-14 11:20:22
++++ b/payment/service.go	2026-10-14 11:20:22
+@@ -164,7 +164,7 @@
+ 		if amount.Currency != p.Amount.Currency {
+ 			return Event{}, fmt.Errorf("%w: refund in %s for a %s payment", money.ErrCurrencyMismatch, amount.Currency.Code, p.Amount.Currency.Code)
+ 		}
+-		if amount.Minor > p.Amount.Minor {
++		if amount.Minor > p.Remaining().Minor {
+ 			return Event{}, fmt.Errorf("%w: requested %s, remaining %s", ErrRefundExceedsRemaining, amount, p.Remaining())
+ 		}
+ 		refund = Refund{ID: s.ids.NewID("ref"), Amount: amount, CreatedAt: s.clock.Now()}

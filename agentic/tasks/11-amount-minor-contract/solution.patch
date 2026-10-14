@@ -1,0 +1,116 @@
+diff -ruN a/api/dto.go b/api/dto.go
+--- a/api/dto.go	2026-10-14 11:02:45
++++ b/api/dto.go	2026-10-14 11:20:23
+@@ -8,13 +8,15 @@
+ )
+ 
+ type createPaymentRequest struct {
+-	MerchantID string `json:"merchant_id"`
+-	Amount     string `json:"amount"`
+-	Currency   string `json:"currency"`
++	MerchantID  string `json:"merchant_id"`
++	Amount      string `json:"amount"`
++	AmountMinor *int64 `json:"amount_minor"`
++	Currency    string `json:"currency"`
+ }
+ 
+ type refundRequest struct {
+-	Amount string `json:"amount"`
++	Amount      string `json:"amount"`
++	AmountMinor *int64 `json:"amount_minor"`
+ }
+ 
+ type declineRequest struct {
+@@ -22,9 +24,10 @@
+ }
+ 
+ type refundResponse struct {
+-	ID        string    `json:"id"`
+-	Amount    string    `json:"amount"`
+-	CreatedAt time.Time `json:"created_at"`
++	ID          string    `json:"id"`
++	Amount      string    `json:"amount"`
++	AmountMinor int64     `json:"amount_minor"`
++	CreatedAt   time.Time `json:"created_at"`
+ }
+ 
+ type paymentResponse struct {
+@@ -40,6 +43,10 @@
+ 	Refunds         []refundResponse `json:"refunds"`
+ 	CreatedAt       time.Time        `json:"created_at"`
+ 	UpdatedAt       time.Time        `json:"updated_at"`
++	AmountMinor     int64            `json:"amount_minor"`
++	FeeMinor        int64            `json:"fee_minor"`
++	RefundedMinor   int64            `json:"refunded_minor"`
++	RemainingMinor  int64            `json:"remaining_minor"`
+ }
+ 
+ type listResponse struct {
+@@ -80,9 +87,13 @@
+ 		Refunds:         make([]refundResponse, 0, len(p.Refunds)),
+ 		CreatedAt:       p.CreatedAt.UTC(),
+ 		UpdatedAt:       p.UpdatedAt.UTC(),
++		AmountMinor:     p.Amount.Minor,
++		FeeMinor:        p.Fee.Minor,
++		RefundedMinor:   p.Refunded,
++		RemainingMinor:  p.Remaining().Minor,
+ 	}
+ 	for _, r := range p.Refunds {
+-		out.Refunds = append(out.Refunds, refundResponse{ID: r.ID, Amount: r.Amount.Decimal(), CreatedAt: r.CreatedAt.UTC()})
++		out.Refunds = append(out.Refunds, refundResponse{ID: r.ID, Amount: r.Amount.Decimal(), AmountMinor: r.Amount.Minor, CreatedAt: r.CreatedAt.UTC()})
+ 	}
+ 	return out
+ }
+diff -ruN a/api/handlers.go b/api/handlers.go
+--- a/api/handlers.go	2026-10-14 11:03:22
++++ b/api/handlers.go	2026-10-14 11:20:23
+@@ -19,7 +19,7 @@
+ 		writeError(w, err)
+ 		return
+ 	}
+-	amount, err := money.Parse(req.Amount, req.Currency)
++	amount, err := resolveAmount(req.Amount, req.AmountMinor, req.Currency)
+ 	if err != nil {
+ 		writeError(w, fmt.Errorf("amount: %w", err))
+ 		return
+@@ -76,7 +76,7 @@
+ 		writeError(w, err)
+ 		return
+ 	}
+-	amount, err := money.Parse(req.Amount, p.Amount.Currency.Code)
++	amount, err := resolveAmount(req.Amount, req.AmountMinor, p.Amount.Currency.Code)
+ 	if err != nil {
+ 		writeError(w, fmt.Errorf("amount: %w", err))
+ 		return
+@@ -129,6 +129,31 @@
+ 		return
+ 	}
+ 	writeJSON(w, http.StatusOK, toPaymentResponse(p))
++}
++
++// resolveAmount accepts the legacy decimal string, the v2 integer minor
++// units, or both when they agree.
++func resolveAmount(decimal string, minor *int64, currency string) (money.Amount, error) {
++	switch {
++	case decimal == "" && minor == nil:
++		return money.Amount{}, fmt.Errorf("%w: amount or amount_minor is required", payment.ErrInvalidInput)
++	case minor == nil:
++		return money.Parse(decimal, currency)
++	}
++	fromMinor, err := money.New(*minor, currency)
++	if err != nil {
++		return money.Amount{}, err
++	}
++	if decimal != "" {
++		fromDecimal, err := money.Parse(decimal, currency)
++		if err != nil {
++			return money.Amount{}, err
++		}
++		if fromDecimal != fromMinor {
++			return money.Amount{}, fmt.Errorf("%w: amount %q and amount_minor %d disagree", payment.ErrInvalidInput, decimal, *minor)
++		}
++	}
++	return fromMinor, nil
+ }
+ 
+ func decodeJSON(r *http.Request, dst any) error {

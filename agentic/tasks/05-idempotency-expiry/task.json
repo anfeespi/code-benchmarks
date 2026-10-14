@@ -1,0 +1,9 @@
+{
+ "id": "05-idempotency-expiry",
+ "type": "bug",
+ "title": "Idempotency keys never expire after 24h",
+ "ticket": "PAY-4461 [Bug] Idempotency-Key replays after the 24h TTL\n\nSupport case: a merchant reused an Idempotency-Key 40 hours after the original request\n(their key generator wraps around daily) for a brand-new payment and received the old\ncached response, so the new payment was never created. We also see the idempotency\nstore's memory growing for two days before it drops.\n\nExpected (as documented): a key expires 24h after it was first used. From that moment\n(now >= first use + TTL) it behaves as if it had never been used: Begin starts a new\nrequest, whatever the fingerprint. Before expiry, replay/reuse/in-progress semantics are\nunchanged. Expired records must be evicted from memory.",
+ "solution_files": [
+  "idempotency/store.go"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "id": "02-cumulative-refund-limit",
+ "type": "bug",
+ "title": "Multiple partial refunds can exceed the captured amount",
+ "ticket": "PAY-4420 [Bug] Total refunds exceed the payment amount\n\nMerchant m_8812 refunded 600.00 twice on a 1000.00 USD payment through\nPOST /payments/{id}/refunds. Both calls returned 201, the payment shows\n\"refunded_amount\": \"1200.00\" and \"remaining_amount\": \"-200.00\", and its status is\nstill SUCCEEDED. Finance had to recover 200.00 manually.\n\nExpected: the sum of all refunds of a payment can never exceed the payment amount. A\nrefund larger than what is left must be rejected with 422 refund_exceeds_remaining and\nmust not change the payment. Refunding exactly the remaining amount is allowed and moves\nthe payment to REFUNDED.",
+ "solution_files": [
+  "payment/service.go"
+ ]
+}

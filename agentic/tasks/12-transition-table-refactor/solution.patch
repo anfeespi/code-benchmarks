@@ -1,0 +1,87 @@
+diff -ruN a/payment/service.go b/payment/service.go
+--- a/payment/service.go	2026-10-14 11:01:22
++++ b/payment/service.go	2026-10-14 11:20:23
+@@ -111,40 +111,34 @@
+ // Authorize moves a CREATED payment to PENDING (sent to the provider).
+ func (s *Service) Authorize(ctx context.Context, id string) (Payment, error) {
+ 	return s.mutate(ctx, id, func(p *Payment) (Event, error) {
+-		switch p.Status {
+-		case StatusCreated:
+-			p.Status = StatusPending
+-			return Event{Type: "payment.pending"}, nil
+-		default:
++		if !CanTransition(p.Status, StatusPending) {
+ 			return Event{}, fmt.Errorf("%w: cannot authorize a %s payment", ErrInvalidTransition, p.Status)
+ 		}
++		p.Status = StatusPending
++		return Event{Type: "payment.pending"}, nil
+ 	})
+ }
+ 
+ // Capture moves a PENDING payment to SUCCEEDED.
+ func (s *Service) Capture(ctx context.Context, id string) (Payment, error) {
+ 	return s.mutate(ctx, id, func(p *Payment) (Event, error) {
+-		switch p.Status {
+-		case StatusPending:
+-			p.Status = StatusSucceeded
+-			return Event{Type: "payment.succeeded"}, nil
+-		default:
++		if !CanTransition(p.Status, StatusSucceeded) {
+ 			return Event{}, fmt.Errorf("%w: cannot capture a %s payment", ErrInvalidTransition, p.Status)
+ 		}
++		p.Status = StatusSucceeded
++		return Event{Type: "payment.succeeded"}, nil
+ 	})
+ }
+ 
+ // Decline moves a CREATED or PENDING payment to DECLINED.
+ func (s *Service) Decline(ctx context.Context, id, reason string) (Payment, error) {
+ 	return s.mutate(ctx, id, func(p *Payment) (Event, error) {
+-		switch p.Status {
+-		case StatusCreated, StatusPending:
+-			p.Status = StatusDeclined
+-			p.DeclineReason = reason
+-			return Event{Type: "payment.declined"}, nil
+-		default:
++		if !CanTransition(p.Status, StatusDeclined) {
+ 			return Event{}, fmt.Errorf("%w: cannot decline a %s payment", ErrInvalidTransition, p.Status)
+ 		}
++		p.Status = StatusDeclined
++		p.DeclineReason = reason
++		return Event{Type: "payment.declined"}, nil
+ 	})
+ }
+ 
+@@ -156,9 +150,7 @@
+ 	}
+ 	var refund Refund
+ 	p, err := s.mutate(ctx, id, func(p *Payment) (Event, error) {
+-		switch p.Status {
+-		case StatusSucceeded:
+-		default:
++		if !CanTransition(p.Status, StatusRefunded) {
+ 			return Event{}, fmt.Errorf("%w: cannot refund a %s payment", ErrInvalidTransition, p.Status)
+ 		}
+ 		if amount.Currency != p.Amount.Currency {
+diff -ruN a/payment/transitions.go b/payment/transitions.go
+--- a/payment/transitions.go	1969-12-31 19:00:00
++++ b/payment/transitions.go	2026-10-14 11:20:23
+@@ -0,0 +1,18 @@
++package payment
++
++// transitions lists every allowed status change.
++var transitions = map[Status][]Status{
++	StatusCreated:   {StatusPending, StatusDeclined},
++	StatusPending:   {StatusSucceeded, StatusDeclined},
++	StatusSucceeded: {StatusRefunded},
++}
++
++// CanTransition reports whether a payment may move from one status to another.
++func CanTransition(from, to Status) bool {
++	for _, s := range transitions[from] {
++		if s == to {
++			return true
++		}
++	}
++	return false
++}

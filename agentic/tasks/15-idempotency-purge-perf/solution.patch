@@ -1,0 +1,59 @@
+diff -ruN a/idempotency/store.go b/idempotency/store.go
+--- a/idempotency/store.go	2026-10-14 11:20:23
++++ b/idempotency/store.go	2026-10-14 11:20:23
+@@ -7,7 +7,6 @@
+ 	"context"
+ 	"errors"
+ 	"fmt"
+-	"sort"
+ 	"sync"
+ 	"time"
+ 
+@@ -52,14 +51,18 @@
+ 	Release(ctx context.Context, key string) error
+ }
+ 
++// DefaultPurgeInterval is how often expired records are evicted.
++const DefaultPurgeInterval = time.Minute
++
+ // Memory is an in-memory Store. Records expire TTL after Begin; a key is
+ // considered expired once now >= ExpiresAt.
+ type Memory struct {
+ 	clock clock.Clock
+ 	ttl   time.Duration
+ 
+-	mu      sync.Mutex
+-	records map[string]*Record
++	mu        sync.Mutex
++	records   map[string]*Record
++	nextPurge time.Time
+ }
+ 
+ var _ Store = (*Memory)(nil)
+@@ -125,19 +128,17 @@
+ 	return len(m.records)
+ }
+ 
+-// purgeLocked evicts expired records, oldest first.
++// purgeLocked evicts expired records at most once per DefaultPurgeInterval.
+ func (m *Memory) purgeLocked(now time.Time) {
+-	recs := make([]*Record, 0, len(m.records))
+-	for _, r := range m.records {
+-		recs = append(recs, r)
++	if now.Before(m.nextPurge) {
++		return
+ 	}
+-	sort.Slice(recs, func(i, j int) bool { return recs[i].ExpiresAt.Before(recs[j].ExpiresAt) })
+-	for _, r := range recs {
+-		if now.Before(r.ExpiresAt) {
+-			break
++	for k, r := range m.records {
++		if !now.Before(r.ExpiresAt) {
++			delete(m.records, k)
+ 		}
+-		delete(m.records, r.Key)
+ 	}
++	m.nextPurge = now.Add(DefaultPurgeInterval)
+ }
+ 
+ func copyRecord(r *Record) Record {

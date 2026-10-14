@@ -1,0 +1,12 @@
+{
+ "id": "08-cancel-payment",
+ "type": "feature",
+ "title": "Add payment cancellation (CANCELED status + endpoint + webhook)",
+ "ticket": "PAY-4502 [Story] Merchants can cancel a payment before capture\n\nAs a merchant I want to cancel a payment that has not been captured yet (e.g. the\ncustomer abandoned checkout) so it no longer shows as open.\n\nAcceptance criteria:\n- New status CANCELED (string \"CANCELED\"), exported as payment.StatusCanceled. It is final\n  (Status.Final() is true) and ParseStatus accepts it (case-insensitive like the others).\n- New service method `func (s *Service) Cancel(ctx context.Context, id string) (Payment, error)`.\n  Allowed from CREATED and PENDING only; anything else fails with an error wrapping\n  ErrInvalidTransition. Unknown ids fail with an error wrapping ErrNotFound.\n- A successful cancel emits the event \"payment.canceled\" (delivered as a webhook like the\n  other events).\n- HTTP: POST /payments/{id}/cancel returns 200 with the payment body (status \"CANCELED\"),\n  409 invalid_transition when not cancelable, 404 not_found for unknown ids.\n- A canceled payment cannot be authorized, captured, declined or refunded (409).",
+ "solution_files": [
+  "api/handlers.go",
+  "api/server.go",
+  "payment/payment.go",
+  "payment/service.go"
+ ]
+}

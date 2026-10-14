@@ -1,0 +1,10 @@
+{
+ "id": "11-amount-minor-contract",
+ "type": "api-change",
+ "title": "Accept and return integer minor units, backward compatible",
+ "ticket": "PAY-4530 [Story] API v2 amounts: integer minor units (backward compatible)\n\nNew SDKs send amounts as integers in minor units to avoid any decimal parsing. Old\nSDKs (decimal strings) must keep working unchanged for at least two more quarters.\n\nAcceptance criteria:\n- POST /payments accepts `amount_minor` (JSON integer, minor units of `currency`) as an\n  alternative to the legacy `amount` (decimal string). Exactly one is required: if\n  neither is present -> 400 invalid_request. If both are present they must denote the\n  same value (e.g. \"10.50\" and 1050 for USD), otherwise 400 invalid_request.\n- POST /payments/{id}/refunds accepts `amount_minor` the same way (minor units of the\n  payment's currency), with the same rules.\n- Payment responses keep every existing field unchanged and ADD the integers\n  `amount_minor`, `fee_minor`, `refunded_minor`, `remaining_minor`; each item of `refunds`\n  gains `amount_minor`. This applies to every endpoint returning payments (incl. list).\n- Idempotency: a retry that uses the other format for the same amount (e.g. first call\n  `\"amount\":\"10.50\"`, retry `\"amount_minor\":1050`) is the same request and is replayed.\n- Unknown JSON fields are still rejected.",
+ "solution_files": [
+  "api/dto.go",
+  "api/handlers.go"
+ ]
+}

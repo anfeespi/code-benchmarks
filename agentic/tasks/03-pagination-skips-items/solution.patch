@@ -1,0 +1,11 @@
+diff -ruN a/store/memory.go b/store/memory.go
+--- a/store/memory.go	2026-10-14 11:20:22
++++ b/store/memory.go	2026-10-14 11:20:22
+@@ -91,7 +91,6 @@
+ 		if offset, err = decodeCursor(page.Cursor); err != nil {
+ 			return nil, "", err
+ 		}
+-		offset++ // resume after the last item of the previous page
+ 	}
+ 
+ 	m.mu.RLock()

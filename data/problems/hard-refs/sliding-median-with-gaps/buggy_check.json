@@ -1,0 +1,57 @@
+{
+ "note": "failed test cases for the buggy prompt code and for single-bug variants (canonical with one bug re-injected)",
+ "failed_cases": {
+  "BUGGY": [
+   "example_2",
+   "k_one",
+   "gap_must_still_evict",
+   "gap_after_big_value",
+   "duplicates_crossing_halves",
+   "descending_then_ascending",
+   "input_not_mutated",
+   "random_dupes_small_k",
+   "random_dupes_gaps",
+   "random_wide_gaps",
+   "random_dense_dupes_big_k",
+   "random_no_gaps",
+   "stress_long_window",
+   "stress_dupes_and_gaps"
+  ],
+  "B1_strict_less": [
+   "example_2",
+   "k_one",
+   "gap_must_still_evict",
+   "gap_after_big_value",
+   "duplicates_crossing_halves",
+   "input_not_mutated",
+   "random_dupes_small_k",
+   "random_dupes_gaps",
+   "random_wide_gaps",
+   "random_dense_dupes_big_k",
+   "random_no_gaps",
+   "stress_dupes_and_gaps"
+  ],
+  "B2_no_prune_high": [
+   "descending_then_ascending",
+   "random_dupes_small_k",
+   "random_dupes_gaps",
+   "random_wide_gaps",
+   "random_dense_dupes_big_k",
+   "random_no_gaps",
+   "stress_long_window",
+   "stress_dupes_and_gaps"
+  ],
+  "B3_gap_skips_evict": [
+   "example_2",
+   "k_one",
+   "gap_must_still_evict",
+   "gap_after_big_value",
+   "input_not_mutated",
+   "random_dupes_gaps",
+   "random_wide_gaps",
+   "random_dense_dupes_big_k",
+   "stress_long_window",
+   "stress_dupes_and_gaps"
+  ]
+ }
+}

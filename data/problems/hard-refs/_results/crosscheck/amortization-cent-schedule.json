@@ -1,0 +1,12 @@
+{
+ "slug": "amortization-cent-schedule",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 541,
+  "exc": 59
+ },
+ "seconds": 0.12,
+ "mismatches": []
+}

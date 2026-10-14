@@ -1,0 +1,27 @@
+{
+ "slug": "half-precision-from-decimal",
+ "cases": [
+  {
+   "case": "stress_long_literals",
+   "seconds": 0.057,
+   "timeout_s": 10,
+   "margin": 176.6,
+   "ok": true
+  },
+  {
+   "case": "stress_many_calls",
+   "seconds": 0.085,
+   "timeout_s": 12,
+   "margin": 140.9,
+   "ok": true
+  },
+  {
+   "case": "stress_giant_tie_expansion",
+   "seconds": 0.027,
+   "timeout_s": 6,
+   "margin": 223.5,
+   "ok": true
+  }
+ ],
+ "min_margin": 140.9
+}

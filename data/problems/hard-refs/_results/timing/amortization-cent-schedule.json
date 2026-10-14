@@ -1,0 +1,20 @@
+{
+ "slug": "amortization-cent-schedule",
+ "cases": [
+  {
+   "case": "stress_1200_months_batch",
+   "seconds": 0.056,
+   "timeout_s": 8,
+   "margin": 142.2,
+   "ok": true
+  },
+  {
+   "case": "stress_zero_rate_long",
+   "seconds": 0.049,
+   "timeout_s": 6,
+   "margin": 122.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 122.9
+}

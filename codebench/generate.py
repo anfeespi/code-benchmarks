@@ -15,6 +15,8 @@ uses the ambient AWS credential chain (SSO profile via --aws-profile, or default
 no key needed.
 Output: data/outputs/code-bench-v4__<tag>.json (same shape as the stored July files) and a
 resumable per-problem cache in data/runs/<tag>/.
+Hard tier: add `--suite hard-v1` -> data/outputs/code-bench-hard-v1__<tag>.json, cache in
+data/runs/hard-v1/<tag>/. `--max-cost-usd X` stops early once reported spend reaches X.
 """
 import argparse
 import json
@@ -24,9 +26,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import harness
 from .harness import ROOT, load_problems, extract_code
 
 MAX_TOKENS = int(os.environ.get("CODEBENCH_MAX_TOKENS", "16384"))
+HARD_MAX_TOKENS = 65536  # default for non-v4 suites unless CODEBENCH_MAX_TOKENS is set
 
 
 def _post(url, headers, body, timeout=600):
@@ -109,7 +113,14 @@ def main():
     ap.add_argument("--region", default="us-east-1", help="bedrock only: AWS region")
     ap.add_argument("--only", nargs="*", help="slugs to (re)generate")
     ap.add_argument("--retries", type=int, default=2)
+    ap.add_argument("--suite", default=harness.DEFAULT_SUITE, choices=sorted(harness.SUITES))
+    ap.add_argument("--max-cost-usd", type=float, help="stop generating once the summed reported cost reaches this")
     a = ap.parse_args()
+    suite = harness.use_suite(a.suite)
+    global MAX_TOKENS
+    if a.suite != harness.DEFAULT_SUITE and "CODEBENCH_MAX_TOKENS" not in os.environ:
+        # hard-tier answers routinely need long reasoning; 16k truncated half of a smoke run
+        MAX_TOKENS = HARD_MAX_TOKENS
     if a.provider == "bedrock":
         import boto3
         session = boto3.Session(profile_name=a.aws_profile, region_name=a.region)
@@ -121,13 +132,17 @@ def main():
         if not key:
             raise SystemExit("missing %s (or --key-file)" % env)
         call = call_anthropic if a.provider == "anthropic" else call_openrouter
-    cache = ROOT / "data" / "runs" / a.tag
+    cache = suite["runs"] / a.tag
     cache.mkdir(parents=True, exist_ok=True)
     rows = []
+    spent = 0.0
     for p in load_problems():
         cf = cache / (p["slug"] + ".json")
         if cf.exists() and not (a.only and p["slug"] in a.only):
             r = json.load(open(cf))
+        elif a.max_cost_usd is not None and spent >= a.max_cost_usd:
+            print("spend cap reached (%.4f >= %.4f USD); skipping %s" % (spent, a.max_cost_usd, p["slug"]))
+            r = {"error": "skipped: spend cap reached", "slug": p["slug"]}
         else:
             r = None
             for attempt in range(a.retries + 1):
@@ -137,8 +152,12 @@ def main():
                 time.sleep(3 * (attempt + 1))
             r["slug"] = p["slug"]
             json.dump(r, open(cf, "w"), indent=1)
+        spent += r.get("cost_usd") or 0.0
         text = r.get("text") or ""
         refused = (r.get("stop_reason") == "refusal") or (not text.strip() and "error" not in r)
+        truncated = r.get("stop_reason") in ("length", "max_tokens")
+        if a.suite != harness.DEFAULT_SUITE and truncated and r.get("stop_reason") != "refusal":
+            refused = False  # ran out of tokens: a failed answer, not a refusal
         code = "" if refused else extract_code(text)
         rows.append({"title": p["title"], "category": p["category"], "entry_point": p["entry_point"], "code": code,
                      "scores": None,
@@ -146,13 +165,14 @@ def main():
                                   "latency_s": round(r.get("latency_s") or 0, 2), "tokens_in": r.get("tokens_in"),
                                   "tokens_out": r.get("tokens_out"), "cost_usd": r.get("cost_usd"),
                                   "stop_reason": r.get("stop_reason"), "refused": bool(refused),
-                                  "empty_output": not bool(code.strip()), "error": r.get("error")}})
+                                  "empty_output": not bool(code.strip()), "error": r.get("error"),
+                                  **({"truncated": truncated} if a.suite != harness.DEFAULT_SUITE else {})}})
         print("%-16s %-58s %s%s" % (p["category"], p["slug"], "REFUSED" if refused else ("ERROR" if r.get("error") else "ok"),
                                     "" if not r.get("error") else " " + r["error"][:80]))
-    out = ROOT / "data" / "outputs" / ("code-bench-v4__%s.json" % a.tag)
+    out = ROOT / "data" / "outputs" / ("%s__%s.json" % (suite["prefix"], a.tag))
     json.dump(rows, open(out, "w"), indent=1, ensure_ascii=False)
     n_ref = sum(1 for r in rows if r["metadata"]["refused"]); n_err = sum(1 for r in rows if r["metadata"]["error"])
-    print("wrote", out, "| refused", n_ref, "| errors", n_err)
+    print("wrote", out, "| refused", n_ref, "| errors", n_err, "| reported cost %.4f USD" % spent)
 
 
 if __name__ == "__main__":

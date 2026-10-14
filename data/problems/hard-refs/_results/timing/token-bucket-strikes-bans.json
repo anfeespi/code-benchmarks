@@ -1,0 +1,27 @@
+{
+ "slug": "token-bucket-strikes-bans",
+ "cases": [
+  {
+   "case": "stress_huge_times",
+   "seconds": 0.026,
+   "timeout_s": 10,
+   "margin": 391.7,
+   "ok": true
+  },
+  {
+   "case": "stress_many_requests",
+   "seconds": 0.226,
+   "timeout_s": 15,
+   "margin": 66.3,
+   "ok": true
+  },
+  {
+   "case": "stress_few_clients_long_strikes",
+   "seconds": 0.191,
+   "timeout_s": 15,
+   "margin": 78.5,
+   "ok": true
+  }
+ ],
+ "min_margin": 66.3
+}

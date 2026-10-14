@@ -1,0 +1,27 @@
+{
+ "slug": "shelf-budget-range-shopping",
+ "cases": [
+  {
+   "case": "stress_random_wide",
+   "seconds": 1.431,
+   "timeout_s": 20,
+   "margin": 14.0,
+   "ok": true
+  },
+  {
+   "case": "stress_few_distinct",
+   "seconds": 0.394,
+   "timeout_s": 20,
+   "margin": 50.7,
+   "ok": true
+  },
+  {
+   "case": "stress_sorted_shelf_big_budgets",
+   "seconds": 0.593,
+   "timeout_s": 20,
+   "margin": 33.7,
+   "ok": true
+  }
+ ],
+ "min_margin": 14.0
+}

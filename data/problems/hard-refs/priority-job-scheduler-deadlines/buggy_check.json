@@ -1,0 +1,54 @@
+{
+ "note": "failed test cases for the buggy prompt code and for single-bug variants (canonical with one bug re-injected)",
+ "failed_cases": {
+  "BUGGY": [
+   "example_2",
+   "example_3",
+   "tie_release_beats_id",
+   "tie_id_order",
+   "released_exactly_at_free_time",
+   "idle_then_simultaneous_releases",
+   "idle_gap_mid_schedule",
+   "negative_priorities",
+   "input_not_mutated",
+   "random_small",
+   "random_medium",
+   "random_dense_ties",
+   "stress_all_at_once",
+   "stress_waves"
+  ],
+  "B1_mutates_input": [
+   "input_not_mutated"
+  ],
+  "B2_tiebreak_id_first": [
+   "example_3",
+   "tie_release_beats_id",
+   "random_small",
+   "random_medium",
+   "random_dense_ties"
+  ],
+  "B3_strict_release": [
+   "example_2",
+   "example_3",
+   "tie_id_order",
+   "released_exactly_at_free_time",
+   "idle_then_simultaneous_releases",
+   "idle_gap_mid_schedule",
+   "negative_priorities",
+   "random_small",
+   "random_medium",
+   "random_dense_ties",
+   "stress_all_at_once",
+   "stress_waves"
+  ],
+  "B4_idle_single_push": [
+   "example_2",
+   "idle_then_simultaneous_releases",
+   "idle_gap_mid_schedule",
+   "stress_waves"
+  ],
+  "B5_quadratic_only": [
+   "stress_all_at_once"
+  ]
+ }
+}

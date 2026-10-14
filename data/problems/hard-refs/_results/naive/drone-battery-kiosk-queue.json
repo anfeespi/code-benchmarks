@@ -1,0 +1,8 @@
+{
+ "slug": "drone-battery-kiosk-queue",
+ "stress_cases": 3,
+ "stress_failed": 2,
+ "nonstress_failed": [],
+ "naive_pass": 0,
+ "status": "ok"
+}

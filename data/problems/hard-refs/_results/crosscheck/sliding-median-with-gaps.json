@@ -1,0 +1,12 @@
+{
+ "slug": "sliding-median-with-gaps",
+ "n": 800,
+ "agree": 800,
+ "status": "ok",
+ "outcomes": {
+  "ok": 771,
+  "exc": 29
+ },
+ "seconds": 0.02,
+ "mismatches": []
+}

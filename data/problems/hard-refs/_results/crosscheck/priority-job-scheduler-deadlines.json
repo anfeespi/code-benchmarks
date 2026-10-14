@@ -1,0 +1,12 @@
+{
+ "slug": "priority-job-scheduler-deadlines",
+ "n": 1000,
+ "agree": 1000,
+ "status": "ok",
+ "outcomes": {
+  "ok": 935,
+  "exc": 65
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

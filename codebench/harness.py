@@ -30,8 +30,37 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PROBLEMS = ROOT / "data" / "problems" / "code-bench-v2.json"
-TESTS_DIR = ROOT / "tests"
+
+# Suites: the default "v4" is the original 48-problem suite (unchanged paths and slugs).
+# "hard-v1" is the 32-problem hard tier; its slugs come from the problem id ("hard-<slug>").
+SUITES = {
+    "v4": {"problems": ROOT / "data" / "problems" / "code-bench-v2.json", "tests": ROOT / "tests",
+           "prefix": "code-bench-v4", "runs": ROOT / "data" / "runs", "slug": "title"},
+    "hard-v1": {"problems": ROOT / "data" / "problems" / "code-bench-hard-v1.json", "tests": ROOT / "tests" / "hard",
+                "prefix": "code-bench-hard-v1", "runs": ROOT / "data" / "runs" / "hard-v1", "slug": "id"},
+}
+DEFAULT_SUITE = "v4"
+SUITE = DEFAULT_SUITE
+PROBLEMS = SUITES[SUITE]["problems"]
+TESTS_DIR = SUITES[SUITE]["tests"]
+
+
+def use_suite(name):
+    """Switch the active suite for every helper in this module (problems file, tests dir)."""
+    global SUITE, PROBLEMS, TESTS_DIR
+    if name not in SUITES:
+        raise SystemExit("unknown suite %r (choose from %s)" % (name, ", ".join(SUITES)))
+    SUITE, PROBLEMS, TESTS_DIR = name, SUITES[name]["problems"], SUITES[name]["tests"]
+    return SUITES[name]
+
+
+def suite_for_output(path):
+    """Infer the suite from an outputs filename (code-bench-hard-v1__<tag>.json -> hard-v1)."""
+    name = Path(path).name
+    for k, v in SUITES.items():
+        if name.startswith(v["prefix"] + "__"):
+            return k
+    return DEFAULT_SUITE
 DEFAULT_TIMEOUT = 5.0
 MEM_LIMIT_MB = 1024
 
@@ -106,7 +135,10 @@ def slugify(title):
 def load_problems():
     probs = json.load(open(PROBLEMS))
     for p in probs:
-        p["slug"] = slugify(p["title"])
+        if SUITES[SUITE]["slug"] == "id":
+            p["slug"] = p["id"][len("hard-"):] if p["id"].startswith("hard-") else p["id"]
+        else:
+            p["slug"] = slugify(p["title"])
     return probs
 
 
@@ -151,6 +183,9 @@ def outcome_matches(expected, got):
 
 
 def _eq(a, b):
+    # hard tier only: True/1 and False/0 are different answers (v4 keeps its original leniency)
+    if SUITE != "v4" and isinstance(a, bool) != isinstance(b, bool):
+        return False
     if isinstance(a, float) or isinstance(b, float):
         if isinstance(a, (int, float)) and isinstance(b, (int, float)) and not isinstance(a, bool) and not isinstance(b, bool):
             return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
@@ -219,3 +254,28 @@ def extract_code(text):
     if blocks:
         return max(blocks, key=len).strip("\n")
     return text.strip()
+
+
+def main(argv=None):
+    """`python -m codebench.harness [--suite hard-v1] [slug ...]`: run each canonical solution
+    against its own tests (default suite v4)."""
+    import argparse
+    ap = argparse.ArgumentParser(description="canonical self-check through the sandbox")
+    ap.add_argument("--suite", default=DEFAULT_SUITE, choices=sorted(SUITES))
+    ap.add_argument("slugs", nargs="*")
+    a = ap.parse_args(argv)
+    use_suite(a.suite)
+    ok = n = 0
+    for p in load_problems():
+        if a.slugs and p["slug"] not in a.slugs:
+            continue
+        t = load_tests(p["slug"])
+        s = score_candidate(p, p["canonical_solution"], t)
+        n += 1
+        ok += s["pass"]
+        print("%-16s %-58s cases=%-3d pass=%s %s" % (p["category"], p["slug"], len(t["cases"]), s["pass"], "; ".join(s["detail"][:2])[:200]))
+    print("suite %s: canonical passes all tests on %d/%d problems" % (a.suite, ok, n))
+
+
+if __name__ == "__main__":
+    main()

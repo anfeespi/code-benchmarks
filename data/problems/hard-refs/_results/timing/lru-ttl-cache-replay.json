@@ -1,0 +1,20 @@
+{
+ "slug": "lru-ttl-cache-replay",
+ "cases": [
+  {
+   "case": "stress_full_cache_no_ttl",
+   "seconds": 0.073,
+   "timeout_s": 10,
+   "margin": 137.2,
+   "ok": true
+  },
+  {
+   "case": "stress_mixed_ttl",
+   "seconds": 0.236,
+   "timeout_s": 10,
+   "margin": 42.4,
+   "ok": true
+  }
+ ],
+ "min_margin": 42.4
+}

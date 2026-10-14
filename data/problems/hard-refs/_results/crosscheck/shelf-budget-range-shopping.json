@@ -1,0 +1,12 @@
+{
+ "slug": "shelf-budget-range-shopping",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 600,
+  "exc": 0
+ },
+ "seconds": 0.02,
+ "mismatches": []
+}

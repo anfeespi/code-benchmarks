@@ -1,0 +1,536 @@
+{
+ "title": "Tide-gauge records with a minimum margin over many windows",
+ "entry_point": "count_records",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.count_records([3, 1, 4, 1, 5, 9, 2, 6], 2, [(0, 7), (1, 3), (2, 6), (5, 5)])",
+   "expected": {
+    "value": [
+     3,
+     2,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "example_2",
+   "code": "result = sol.count_records([2, 2, 1, 2], 0, [(0, 3), (2, 3)])",
+   "expected": {
+    "value": [
+     3,
+     2
+    ]
+   }
+  },
+  {
+   "name": "example_3",
+   "code": "result = sol.count_records([5], 7, [])",
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "empty_everything",
+   "code": "result = sol.count_records([], 3, [])",
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "single_reading",
+   "code": "result = sol.count_records([-7], 0, [(0, 0), (0, 0)])",
+   "expected": {
+    "value": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "margin_zero_equal_run",
+   "code": "result = sol.count_records([4, 4, 4, 4, 3, 4], 0, [(0, 5), (1, 5), (4, 5), (3, 4)])",
+   "expected": {
+    "value": [
+     5,
+     4,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "margin_one_strict",
+   "code": "result = sol.count_records([4, 4, 5, 5, 6, 3, 7], 1, [(0, 6), (1, 6), (5, 6), (2, 3)])",
+   "expected": {
+    "value": [
+     4,
+     4,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "negative_readings",
+   "code": "result = sol.count_records([-10, -8, -9, -5, -5, -1, -20, 0], 3, [(0, 7), (2, 7), (6, 7), (1, 4)])",
+   "expected": {
+    "value": [
+     3,
+     3,
+     2,
+     2
+    ]
+   }
+  },
+  {
+   "name": "record_skips_intermediate",
+   "code": "result = sol.count_records([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3, [(0, 9), (1, 9), (2, 8), (3, 3)])",
+   "expected": {
+    "value": [
+     4,
+     3,
+     3,
+     1
+    ]
+   }
+  },
+  {
+   "name": "huge_margin",
+   "code": "result = sol.count_records([0, 10**9, -10**9, 10**9], 10**9, [(0, 3), (2, 3), (1, 3)])",
+   "expected": {
+    "value": [
+     2,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "extreme_values",
+   "code": "result = sol.count_records([-10**9, 10**9, 10**9, -10**9, 10**9], 0, [(0, 4), (3, 4), (1, 2)])",
+   "expected": {
+    "value": [
+     4,
+     2,
+     2
+    ]
+   }
+  },
+  {
+   "name": "decreasing_only_first",
+   "code": "result = sol.count_records(list(range(20, 0, -1)), 0, [(0, 19), (5, 19), (19, 19)])",
+   "expected": {
+    "value": [
+     1,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "duplicate_queries_order",
+   "code": "result = sol.count_records([5, 1, 6, 2, 7, 3, 8], 1, [(0, 6), (1, 6), (0, 6), (1, 2), (0, 6)])",
+   "expected": {
+    "value": [
+     4,
+     4,
+     4,
+     2,
+     4
+    ]
+   }
+  },
+  {
+   "name": "random_small_1",
+   "code": "import random\nr = random.Random(31)\nlv = [r.randint(-5, 5) for _ in range(40)]\nqs = []\nfor _ in range(60):\n    l = r.randint(0, 40 - 1)\n    qs.append((l, r.randint(l + 1 - 1, 40 - 1)))\nresult = sol.count_records(lv, 2, qs)",
+   "expected": {
+    "value": [
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     3,
+     2,
+     4,
+     2,
+     1,
+     1,
+     1,
+     2,
+     4,
+     1,
+     2,
+     2,
+     2,
+     3,
+     2,
+     3,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     3,
+     3,
+     2,
+     2,
+     2,
+     3,
+     2,
+     1,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "random_small_margin0",
+   "code": "import random\nr = random.Random(32)\nlv = [r.randint(0, 3) for _ in range(50)]\nqs = []\nfor _ in range(80):\n    l = r.randint(0, 50 - 1)\n    qs.append((l, r.randint(l + 1 - 1, 50 - 1)))\nresult = sol.count_records(lv, 0, qs)",
+   "expected": {
+    "value": [
+     7,
+     1,
+     1,
+     8,
+     2,
+     2,
+     4,
+     9,
+     2,
+     2,
+     8,
+     8,
+     10,
+     3,
+     5,
+     2,
+     3,
+     4,
+     5,
+     7,
+     2,
+     2,
+     3,
+     1,
+     6,
+     1,
+     2,
+     10,
+     4,
+     11,
+     6,
+     1,
+     8,
+     3,
+     4,
+     6,
+     2,
+     3,
+     1,
+     10,
+     7,
+     2,
+     3,
+     1,
+     1,
+     4,
+     2,
+     7,
+     1,
+     6,
+     9,
+     2,
+     3,
+     8,
+     7,
+     1,
+     9,
+     2,
+     2,
+     8,
+     2,
+     4,
+     4,
+     5,
+     1,
+     5,
+     4,
+     2,
+     7,
+     2,
+     5,
+     5,
+     6,
+     2,
+     1,
+     3,
+     2,
+     3,
+     12,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_medium",
+   "code": "import random\nr = random.Random(33)\nlv = [r.randint(-1000, 1000) + i for i in range(3000)]\nqs = []\nfor _ in range(2000):\n    l = r.randint(0, 3000 - 1)\n    qs.append((l, r.randint(l + 1 - 1, 3000 - 1)))\nout = sol.count_records(lv, 25, qs)\nresult = (len(out), sum(out), sum(i * x for i, x in enumerate(out)) % 1000000007, out[::4999])",
+   "expected": {
+    "value": [
+     2000,
+     35747,
+     35580835,
+     [
+      16
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_random_wide",
+   "code": "import random\nr = random.Random(41)\nlv = [r.randint(-10**9, 10**9) for _ in range(200000)]\nqs = []\nfor _ in range(200000):\n    l = r.randint(0, 200000 - 20000)\n    qs.append((l, r.randint(l + 20000 - 1, 200000 - 1)))\nout = sol.count_records(lv, 10**6, qs)\nresult = (len(out), sum(out), sum(i * x for i, x in enumerate(out)) % 1000000007, out[::4999])",
+   "timeout_s": 10,
+   "expected": {
+    "value": [
+     200000,
+     1539374,
+     957825711,
+     [
+      3,
+      6,
+      10,
+      6,
+      6,
+      4,
+      11,
+      5,
+      7,
+      8,
+      8,
+      4,
+      6,
+      5,
+      7,
+      10,
+      11,
+      7,
+      7,
+      9,
+      5,
+      8,
+      7,
+      7,
+      5,
+      13,
+      4,
+      5,
+      6,
+      12,
+      6,
+      5,
+      12,
+      5,
+      9,
+      6,
+      5,
+      8,
+      10,
+      6,
+      8
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_rising_long_chains",
+   "code": "import random\nr = random.Random(42)\nlv = [3 * i + r.randint(-40, 40) for i in range(200000)]\nqs = []\nfor _ in range(200000):\n    l = r.randint(0, 200000 - 20000)\n    qs.append((l, r.randint(l + 20000 - 1, 200000 - 1)))\nout = sol.count_records(lv, 2, qs)\nresult = (len(out), sum(out), sum(i * x for i, x in enumerate(out)) % 1000000007, out[::4999])",
+   "timeout_s": 10,
+   "expected": {
+    "value": [
+     200000,
+     2964806954,
+     623649256,
+     [
+      6689,
+      5004,
+      25197,
+      10201,
+      12230,
+      4607,
+      15811,
+      9165,
+      19406,
+      28185,
+      14506,
+      20982,
+      22872,
+      17979,
+      6134,
+      12562,
+      15148,
+      25934,
+      9151,
+      10366,
+      29042,
+      7278,
+      5320,
+      20627,
+      34980,
+      28943,
+      36999,
+      29785,
+      9601,
+      4896,
+      26843,
+      9973,
+      10119,
+      16172,
+      34518,
+      9724,
+      17860,
+      4705,
+      25386,
+      14193,
+      5470
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_plateaus_margin0",
+   "code": "import random\nr = random.Random(43)\nlv = [r.randint(0, 5) + i // 50 for i in range(200000)]\nqs = []\nfor _ in range(200000):\n    l = r.randint(0, 200000 - 20000)\n    qs.append((l, r.randint(l + 20000 - 1, 200000 - 1)))\nout = sol.count_records(lv, 0, qs)\nresult = (len(out), sum(out), sum(i * x for i, x in enumerate(out)) % 1000000007, out[::4999])",
+   "timeout_s": 10,
+   "expected": {
+    "value": [
+     200000,
+     2411746569,
+     361863182,
+     [
+      27486,
+      19884,
+      4255,
+      3675,
+      3923,
+      8043,
+      8477,
+      4299,
+      30218,
+      25998,
+      27700,
+      12356,
+      4441,
+      5950,
+      3788,
+      15429,
+      8858,
+      4142,
+      16232,
+      19171,
+      13433,
+      8674,
+      6957,
+      5812,
+      13430,
+      4633,
+      4520,
+      19702,
+      11505,
+      3991,
+      9896,
+      5199,
+      13368,
+      10089,
+      4593,
+      11750,
+      15599,
+      10123,
+      10827,
+      6616,
+      8899
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_full_windows_staircase",
+   "code": "lv = [(i % 1000) + 2 * (i // 1000) for i in range(200000)]\nqs = [(i, 199999) for i in range(200000)]\nout = sol.count_records(lv, 1, qs)\nresult = (len(out), sum(out), sum(i * x for i, x in enumerate(out)) % 1000000007, out[::4999])",
+   "timeout_s": 10,
+   "expected": {
+    "value": [
+     200000,
+     139900000,
+     963311527,
+     [
+      1398,
+      391,
+      382,
+      373,
+      364,
+      355,
+      346,
+      337,
+      328,
+      319,
+      310,
+      301,
+      292,
+      283,
+      274,
+      265,
+      256,
+      247,
+      238,
+      229,
+      220,
+      211,
+      202,
+      193,
+      184,
+      175,
+      166,
+      157,
+      148,
+      139,
+      130,
+      121,
+      112,
+      103,
+      94,
+      85,
+      76,
+      67,
+      58,
+      49,
+      40
+     ]
+    ]
+   }
+  }
+ ]
+}

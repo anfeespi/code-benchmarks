@@ -1,0 +1,228 @@
+{
+ "title": "Context window pruning with gap limit, pins and adjacency bonus",
+ "entry_point": "best_context",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.best_context([(3, 5, False), (4, 6, False), (2, -1, False), (5, 8, False)], 10, 1, 2)",
+   "expected": {
+    "value": 14
+   }
+  },
+  {
+   "name": "example_2_forced_negative",
+   "code": "result = sol.best_context([(1, -5, False), (1, -5, False), (1, -5, False)], 3, 1, 0)",
+   "expected": {
+    "value": -5
+   }
+  },
+  {
+   "name": "example_3_pinned_over_budget",
+   "code": "result = sol.best_context([(1, 1, False), (9, 4, True)], 5, 3, 0)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "empty_list",
+   "code": "result = sol.best_context([], 0, 0, 5)",
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "empty_selection_allowed",
+   "code": "result = sol.best_context([(1, -3, False), (1, -4, False)], 5, 2, 0)",
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "empty_selection_not_allowed",
+   "code": "result = sol.best_context([(1, -3, False), (1, -4, False)], 5, 1, 0)",
+   "expected": {
+    "value": -3
+   }
+  },
+  {
+   "name": "max_gap_zero_keep_all",
+   "code": "result = sol.best_context([(1, -3, False), (2, 4, False), (0, -1, False)], 3, 0, 10)",
+   "expected": {
+    "value": 20
+   }
+  },
+  {
+   "name": "max_gap_zero_too_long",
+   "code": "result = sol.best_context([(1, -3, False), (2, 4, False), (1, -1, False)], 3, 0, 10)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "trailing_gap_forces_last_region",
+   "code": "result = sol.best_context([(1, 9, False), (1, 9, False), (1, -2, False), (1, -2, False), (1, -2, False)], 10, 2, 0)",
+   "expected": {
+    "value": 16
+   }
+  },
+  {
+   "name": "negative_bonus_prefers_spacing",
+   "code": "result = sol.best_context([(1, 3, False)] * 6, 10, 1, -4)",
+   "expected": {
+    "value": 9
+   }
+  },
+  {
+   "name": "positive_bonus_glues_negatives",
+   "code": "result = sol.best_context([(1, 5, False), (1, -2, False), (1, 5, False)], 10, 3, 4)",
+   "expected": {
+    "value": 16
+   }
+  },
+  {
+   "name": "pinned_blocks_skip",
+   "code": "result = sol.best_context([(2, 10, False), (5, -7, True), (2, 10, False), (4, 1, False)], 9, 1, 0)",
+   "expected": {
+    "value": 13
+   }
+  },
+  {
+   "name": "zero_length_messages",
+   "code": "result = sol.best_context([(0, 1, False), (0, -1, False), (0, 2, True), (0, -9, False)], 0, 0, 3)",
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "bad_budget",
+   "code": "result = sol.best_context([(1, 1, False)], -1, 0, 0)",
+   "raises": "ValueError"
+  },
+  {
+   "name": "bad_gap",
+   "code": "result = sol.best_context([(1, 1, False)], 1, -1, 0)",
+   "raises": "ValueError"
+  },
+  {
+   "name": "bad_args_on_empty",
+   "code": "result = sol.best_context([], 0, -1, 0)",
+   "raises": "ValueError"
+  },
+  {
+   "name": "random_small",
+   "code": "import random\nr = random.Random(7)\nout = []\nfor _ in range(60):\n    n = r.randint(0, 12)\n    m = [(r.choice([0, 1, 2, 3, 5]), r.randint(-9, 12), r.random() < 0.15) for _ in range(n)]\n    out.append(sol.best_context(m, r.randint(0, 18), r.randint(0, 4), r.choice([0, 2, 5, -3])))\nresult = out",
+   "expected": {
+    "value": [
+     3,
+     23,
+     22,
+     0,
+     18,
+     5,
+     -10,
+     null,
+     -6,
+     null,
+     null,
+     11,
+     18,
+     0,
+     8,
+     7,
+     null,
+     12,
+     -5,
+     0,
+     null,
+     7,
+     17,
+     -23,
+     32,
+     6,
+     -6,
+     null,
+     33,
+     7,
+     39,
+     17,
+     0,
+     6,
+     17,
+     null,
+     null,
+     null,
+     20,
+     0,
+     null,
+     9,
+     23,
+     16,
+     23,
+     24,
+     22,
+     null,
+     53,
+     14,
+     37,
+     0,
+     null,
+     null,
+     17,
+     44,
+     null,
+     7,
+     0,
+     23
+    ]
+   }
+  },
+  {
+   "name": "random_medium",
+   "code": "import random\nr = random.Random(8)\nout = []\nfor _ in range(5):\n    n = 14\n    m = [(r.randint(0, 12), r.randint(-50, 80), r.random() < 0.05) for _ in range(n)]\n    out.append(sol.best_context(m, r.randint(20, 60), r.randint(1, 5), r.randint(-20, 30)))\nresult = out",
+   "expected": {
+    "value": [
+     235,
+     469,
+     675,
+     315,
+     216
+    ]
+   }
+  },
+  {
+   "name": "stress_full_domain",
+   "code": "import random\nr = random.Random(9)\nm = [(r.randint(0, 20), r.randint(-10**6, 10**6), r.random() < 0.03) for _ in range(120)]\nresult = [sol.best_context(m, 400, g, b) for g, b in ((120, 10**5), (3, -10**5))]",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     24151388,
+     16584007
+    ]
+   }
+  },
+  {
+   "name": "stress_tight_budget",
+   "code": "import random\nr = random.Random(10)\nm = [(r.randint(1, 9), r.randint(-1000, 1000), False) for _ in range(120)]\nresult = [sol.best_context(m, 400, g, 37) for g in (2, 6, 119)]",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     29769,
+     31983,
+     31983
+    ]
+   }
+  },
+  {
+   "name": "stress_negatives_forced",
+   "code": "import random\nr = random.Random(11)\nm = [(r.randint(0, 6), -r.randint(1, 10**6), i % 17 == 0) for i in range(120)]\nresult = [sol.best_context(m, 400, 4, b) for b in (0, 10**6, -10**6)]",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     -8778317,
+     63171707,
+     -9174275
+    ]
+   }
+  }
+ ]
+}

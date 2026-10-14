@@ -1,0 +1,12 @@
+{
+ "slug": "bounded-closest-fraction",
+ "n": 1500,
+ "agree": 1500,
+ "status": "ok",
+ "outcomes": {
+  "ok": 1405,
+  "exc": 95
+ },
+ "seconds": 0.07,
+ "mismatches": []
+}

@@ -1,0 +1,1734 @@
+{
+ "title": "Pile stack-language interpreter with quotations and step limit",
+ "entry_point": "run_pile",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.run_pile(': sq dup * ;  3 sq [ 1 [ dup ] ] 10 [ 2 ] dip', 100)",
+   "expected": {
+    "value": [
+     "ok",
+     [
+      9,
+      [
+       "1",
+       [
+        "dup"
+       ]
+      ],
+      2,
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "example_2",
+   "code": "result = sol.run_pile(': fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 5 fact', 1000)",
+   "expected": {
+    "value": [
+     "ok",
+     [
+      120
+     ]
+    ]
+   }
+  },
+  {
+   "name": "example_3",
+   "code": "result = sol.run_pile('1 2 + dup', 3)",
+   "expected": {
+    "value": [
+     "error",
+     3,
+     "step limit exceeded"
+    ]
+   }
+  },
+  {
+   "name": "example_4",
+   "code": "result = sol.run_pile('5 [ 1 - ] 3 times 0 [ drop ] if', 100)",
+   "expected": {
+    "value": [
+     "error",
+     11,
+     "type error"
+    ]
+   }
+  },
+  {
+   "name": "example_5",
+   "code": "result = sol.run_pile('1 [ 2 ] ] [', 100)",
+   "expected": {
+    "value": [
+     "error",
+     4,
+     "unmatched ]"
+    ]
+   }
+  },
+  {
+   "name": "example_6",
+   "code": "result = sol.run_pile('[ [ ] : g', 100)",
+   "expected": {
+    "value": [
+     "error",
+     3,
+     "misplaced :"
+    ]
+   }
+  },
+  {
+   "name": "tokenization",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('[1 2]dup', 50), ('1 2]', 50), ('a:b', 50), ('x;', 50), (': a:b 4 ; a:b a:b +', 50), ('1\\xa02', 50), ('1\\r\\n2\\t+', 50), ('007 -0 +5', 50), ('--1', 50), ('[[[]]][]', 50)]]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       [
+        "1",
+        "2"
+       ],
+       [
+        "1",
+        "2"
+       ]
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'a:b'"
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'x;'"
+     ],
+     [
+      "ok",
+      [
+       8
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unknown word '1 2'"
+     ],
+     [
+      "ok",
+      [
+       3
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unknown word '+5'"
+     ],
+     [
+      "error",
+      0,
+      "unknown word '--1'"
+     ],
+     [
+      "ok",
+      [
+       [
+        [
+         []
+        ]
+       ],
+       []
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "structure_errors",
+   "code": "result = [sol.run_pile(s, m) for s, m in [(']', 9), ('[ ] ] ]', 9), (':', 9), (': 5 ;', 9), (': [ ;', 9), (': swap ;', 9), (': f ] ;', 9), (': f [ ;', 9), (': f : g ; ;', 9), ('; :', 9), ('[ ; ]', 9), (': f [ ] ; [ 1 : h ;', 9), ('[ : f', 9), (': f [ [', 9), ('1 [ 2 [ 3 ] : f', 9), ('[ 1 ] ] : f', 9), (': f', 9), (': ;', 9)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      2,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "unclosed :"
+     ],
+     [
+      "error",
+      1,
+      "bad name"
+     ],
+     [
+      "error",
+      1,
+      "bad name"
+     ],
+     [
+      "error",
+      1,
+      "bad name"
+     ],
+     [
+      "error",
+      2,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      3,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      2,
+      "misplaced :"
+     ],
+     [
+      "error",
+      0,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      1,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      7,
+      "misplaced :"
+     ],
+     [
+      "error",
+      1,
+      "misplaced :"
+     ],
+     [
+      "error",
+      0,
+      "unclosed :"
+     ],
+     [
+      "error",
+      6,
+      "misplaced :"
+     ],
+     [
+      "error",
+      3,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "unclosed :"
+     ],
+     [
+      "error",
+      1,
+      "bad name"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "builtins",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('1 2 3 rot', 50), ('1 2 over', 50), ('1 2 swap', 50), ('7 -2 / 7 -2 % -7 2 / -7 2 %', 50), ('3 3 = 3 4 = 4 3 <', 50), ('1 2 [ 10 * ] dip', 50), ('1 [ 2 ] [ 3 ] if 0 [ 4 ] [ 5 ] if', 50), ('[ 9 ] 0 times [ 8 ] 2 times', 50), ('[ 9 ] -1 times', 50), ('5 [ dup 0 = 0 = ] [ 1 - ] while', 500), ('[ 1 ] call call', 50), ('1 [ ] dip [ ] [ ] 1 if', 50), ('[ 1 ] dup call swap call', 50)]]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       2,
+       3,
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       1,
+       2,
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       -4,
+       -1,
+       -4,
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       1,
+       0,
+       0
+      ]
+     ],
+     [
+      "ok",
+      [
+       10,
+       2
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       5
+      ]
+     ],
+     [
+      "ok",
+      [
+       8,
+       8
+      ]
+     ],
+     [
+      "error",
+      4,
+      "negative count"
+     ],
+     [
+      "ok",
+      [
+       0
+      ]
+     ],
+     [
+      "error",
+      4,
+      "type error"
+     ],
+     [
+      "error",
+      9,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       1,
+       1
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "check_order",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('[ ] +', 9), ('[ ] 1 +', 9), ('1 0 /', 9), ('[ ] 0 /', 9), ('[ ] -1 times', 9), ('-1 [ ] times', 9), ('1 [ ] [ ] [ ] if', 9), ('[ ] [ ] 1 if', 9), ('[ ] while', 9), ('1 [ ] while', 9), ('[ ] [ ] while', 9), ('[ [ ] ] [ ] while', 9), ('1 dip', 9), ('1 2 dip', 9), ('call', 9), ('5 call', 9), ('1 2 rot', 9), ('[ ] dup = ', 9)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ],
+     [
+      "error",
+      2,
+      "division by zero"
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ],
+     [
+      "error",
+      3,
+      "negative count"
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ],
+     [
+      "error",
+      7,
+      "type error"
+     ],
+     [
+      "error",
+      5,
+      "type error"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ],
+     [
+      "error",
+      4,
+      "stack underflow"
+     ],
+     [
+      "error",
+      6,
+      "type error"
+     ],
+     [
+      "error",
+      1,
+      "stack underflow"
+     ],
+     [
+      "error",
+      2,
+      "type error"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "error",
+      1,
+      "type error"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "definitions",
+   "code": "result = [sol.run_pile(s, m) for s, m in [(': f g ; : g 1 ; f', 50), ('f : f 1 ;', 50), (': f 1 ; f : f 2 ; f', 50), (': f [ f ] ; f call call', 50), (': inc 1 + ; : twice dup call call ; 0 [ inc ] twice', 50), (': e ; e e 3', 50), (': swap2 swap ; 1 2 swap2', 50), (': f nope ; 1 f', 50)]]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       1
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'f'"
+     ],
+     [
+      "ok",
+      [
+       1,
+       2
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        "f"
+       ]
+      ]
+     ],
+     [
+      "error",
+      3,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       3
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       1
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unknown word 'nope'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "step_accounting",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('1 2 + dup', 4), ('[ 1 2 ] call', 3), ('[ 1 2 ] call', 2), (': f 1 ; f', 2), (': f 1 ; f', 3), ('[ ] call [ ] call', 4), ('[ ] 999999999 times 5', 3), ('[ [ ] ] 3 times', 4), ('[ [ ] ] 3 times', 5), ('[ 1 ] [ ] while', 30), ('0 [ ] [ ] if', 4), ('', 0), ('1', 0), ('1', 1)]]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       3,
+       3
+      ]
+     ],
+     [
+      "error",
+      2,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      2,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       1
+      ]
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "error",
+      4,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       1
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "while_errors",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('[ ] [ 1 ] while', 50), ('[ [ ] ] [ ] while', 50), ('3 [ dup ] [ 1 - ] while', 100), ('3 [ 0 ] [ x ] while', 100), ('[ 1 ] [ drop ] while', 100)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      5,
+      "stack underflow"
+     ],
+     [
+      "error",
+      6,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       0
+      ]
+     ],
+     [
+      "ok",
+      [
+       3
+      ]
+     ],
+     [
+      "error",
+      4,
+      "stack underflow"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "rendering",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('[ 1 [ 2 [ x ] ] [ ] dup ] [ ]', 50), ('[ : ] 1', 50), ('[ f [ ; ] ]', 50), ('[ -0 007 ] 1', 50)]]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       [
+        "1",
+        [
+         "2",
+         [
+          "x"
+         ]
+        ],
+        [],
+        "dup"
+       ],
+       []
+      ]
+     ],
+     [
+      "error",
+      1,
+      "misplaced :"
+     ],
+     [
+      "error",
+      3,
+      "unmatched ;"
+     ],
+     [
+      "ok",
+      [
+       [
+        "-0",
+        "007"
+       ],
+       1
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_1",
+   "code": "result = [sol.run_pile(s, m) for s, m in [(' : f drop ;]6\\t[ 3 %\\n-0 while ][ ] f [ -- + ]', 0), (': f [ g ] call ; : g 1 ; f : g 4 ; f', 5), (' rot\\n: sq\\n+ ; [ [- 0 - ]\\t[ 0\\nif 007 call\\n] g\\n/\\n] [x;] swap\\t: f\\t[\\ncall --\\t* [ -1 g call nope ]\\n] 0\\trot ;', 300), (': sq dup * ; 6 sq [ 1 2 ] call [ 3 ] [ 4 ] 5 if', 2000), ('-2 [ [ 3 ] dip ] call', 200), ('a:b\\t7[ ]\\n[\\t]: sq 8 f\\tdrop 1 5\\t; dup f :\\tg\\tdrop\\t;', 40), (' drop', 10), ('-1 [ dup 0 < 0 = ] [ 1 - ] while -1 [ dup 1 - ] 5 times 3 [ [ ] dip ] call', 60), (' [ while [g\\nnope\\n] [ [ g -1 g f\\t] while ] ] if -3 5 13\\t-1\\n+1 [ 2 if loop ]', 3), ('-1 [ 0 < 0 = ] [ 1 - ] while', 200), (': g [ 4\\n5 sq ] nope\\n[\\t[ 5 swap\\tover f] loop\\n-0[ 2\\nf loop\\t] ] ;\\tg 15\\t-5[rot\\n]% * f call', 0), ('1 -2 [ + ] dip -1 [ [ -2 ] dip ] call', 5), ('- 1\\t: g ; 0 3 2 if [ 0\\t]', 40), (' [ g -1\\t5 ]\\n0 : f loop -\\tdrop ;\\t-1\\t007\\t: sq < rot % -1\\tg ; 1 5 :\\tg\\t;', 300), ('sq\\t1 5\\n[\\n[ /\\n] x;]\\t0 0 5', 40), ('-1 6 / -1 6 % : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 3 fact', 5), ('+ 1 3\\n[\\t-1\\n-', 3), ('[ ] [\\n[ -0 [ ] ] while]\\nf sq 3 dip', 40), ('%\\nsq [[\\t3 ]\\t]5', 0), ('6 [ dup 0 < 0 = ] [ 1 - ] while -2 [ [ 5 ] dip ] call', 20), (': f [ g ] call ; : g -2 ; f : g -2 ; f 3 5 = [ 7 ] [ 8 ] 0 if', 200), ('5\\n[\\n-2\\tif 0\\n0]', 40), (': fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 3 fact 2 -2 [ + ] dip', 5), (': sq * ; -1 sq', 60), ('] -2 times [ [ ] ] call : sq dup * ; 0 sq', 20), (' 007\\ncall[ +1\\n] % loop dip if 0 -', 300), ('[] dup : sq [\\t0\\t] [ sq\\t2 ]\\na:b ; f +1', 40), ('5 [ dup 1 - ] 2 times', 200), ('1 2 3 rot over swap', 200), ('0\\nrot ;', 300), ('1 [ %\\ng ] 3 -1\\n[\\n5\\n]', 300), ('g drop\\t: sq 1\\t[\\n-1\\tover sq ; : loop 007 1 sq\\n3\\t[/ if\\t-8 nope\\n] ; [ ]', 0), ('3 0\\n+1 : loop ; [ [[ 1 swap[\\nloop ]\\tx; ]]\\t1 *', 0), ('007 0\\n[ 2\\t-1 ]\\t< 007\\tdup', 300), ('6 [ dup 1 - ] -2 times : f [ g ] call ; : g 3 ; : g -2 ; f [ dup ] 5 times', 200), (':\\tg ; loop[ if\\t-5\\n1]', 10), ('1 2 3 rot over swap -1 [ 3 ] dip swap : sq dup * ; 0 sq', 2000), (': f [ g ] call ; : g 3 ; f : g -2 ; f', 60), ('[ ] 2 times [ [ ] ] call [ dup ] 2 times [ 1 2 ] call 3 ] [ 4 ] 3 if', 60), ('< - 3 dip\\n:\\tg sq ;', 0), ('[ = -- ]\\nover -1', 10), ('dip [\\n2 3 5\\t--\\t]0\\t1 2\\tnope f 4 loop', 0), ('-1 2 = [ 7 ] [ 8 ] 1 if 6 [ 5 ] dip swap 6 [ dup 0 < 0 = ] [ 1 - ] while', 20), ('=', 3), ('2 3 rot over swap', 5), ('1 2 3 rot over swap 6 [ [ -2 ] dip ] call -2 [ 2 ] dip swap', 20), ('1 [ 6 < ] [ 1 + ] while', 200), (' *\\t[\\n2 ]: sq [\\t[ 2 g +\\nloop ]loop loop dip\\n; nope\\t: ;\\ng -7\\t1 dup\\t;\\t/ [\\t[ /\\n] ]<[[ 2[ over sq loop ]] / g - ]', 3), (' 1\\t1 rot [ 1 g\\nsq ]\\t+ [\\n007 7\\t2\\t] loop', 300), ('-1 [ 5 < ] [ 1 + ] while [ 1 2 ] call [ 3 ] [ 4 ] 0 if', 20)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      4,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      3,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "error",
+      19,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       3,
+       -2
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'a:b'"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      [
+       -1,
+       -1,
+       -2,
+       -3,
+       -4,
+       -5,
+       -6,
+       3
+      ]
+     ],
+     [
+      "error",
+      16,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      3,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      [
+       [
+        "g",
+        "-1",
+        "5"
+       ],
+       0,
+       -1,
+       7,
+       1,
+       5
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'sq'"
+     ],
+     [
+      "error",
+      5,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      3,
+      "unclosed ["
+     ],
+     [
+      "error",
+      10,
+      "unknown word 'f'"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      4,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      27,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       5,
+       [
+        "-2",
+        "if",
+        "0",
+        "0"
+       ]
+      ]
+     ],
+     [
+      "error",
+      4,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      1,
+      "type error"
+     ],
+     [
+      "error",
+      14,
+      "unknown word 'f'"
+     ],
+     [
+      "ok",
+      [
+       5,
+       4,
+       3
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unmatched ;"
+     ],
+     [
+      "ok",
+      [
+       1,
+       [
+        "%",
+        "g"
+       ],
+       3,
+       -1,
+       [
+        "5"
+       ]
+      ]
+     ],
+     [
+      "error",
+      9,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      6,
+      "unclosed ["
+     ],
+     [
+      "error",
+      6,
+      "type error"
+     ],
+     [
+      "error",
+      7,
+      "negative count"
+     ],
+     [
+      "error",
+      3,
+      "unknown word 'loop'"
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1,
+       -1,
+       3,
+       0
+      ]
+     ],
+     [
+      "ok",
+      [
+       3,
+       -2
+      ]
+     ],
+     [
+      "error",
+      20,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      4,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      10,
+      "type error"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1,
+       -2,
+       6,
+       -2,
+       2
+      ]
+     ],
+     [
+      "error",
+      7,
+      "stack underflow"
+     ],
+     [
+      "error",
+      16,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "error",
+      7,
+      "stack underflow"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_2",
+   "code": "result = [sol.run_pile(s, m) for s, m in [('5 0 / 5 0 % : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if -1 fact : sq dup * ; 1 sq', 2000), (' +\\tg [ dip -- ] :\\tf 1 [\\t-1 < 3 [ f\\nsq\\tg\\t0\\t] ] ;\\t2 -0 [2\\t-0\\n[\\tsq\\ndup sq f ] sq ]\\t;', 0), ('/\\ta:b\\t/\\n:\\tf 1 call\\t;[ [\\n5 ] * x;\\n]', 10), ('f', 300), ('sq [ [[ f\\n]\\n] -1 x; sq\\t] : g <\\n[over] a:b\\ng ; 0 sq 0 g [ / 1 ]\\t: f ;', 300), (': loop 4 < [ ] [ loop ] if ; loop 5 3 [ + ] dip', 5), ('[ 1 2 ] call [ 3 ] 4 ] 4 if', 60), ('[ ] 3 times [ [ ] ] call', 60), (' 20\\n+\\n5 [\\t[ ]\\t+ loop 0\\t] sq -2', 0), ('-2 0 / -2 0 % -1 0 = [ 7 ] [ 8 ] 0 if -1 [ dup 1 - ] -1 times', 2000), ('[ 1 ] [ 2 ] [ 3 ] rot call 1 [ dup 1 - ] 0 times', 20), (': loop -2 0 < [ ] [ loop if ; loop', 5), ('[ 1 ] [ 2 ] [ 3 ] rot call', 20), (' 2\\t[ nope\\t-8\\ndup 3\\n]\\t[\\tloop dip ]', 300), ('6 [ [ 4 ] dip ] call [ dup ] 1 times [ ] 5 times [ [ ] ] call', 60), (': fact dup 1 < [ drop 1 ] [ dup 1 - fact * if ; 1 fact 1 2 3 rot over swap', 200), (' 3[\\n-0 3 ] 1', 300), (' 3', 300), ('3 2 = [ 7 ] [ ] 1 if [ dup ] -1 times', 5), ('3 +\\n< : f 0 ;', 0), ('dup ] 4 times', 5), (' g rot 2 swap', 0), ('4 times', 10), ('[ ] 4 times [ [ ] ] call : f g ] call ; : g -1 ; f : g 1 ; f', 2000), (' +1 1 <\\n2\\tsq', 0), ('[ dup ] 2 times : sq dup * ; 1 sq', 20), ('-1 0 -0\\n/\\ng [\\t<\\tsq times ]\\t--', 300), (': sq dup * ; sq -2 6 / -2 6 %', 60), (' []', 300), (': loop -2 0 < [ ] [ loop ] if ; loop [ dup ] 3 times', 60), ('-1 -2 ] dip swap', 60), (' 2 5', 40), (': 5\\nnope\\t007 ; 007 = if loop\\nsq : f ; drop =', 300), (' + call 1\\n+1', 0), ('[ 1 2 ] call [ 3 ] [ 4 ] -2 if : sq dup * ; -1 sq', 60), (': loop 0 0 < [ ] [ loop ] if ; loop 6 6 / 6 6 %', 2000), ('[ 1 ] [ 2 ] [ 3 ] rot call [ dup ] 4 times 1 -2 [ + ] dip', 2000), ('[ 1 ] [ 2 ] [ 3 ] rot call', 60), ('1\\n/\\n[ -1 0\\t] / [] +[\\t1 ] loop :\\n[\\t-1 [ / a:b sq dup ] [ g ]\\n;', 300), (' : g drop %\\t;', 10), ('-2 % if\\tf', 300), (']\\n: 5 dup ; + 1', 300), (' [ swap sq]\\n0\\ng =[ ] 3 3\\t: g\\n[\\n]\\t--\\n[ sq\\t= ]\\tnope[\\n];', 40), (': f [ g ] call ; : g -1 ; f : g 0 ; f 3 [ dup 1 - ] 6 times', 200), (' 2 -9\\t-0[\\n] 9 [\\tnope]\\n0', 40), (': f [ g ] call ; : g 0 ; f : g -1 ; f', 2000), (': fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; -2 fact', 2000), (': fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 6 fact [ 1 ] [ 2 ] [ 3 ] rot call : sq dup * ; 6 sq', 20), ('6 [ 1 ] dip swap', 20), ('[ 1 2 ] call [ 3 ] [ 4 ] 3 if -1 [ 3 < ] [ 1 + ] while 5 [ dup 1 - ] 3 times', 20)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      25,
+      "misplaced :"
+     ],
+     [
+      "error",
+      34,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'f'"
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'sq'"
+     ],
+     [
+      "error",
+      3,
+      "stack underflow"
+     ],
+     [
+      "error",
+      9,
+      "unmatched ]"
+     ],
+     [
+      "ok",
+      [
+       []
+      ]
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      2,
+      "division by zero"
+     ],
+     [
+      "ok",
+      [
+       [
+        "2"
+       ],
+       [
+        "3"
+       ],
+       1,
+       1
+      ]
+     ],
+     [
+      "error",
+      10,
+      "unmatched ;"
+     ],
+     [
+      "ok",
+      [
+       [
+        "2"
+       ],
+       [
+        "3"
+       ],
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       [
+        "nope",
+        "-8",
+        "dup",
+        "3"
+       ],
+       [
+        "loop",
+        "dip"
+       ]
+      ]
+     ],
+     [
+      "ok",
+      [
+       4,
+       6,
+       6,
+       []
+      ]
+     ],
+     [
+      "error",
+      16,
+      "unmatched ;"
+     ],
+     [
+      "ok",
+      [
+       3,
+       [
+        "-0",
+        "3"
+       ],
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       3
+      ]
+     ],
+     [
+      "error",
+      8,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "stack underflow"
+     ],
+     [
+      "error",
+      12,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1,
+      "stack underflow"
+     ],
+     [
+      "error",
+      3,
+      "division by zero"
+     ],
+     [
+      "error",
+      2,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      [
+       []
+      ]
+     ],
+     [
+      "error",
+      14,
+      "stack underflow"
+     ],
+     [
+      "error",
+      2,
+      "unmatched ]"
+     ],
+     [
+      "ok",
+      [
+       2,
+       5
+      ]
+     ],
+     [
+      "error",
+      1,
+      "bad name"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      12,
+      "type error"
+     ],
+     [
+      "error",
+      5,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       [
+        "2"
+       ],
+       [
+        "3"
+       ],
+       1,
+       1,
+       1,
+       1,
+       2,
+       -2
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        "2"
+       ],
+       [
+        "3"
+       ],
+       1
+      ]
+     ],
+     [
+      "error",
+      15,
+      "bad name"
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "error",
+      1,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      5,
+      "unknown word 'g'"
+     ],
+     [
+      "ok",
+      [
+       -1,
+       0,
+       3,
+       2,
+       1,
+       0,
+       -1,
+       -2,
+       -3
+      ]
+     ],
+     [
+      "ok",
+      [
+       2,
+       -9,
+       0,
+       [],
+       9,
+       [
+        "nope"
+       ],
+       0
+      ]
+     ],
+     [
+      "ok",
+      [
+       0,
+       -1
+      ]
+     ],
+     [
+      "ok",
+      [
+       1
+      ]
+     ],
+     [
+      "error",
+      11,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       6,
+       1
+      ]
+     ],
+     [
+      "error",
+      12,
+      "type error"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_3",
+   "code": "result = [sol.run_pile(s, m) for s, m in [(' loop\\n: g -\\n[ ] % [\\t% [ ]\\n]\\n[ [\\n]\\t[g nope 0 drop ] -1] ; =\\t2\\nswap\\n: f -1 ;\\n<', 0), ('< : sq\\n<\\n-1 sq\\ndup ] while\\t;\\nwhile [5 5 2 -1 ]\\t0 loop\\n: g\\t-- 1\\tloop\\n[3\\n%\\n] ;\\t1\\n1', 3), (' : f -1 sq\\t3\\n007 3 ; 5', 300), ('6 2 / 6 2 % 2 [ [ 3 ] dip ] call 5 3 / 5 3 %', 60), (' ;\\t: g ; :\\tg dip +\\n; [\\n+ / -1 / ] call g', 40), (' / =\\t[f\\trot\\t[ a:b 1\\t] 0', 3), ('0 4 < ] [ 1 + ] while', 60), (' * : 0\\ta:b 1', 0), (' call\\t[ g]\\t-4', 10), ('1 2 3 rot over swap', 200), ('6 [ [ 6 ] dip ] call -1 -1 = 7 ] [ 8 ] 0 if [ dup ] 5 times', 2000), ('-8\\t007 : f g\\t[\\t] [\\n007 g] ;\\n[ [\\n3 -0 g\\t] call]] -6\\n5 ] 3', 3), ('1 2 3 rot over swap : f [ g ] call ; : g -2 ; f : g 4 ; f', 20), ('-2 [ 4 < ] [ 1 + ] while : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 5 fact 6 [ dup 1 - ] 2 times', 60), ('0 3\\n2 5 3\\t[\\t]\\n[ [sq 5\\n[\\tdrop over] ]\\t: f = 3 ;', 300), ('1 2 3 rot over swap [ ] 1 times [ [ ] ] call', 20), ('1 1 [ + dip', 20), (': loop 6 0 < [ ] [ loop ] if ; loop [ ] 4 times [ [ ] ] call ] 3 times [ [ ] ] call', 5), ('4 [ [ 2 ] dip ] call', 20), ('[ dup ] 2 times [ ] 1 times [ [ ] ] call', 20), ('< -0 0 <[call\\t] % -1 : loop -1 call ;', 300), (' 5 :\\nsq [\\t- ] ; : loop over loop[\\tswap ] ;\\n1\\nsq / 5\\n: g 2 ;', 300), ('-1 [ [ ] dip ] call', 2000), ('6 [ 5 ] dip swap [ ] 0 times [ [ ] ] call', 200), ('0 [ [ 1 ] dip ] call 2 [ dup 0 < 0 = ] [ 1 - ] while 0 [ 2 < ] [ 1 + ] while', 20), (' [\\t] [ ]\\n[\\t5 -1\\n2]<\\ta:b call %', 0), (': fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 3 fact : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 4 fact', 20), ('[ 007 [ over 5\\n1 ] 2 -0 ] 3', 300), ('g 5[ 0 2 ]', 10), (': f [ g ] call ; : g 4 ; f : g -1 ; f : f [ g ] call ; : g 0 ; f : g -2 ; f [ 1 [ 2 ] [ 3 ] rot call', 2000), ('5 [ dup 1 ] 3 times -2 4 / -2 4 % [ 1 ] [ 2 ] [ 3 ] rot call', 20), ('[ 1 ] [ 2 ] [ 3 ] rot call 0 [ dup 0 < = ] [ 1 - ] while', 60), ('[ 1 ] [ 2 ] [ 3 ] rot call', 20), ('3', 300), ('3 5 [ + ] dip : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 0 fact', 200), ('-2 [ 5 < ] [ 1 + ] while', 200), (': f\\t;[ sq +\\nover\\tf ]', 0), (': loop 2 0 < [ ] [ loop ] if ;', 5), (' f f\\t< [007\\ttimes [3 2\\n] ]\\n: f\\n5 [\\t];\\tf if\\n3', 40), ('0 [ dup 1 - ] 3 times', 200), ('4 6 [ + ] dip [ ] -2 times [ [ ] ] call', 60), ('sq times 0\\t: loop [dup [0 ] 5 1 ] -\\t; g', 300), ('4 [ 3 < ] [ 1 + ] while : fact dup 1 < [ drop 1 ] [ dup 1 - fact * ] if ; 3 fact', 200), ('[ 1 2 ] call [ 3 ] [ 4 ] 5 if', 200), (' [\\ncall[ ]\\t] 0 -- : loop\\n; : f ; 3\\n2', 3), ('2\\n0 + --\\nwhile times', 10), (' [ [ call 3 * loop ][\\t] dup ] [ rot < [ 2\\n[\\nwhile] 007\\n1\\t]rot]\\t:\\nsq\\nloop\\n;', 3), (': loop 0 0 < [ ] [ loop ] if ; loop', 2000), ('[ 1 times]\\t: sq loop 1\\n*[ ; g /', 300), ('[ 1 2 ] call [ 3 ] [ 4 ] 5 if 3 [ 2 ] dip swap 3 [ dup 0 < 0 = ] [ 1 - ] while', 60)]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      7,
+      "unmatched ]"
+     ],
+     [
+      "ok",
+      [
+       5
+      ]
+     ],
+     [
+      "ok",
+      [
+       3,
+       0,
+       3,
+       2,
+       1,
+       2
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      2,
+      "unclosed ["
+     ],
+     [
+      "error",
+      3,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      2,
+      "bad name"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1
+      ]
+     ],
+     [
+      "error",
+      12,
+      "unmatched ]"
+     ],
+     [
+      "error",
+      20,
+      "unmatched ]"
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1,
+       -2,
+       4
+      ]
+     ],
+     [
+      "error",
+      7,
+      "stack underflow"
+     ],
+     [
+      "error",
+      16,
+      "misplaced :"
+     ],
+     [
+      "ok",
+      [
+       2,
+       3,
+       3,
+       1,
+       []
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unclosed ["
+     ],
+     [
+      "error",
+      22,
+      "unmatched ]"
+     ],
+     [
+      "ok",
+      [
+       2,
+       4
+      ]
+     ],
+     [
+      "error",
+      1,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "stack underflow"
+     ],
+     [
+      "error",
+      17,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       -1
+      ]
+     ],
+     [
+      "ok",
+      [
+       6,
+       5,
+       []
+      ]
+     ],
+     [
+      "error",
+      13,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      11,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       [
+        "007",
+        [
+         "over",
+         "5",
+         "1"
+        ],
+        "2",
+        "-0"
+       ],
+       3
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'g'"
+     ],
+     [
+      "error",
+      34,
+      "unclosed ["
+     ],
+     [
+      "error",
+      23,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      20,
+      "type error"
+     ],
+     [
+      "ok",
+      [
+       [
+        "2"
+       ],
+       [
+        "3"
+       ],
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       3
+      ]
+     ],
+     [
+      "error",
+      3,
+      "stack underflow"
+     ],
+     [
+      "error",
+      7,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      []
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'f'"
+     ],
+     [
+      "ok",
+      [
+       0,
+       -1,
+       -2,
+       -3
+      ]
+     ],
+     [
+      "error",
+      3,
+      "stack underflow"
+     ],
+     [
+      "error",
+      0,
+      "unknown word 'sq'"
+     ],
+     [
+      "ok",
+      [
+       6
+      ]
+     ],
+     [
+      "error",
+      12,
+      "type error"
+     ],
+     [
+      "error",
+      6,
+      "unknown word '--'"
+     ],
+     [
+      "error",
+      3,
+      "unknown word '--'"
+     ],
+     [
+      "ok",
+      [
+       [
+        [
+         "call",
+         "3",
+         "*",
+         "loop"
+        ],
+        [],
+        "dup"
+       ],
+       [
+        "rot",
+        "<",
+        [
+         "2",
+         [
+          "while"
+         ],
+         "007",
+         "1"
+        ],
+        "rot"
+       ]
+      ]
+     ],
+     [
+      "error",
+      5,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      10,
+      "unmatched ;"
+     ],
+     [
+      "error",
+      12,
+      "type error"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_recursion",
+   "code": "src = ': cd dup 0 = [ ] [ 1 - cd ] if ; : tri dup 0 = [ ] [ dup 1 - tri + ] if ; 100000 cd 100000 tri'\nresult = sol.run_pile(src, 3 * 10**6)",
+   "timeout_s": 8,
+   "expected": {
+    "value": [
+     "ok",
+     [
+      0,
+      5000050000
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_step_limit_loop",
+   "code": "src = '0 [ dup 1000000 < ] [ 1 + ] while'\nr1 = sol.run_pile(src, 3 * 10**6)\nr2 = sol.run_pile('0 [ 1 + ] 700000 times', 3 * 10**6)\nresult = (r1, r2)",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     [
+      "error",
+      3,
+      "step limit exceeded"
+     ],
+     [
+      "ok",
+      [
+       700000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_nesting",
+   "code": "d = 50000\na = sol.run_pile('[ ' * d + '1' + ' ] call' * d, 10**6)\nb = sol.run_pile('[' * d + ']' * d + ' drop 7', 10)\ne = sol.run_pile('[' * d + ']' * (d - 1), 10)\nresult = (a, b, e)",
+   "timeout_s": 8,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       1
+      ]
+     ],
+     [
+      "ok",
+      [
+       7
+      ]
+     ],
+     [
+      "error",
+      0,
+      "unclosed ["
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_many_tokens",
+   "code": "src = '1 drop ' * 500000 + ': w 2 ; w'\nr = sol.run_pile(src, 10**6 + 2)\nr2 = sol.run_pile(src, 10**6)\nresult = (r, r2)",
+   "timeout_s": 8,
+   "expected": {
+    "value": [
+     [
+      "error",
+      1000002,
+      "step limit exceeded"
+     ],
+     [
+      "error",
+      1000000,
+      "step limit exceeded"
+     ]
+    ]
+   }
+  }
+ ]
+}

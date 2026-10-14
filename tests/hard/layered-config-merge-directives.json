@@ -1,0 +1,356 @@
+{
+ "title": "Layered config merge with delete/append directives and JSON paths",
+ "entry_point": "merge_layers",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'db': {'host': 'a', 'ports': [1]}, 'debug': False}, {'db': {'ports+': [2, 3], '-user': None, 'host': 7}, 'debug': {'level': 1}}]))",
+   "expected": {
+    "value": "[{\"db\": {\"host\": 7, \"ports\": [1, 2, 3]}, \"debug\": {\"level\": 1}}, [\"layer 1: delete of missing key at $.db.user\", \"layer 1: type change at $.db.host: str -> int\", \"layer 1: type change at $.debug: bool -> dict\"]]"
+   }
+  },
+  {
+   "name": "example_append_to_int",
+   "code": "try:\n    sol.merge_layers([{'a': 1}, {'a+': [2]}])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "layer 1: cannot append to int at $.a"
+    ]
+   }
+  },
+  {
+   "name": "example_empty_name",
+   "code": "try:\n    sol.merge_layers([{'x': {'-': None}}])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "layer 0: empty key name at $.x"
+    ]
+   }
+  },
+  {
+   "name": "empty_inputs",
+   "code": "import json\nresult = [json.dumps(sol.merge_layers([])), json.dumps(sol.merge_layers([{}, {}]))]",
+   "expected": {
+    "value": [
+     "[{}, []]",
+     "[{}, []]"
+    ]
+   }
+  },
+  {
+   "name": "key_order_rules",
+   "code": "import json\nm, w = sol.merge_layers([{'a': 1, 'b': 2, 'c': [3]}, {'-a': None, 'd': 4, 'b': 'x', 'c+': [], 'a': 5}])\nresult = json.dumps([m, w])",
+   "expected": {
+    "value": "[{\"b\": \"x\", \"c\": [3], \"d\": 4, \"a\": 5}, [\"layer 1: type change at $.b: int -> str\"]]"
+   }
+  },
+  {
+   "name": "append_to_missing_and_list",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'l+': [1]}, {'l+': [2, [3]]}, {'l+': []}]))",
+   "expected": {
+    "value": "[{\"l\": [1, 2, [3]]}, []]"
+   }
+  },
+  {
+   "name": "append_existing_types",
+   "code": "out = []\nfor base in [{'a': 'str'}, {'a': None}, {'a': True}, {'a': 1.5}, {'a': {}}]:\n    try:\n        sol.merge_layers([{'z': 0}, {'y': base}, {'y': {'a+': [1]}}])\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "layer 2: cannot append to str at $.y.a"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to null at $.y.a"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to bool at $.y.a"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to float at $.y.a"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to dict at $.y.a"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "directives_in_new_dict",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'svc': 3}, {'svc': {'-old': None, 'tags+': ['x'], 'inner': {'-gone': None}}}]))",
+   "expected": {
+    "value": "[{\"svc\": {\"tags\": [\"x\"], \"inner\": {}}}, [\"layer 1: type change at $.svc: int -> dict\", \"layer 1: delete of missing key at $.svc.old\", \"layer 1: delete of missing key at $.svc.inner.gone\"]]"
+   }
+  },
+  {
+   "name": "bool_vs_int_vs_float",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'a': 1, 'b': True, 'c': 1.0, 'd': None, 'e': [], 'f': ''}, {'a': True, 'b': 0, 'c': 1, 'd': 0.0, 'e': {}, 'f': None}, {'a': False, 'e': {'k': 1}}]))",
+   "expected": {
+    "value": "[{\"a\": false, \"b\": 0, \"c\": 1, \"d\": 0.0, \"e\": {\"k\": 1}, \"f\": null}, [\"layer 1: type change at $.a: int -> bool\", \"layer 1: type change at $.b: bool -> int\", \"layer 1: type change at $.c: float -> int\", \"layer 1: type change at $.d: null -> float\", \"layer 1: type change at $.e: list -> dict\", \"layer 1: type change at $.f: str -> null\"]]"
+   }
+  },
+  {
+   "name": "path_quoting",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'max-conn': {'2x': {'q\"t': {'é': {'_ok9': 1}}}}}, {'max-conn': {'2x': {'q\"t': {'é': {'_ok9': 'x', '-tab\\tkey': None, '-A_b': None}}}}}]), ensure_ascii=False)",
+   "expected": {
+    "value": "[{\"max-conn\": {\"2x\": {\"q\\\"t\": {\"é\": {\"_ok9\": \"x\"}}}}}, [\"layer 1: type change at $[\\\"max-conn\\\"][\\\"2x\\\"][\\\"q\\\\\\\"t\\\"][\\\"é\\\"]._ok9: int -> str\", \"layer 1: delete of missing key at $[\\\"max-conn\\\"][\\\"2x\\\"][\\\"q\\\\\\\"t\\\"][\\\"é\\\"][\\\"tab\\\\tkey\\\"]\", \"layer 1: delete of missing key at $[\\\"max-conn\\\"][\\\"2x\\\"][\\\"q\\\\\\\"t\\\"][\\\"é\\\"].A_b\"]]"
+   }
+  },
+  {
+   "name": "delete_marker_wins",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'x': 1, 'y': [2]}, {'-x+': None, '-+': None, 'y++': [1], '-x': None}]))",
+   "expected": {
+    "value": "[{\"y\": [2], \"y+\": [1]}, [\"layer 1: delete of missing key at $[\\\"x+\\\"]\", \"layer 1: delete of missing key at $[\\\"+\\\"]\"]]"
+   }
+  },
+  {
+   "name": "delete_then_recreate",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'a': 1, 'b': {'c': 1}}, {'-b': None, 'b': {'d': 2}, '-a': None, '-a ': None}]))",
+   "expected": {
+    "value": "[{\"b\": {\"d\": 2}}, [\"layer 1: delete of missing key at $[\\\"a \\\"]\"]]"
+   }
+  },
+  {
+   "name": "error_order_within_key",
+   "code": "out = []\nfor layer in [{'-': 5}, {'+': 'x'}, {'': 1}, {'-q': 0}, {'q+': 'x'}, {'q+': (1,)}, {7: 1, '-': 1}, {'ok': {3: 1}}]:\n    try:\n        sol.merge_layers([{'q': {}}, layer])\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "layer 1: empty key name at $"
+     ],
+     [
+      "ValueError",
+      "layer 1: empty key name at $"
+     ],
+     [
+      "ValueError",
+      "layer 1: empty key name at $"
+     ],
+     [
+      "ValueError",
+      "layer 1: delete directive needs null at $.q"
+     ],
+     [
+      "ValueError",
+      "layer 1: append directive needs a list at $.q"
+     ],
+     [
+      "ValueError",
+      "layer 1: append directive needs a list at $.q"
+     ],
+     [
+      "TypeError",
+      "layer 1: non-string key at $"
+     ],
+     [
+      "TypeError",
+      "layer 1: non-string key at $.ok"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "layer_type_checked_lazily",
+   "code": "out = []\nfor layers in [[{'a+': 1}, 'oops'], [{}, 'oops', {'a+': 1}], [{}, {}, None], {'a': 1}, ({'a': 1},)]:\n    try:\n        sol.merge_layers(layers)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "layer 0: append directive needs a list at $.a"
+     ],
+     [
+      "TypeError",
+      "layer 1 is not a dict"
+     ],
+     [
+      "TypeError",
+      "layer 2 is not a dict"
+     ],
+     [
+      "TypeError",
+      "layers must be a list"
+     ],
+     [
+      "TypeError",
+      "layers must be a list"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "lists_are_opaque",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'l': [{'-x': 1, 'y+': 2}]}, {'l+': [{'-z': None}]}]))",
+   "expected": {
+    "value": "[{\"l\": [{\"-x\": 1, \"y+\": 2}, {\"-z\": null}]}, []]"
+   }
+  },
+  {
+   "name": "no_mutation_no_aliasing",
+   "code": "a = {'d': {'l': [1, {'k': [2]}]}, 'm': [0]}\nb = {'d': {'l+': [3], 'n': {'p': [4]}}, 'm': [9]}\nimport copy\nca, cb = copy.deepcopy(a), copy.deepcopy(b)\nm, w = sol.merge_layers([a, b])\nm['d']['l'][1]['k'].append(99); m['d']['n']['p'].append(99); m['m'].append(99)\nm2, _ = sol.merge_layers([a, b])\nresult = (a == ca, b == cb, m2['d']['l'][1]['k'], m2['d']['n']['p'], m2['m'], w)",
+   "expected": {
+    "value": [
+     true,
+     true,
+     [
+      2
+     ],
+     [
+      4
+     ],
+     [
+      9
+     ],
+     []
+    ]
+   }
+  },
+  {
+   "name": "warnings_across_layers",
+   "code": "import json\nresult = json.dumps(sol.merge_layers([{'-a': None}, {'a': 1, '-a': None}, {'-a': None, 'a': [1]}, {'a': 's'}]))",
+   "expected": {
+    "value": "[{\"a\": \"s\"}, [\"layer 0: delete of missing key at $.a\", \"layer 2: delete of missing key at $.a\", \"layer 3: type change at $.a: list -> str\"]]"
+   }
+  },
+  {
+   "name": "random_valid_1",
+   "code": "import random, json\nr = random.Random(51)\ndef val(d):\n    x = r.random()\n    if d < 3 and x < 0.4:\n        return lay(d + 1)\n    if x < 0.6:\n        return [r.randint(0, 9) for _ in range(r.randint(0, 3))]\n    return r.choice([1, 2.0, True, None, 'v'])\ndef lay(d):\n    o = {}\n    for _ in range(r.randint(1, 5)):\n        n = r.choice(['a', 'b', 'c-d', 'e'])\n        k = r.random()\n        if k < 0.2:\n            o['-' + n] = None\n        elif k < 0.35:\n            o[n + '+'] = [r.randint(0, 9)]\n        else:\n            o[n] = val(d)\n    return o\nouts = []\nfor _ in range(40):\n    try:\n        outs.append(json.dumps(sol.merge_layers([lay(0) for _ in range(r.randint(1, 5))])))\n    except Exception as e:\n        outs.append((type(e).__name__, str(e)))\nresult = outs",
+   "expected": {
+    "value": [
+     "[{\"b\": {\"b\": null, \"a\": \"v\", \"e\": null}, \"e\": {\"e\": []}}, [\"layer 0: type change at $.b: list -> dict\", \"layer 1: type change at $.e: list -> dict\"]]",
+     [
+      "ValueError",
+      "layer 1: cannot append to str at $[\"c-d\"].a"
+     ],
+     [
+      "ValueError",
+      "layer 1: cannot append to dict at $.e.e"
+     ],
+     [
+      "ValueError",
+      "layer 0: cannot append to dict at $.a.b.b"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to dict at $.a"
+     ],
+     "[{\"c-d\": null, \"e\": [7], \"a\": {\"a\": {\"a\": [5], \"c-d\": [4]}}}, [\"layer 1: delete of missing key at $.e.a[\\\"c-d\\\"]\", \"layer 1: delete of missing key at $.e.a.b\", \"layer 1: delete of missing key at $.e.e.a\", \"layer 1: type change at $.a: list -> str\", \"layer 2: type change at $.e: dict -> list\", \"layer 2: type change at $.a: str -> dict\"]]",
+     "[{\"a\": {\"a\": [0, 4], \"b\": [2, 0, 2], \"e\": {\"e\": [3]}}, \"e\": null}, [\"layer 0: delete of missing key at $[\\\"c-d\\\"].a\", \"layer 1: type change at $[\\\"c-d\\\"]: dict -> str\", \"layer 2: type change at $[\\\"c-d\\\"]: str -> int\", \"layer 3: delete of missing key at $.a.e[\\\"c-d\\\"]\", \"layer 3: delete of missing key at $.a.e.a\", \"layer 4: delete of missing key at $[\\\"c-d\\\"]\", \"layer 4: type change at $.e: list -> null\"]]",
+     "[{\"c-d\": {\"a\": 2.0}}, [\"layer 0: delete of missing key at $[\\\"c-d\\\"][\\\"c-d\\\"]\", \"layer 0: delete of missing key at $[\\\"c-d\\\"].e\", \"layer 0: delete of missing key at $.a\"]]",
+     [
+      "ValueError",
+      "layer 1: cannot append to dict at $.b"
+     ],
+     [
+      "ValueError",
+      "layer 1: cannot append to null at $.e"
+     ],
+     "[{\"a\": {\"e\": {\"e\": {\"b\": [2], \"a\": [6], \"c-d\": [4, 4, 6]}}, \"a\": true}, \"b\": [6, 8, 3], \"e\": \"v\"}, [\"layer 0: delete of missing key at $.b.b.b\", \"layer 1: type change at $.b: dict -> list\", \"layer 2: type change at $.a: list -> dict\", \"layer 2: delete of missing key at $.a.e.a\", \"layer 2: delete of missing key at $.a.e[\\\"c-d\\\"]\"]]",
+     "[{\"b\": 2.0}, [\"layer 0: delete of missing key at $.e\"]]",
+     "[{\"b\": 1, \"e\": \"v\", \"c-d\": [2]}, []]",
+     "[{\"e\": {\"a\": []}}, [\"layer 0: delete of missing key at $.e.b\", \"layer 0: delete of missing key at $.e.e\"]]",
+     "[{\"c-d\": {\"a\": {\"b\": [2], \"e\": {}}, \"b\": {\"c-d\": [2], \"b\": {\"e\": 2.0, \"b\": [9]}}}, \"b\": 2.0}, [\"layer 0: delete of missing key at $.b.e\", \"layer 2: delete of missing key at $[\\\"c-d\\\"].a.e[\\\"c-d\\\"]\", \"layer 2: delete of missing key at $[\\\"c-d\\\"].a.e.a\", \"layer 2: delete of missing key at $[\\\"c-d\\\"].b.a\", \"layer 2: type change at $[\\\"c-d\\\"].b.b.e: list -> float\", \"layer 2: delete of missing key at $.b\"]]",
+     "[{\"a\": {\"b\": \"v\", \"e\": [6]}}, []]",
+     "[{\"e\": [4], \"a\": {\"c-d\": {\"e\": []}}, \"c-d\": {\"a\": true, \"b\": 1}}, [\"layer 1: type change at $.b: bool -> dict\", \"layer 1: delete of missing key at $.b.a\", \"layer 2: type change at $.a: float -> dict\"]]",
+     [
+      "ValueError",
+      "layer 1: cannot append to dict at $.a"
+     ],
+     [
+      "ValueError",
+      "layer 1: cannot append to float at $.e"
+     ],
+     "[{\"e\": {\"e\": true}, \"a\": null, \"c-d\": {\"a\": 1}}, [\"layer 0: delete of missing key at $[\\\"c-d\\\"]\", \"layer 0: delete of missing key at $.e.a\", \"layer 0: delete of missing key at $.e.b\", \"layer 1: delete of missing key at $.b\", \"layer 2: type change at $[\\\"c-d\\\"]: list -> dict\", \"layer 2: type change at $.a: list -> null\"]]",
+     "[{\"a\": {\"e\": [2], \"a\": [5, 9, 2, 6]}, \"e\": null, \"b\": {\"a\": {\"e\": {\"e\": 2.0, \"b\": 1}}}}, [\"layer 0: delete of missing key at $.b\", \"layer 1: delete of missing key at $.b.a.a\", \"layer 1: type change at $.b.a.e.e: list -> float\", \"layer 1: delete of missing key at $.b.e\", \"layer 1: type change at $.a: int -> dict\", \"layer 1: delete of missing key at $.a[\\\"c-d\\\"][\\\"c-d\\\"]\"]]",
+     [
+      "ValueError",
+      "layer 0: cannot append to bool at $.b.e"
+     ],
+     "[{\"b\": true, \"c-d\": 1, \"e\": {\"b\": {\"b\": 2.0, \"c-d\": {}, \"a\": {\"c-d\": [0]}}, \"c-d\": [6, 1, 1]}, \"a\": true}, [\"layer 2: type change at $[\\\"c-d\\\"]: list -> float\", \"layer 2: delete of missing key at $.e.b[\\\"c-d\\\"].e\", \"layer 3: type change at $[\\\"c-d\\\"]: float -> int\"]]",
+     "[{\"c-d\": true}, [\"layer 0: delete of missing key at $.a\", \"layer 0: delete of missing key at $.b\"]]",
+     [
+      "ValueError",
+      "layer 1: cannot append to str at $.e"
+     ],
+     [
+      "ValueError",
+      "layer 1: cannot append to dict at $.a.b"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to dict at $.a.b"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to null at $.b"
+     ],
+     "[{\"b\": {\"a\": null, \"b\": [], \"e\": []}, \"c-d\": []}, [\"layer 0: delete of missing key at $.b.e.b\", \"layer 0: delete of missing key at $.b.b.b[\\\"c-d\\\"]\", \"layer 0: delete of missing key at $[\\\"c-d\\\"]\", \"layer 1: type change at $.b: dict -> list\", \"layer 2: type change at $.b: list -> dict\", \"layer 2: type change at $.b.a: list -> null\", \"layer 2: delete of missing key at $.a\"]]",
+     "[{\"b\": [2], \"c-d\": [6, 0, 3]}, [\"layer 1: type change at $.b: float -> list\", \"layer 2: delete of missing key at $.a\"]]",
+     [
+      "ValueError",
+      "layer 2: cannot append to dict at $.a.b"
+     ],
+     [
+      "ValueError",
+      "layer 1: cannot append to null at $.b"
+     ],
+     [
+      "ValueError",
+      "layer 0: cannot append to dict at $.b.b[\"c-d\"]"
+     ],
+     [
+      "ValueError",
+      "layer 0: cannot append to float at $.a"
+     ],
+     [
+      "ValueError",
+      "layer 2: cannot append to float at $.b"
+     ],
+     "[{\"b\": [5, 0], \"e\": null, \"a\": 1, \"c-d\": true}, []]",
+     "[{\"b\": null, \"c-d\": {\"a\": {\"a\": {\"b\": [0, 6], \"c-d\": [7]}, \"e\": \"v\", \"c-d\": [3]}, \"e\": 1, \"c-d\": {\"c-d\": 2.0, \"e\": 1}}, \"a\": 1}, [\"layer 0: delete of missing key at $[\\\"c-d\\\"].a.a[\\\"c-d\\\"]\", \"layer 0: delete of missing key at $[\\\"c-d\\\"].a.b\"]]",
+     "[{\"b\": 1, \"e\": null}, [\"layer 0: delete of missing key at $[\\\"c-d\\\"]\"]]",
+     "[{\"a\": [8, 5], \"b\": {\"e\": [6], \"a\": [3, 2]}, \"c-d\": 2.0}, [\"layer 0: type change at $.b: list -> dict\", \"layer 0: delete of missing key at $.b[\\\"c-d\\\"]\", \"layer 0: delete of missing key at $.b.a\"]]",
+     "[{\"a\": 2.0}, [\"layer 0: type change at $.a: list -> float\"]]"
+    ]
+   }
+  },
+  {
+   "name": "stress_many_layers",
+   "code": "import json, hashlib\nlayers = []\nfor i in range(3000):\n    o = {'k%d' % (i % 200): {'v': i, 'l+': [i]}, 'cnt': i, 'hist+': [i % 7]}\n    if i % 3 == 0:\n        o['-k%d' % ((i + 5) % 200)] = None\n    if i % 11 == 0:\n        o['cnt'] = {'n': i}\n    layers.append(o)\nm, w = sol.merge_layers(layers)\ns = json.dumps([m, w])\nresult = (len(w), w[:3], w[-3:], hashlib.sha256(s.encode()).hexdigest())",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     610,
+     [
+      "layer 0: delete of missing key at $.k5",
+      "layer 1: type change at $.cnt: dict -> int",
+      "layer 3: delete of missing key at $.k8"
+     ],
+     [
+      "layer 2982: type change at $.cnt: dict -> int",
+      "layer 2992: type change at $.cnt: int -> dict",
+      "layer 2993: type change at $.cnt: dict -> int"
+     ],
+     "812afab3f260bdd84cb3aecd9c6b855972aa4c7d3ca660d654b69cee16b0f3c9"
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_wide",
+   "code": "import json, hashlib\ndef tree(d, tag):\n    if d == 0:\n        return {'leaf': tag, 'items+': [tag]}\n    return {'n%d' % j: tree(d - 1, tag) for j in range(4)}\nlayers = [tree(6, t) for t in range(12)]\nm, w = sol.merge_layers(layers)\nresult = (len(w), hashlib.sha256(json.dumps([m, w]).encode()).hexdigest())",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     0,
+     "788963db0a1fa85f0f2fa33f54b673a86feb0eb9965114169d14c28844e73a17"
+    ]
+   }
+  }
+ ]
+}

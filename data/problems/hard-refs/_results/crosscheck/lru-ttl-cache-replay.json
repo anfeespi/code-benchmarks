@@ -1,0 +1,12 @@
+{
+ "slug": "lru-ttl-cache-replay",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 573,
+  "exc": 27
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

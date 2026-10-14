@@ -1,0 +1,1 @@
+{"id": "hard-lock-manager-deadlock-victims", "title": "Lock manager with upgrades, FIFO queues and deadlock victims", "category": "state_machines", "entry_point": "run_lock_manager"}

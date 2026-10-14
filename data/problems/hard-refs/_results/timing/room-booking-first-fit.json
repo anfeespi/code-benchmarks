@@ -1,0 +1,27 @@
+{
+ "slug": "room-booking-first-fit",
+ "cases": [
+  {
+   "case": "stress_skip_small_gaps",
+   "seconds": 0.831,
+   "timeout_s": 20,
+   "margin": 24.1,
+   "ok": true
+  },
+  {
+   "case": "stress_random_churn",
+   "seconds": 1.035,
+   "timeout_s": 20,
+   "margin": 19.3,
+   "ok": true
+  },
+  {
+   "case": "stress_wide_free_and_far_fits",
+   "seconds": 0.783,
+   "timeout_s": 20,
+   "margin": 25.6,
+   "ok": true
+  }
+ ],
+ "min_margin": 19.3
+}

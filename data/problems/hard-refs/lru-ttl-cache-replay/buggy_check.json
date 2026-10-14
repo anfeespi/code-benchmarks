@@ -1,0 +1,49 @@
+{
+ "note": "failed test cases for the buggy prompt code and for single-bug variants (canonical with one bug re-injected)",
+ "failed_cases": {
+  "BUGGY": [
+   "example_1",
+   "example_2",
+   "expiry_exact_boundary",
+   "expiry_boundary_get_only",
+   "overwrite_refreshes_recency",
+   "overwrite_same_tick_recency",
+   "size_ignores_expired",
+   "ttl_shortened_by_overwrite",
+   "random_small_1",
+   "random_small_2",
+   "random_medium",
+   "stress_full_cache_no_ttl",
+   "stress_mixed_ttl"
+  ],
+  "B1_expiry_boundary": [
+   "example_1",
+   "expiry_exact_boundary",
+   "expiry_boundary_get_only",
+   "size_ignores_expired",
+   "ttl_shortened_by_overwrite",
+   "random_small_1",
+   "random_small_2",
+   "random_medium",
+   "stress_mixed_ttl"
+  ],
+  "B2_put_no_refresh": [
+   "example_2",
+   "overwrite_refreshes_recency",
+   "overwrite_same_tick_recency",
+   "random_small_2",
+   "random_medium"
+  ],
+  "B3_size_counts_expired": [
+   "size_ignores_expired",
+   "random_small_1",
+   "random_small_2",
+   "random_medium",
+   "stress_mixed_ttl"
+  ],
+  "B4_quadratic_only": [
+   "stress_full_cache_no_ttl",
+   "stress_mixed_ttl"
+  ]
+ }
+}

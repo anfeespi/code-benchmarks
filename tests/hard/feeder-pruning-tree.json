@@ -1,0 +1,206 @@
+{
+ "title": "Cheapest feeder pruning under line capacities with critical loads",
+ "entry_point": "min_pruning_cost",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 1], [0, 2, 3, 4], [0, 6, 9, 9], [0, 50, 7, 1], [False] * 4, 100, 2)",
+   "expected": {
+    "value": 9
+   }
+  },
+  {
+   "name": "example_2_critical_leaf",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 1], [0, 2, 3, 4], [0, 6, 9, 9], [0, 50, 7, 1], [False, False, False, True], 100, 2)",
+   "expected": {
+    "value": 13
+   }
+  },
+  {
+   "name": "example_3_infeasible",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 1], [0, 2, 3, 4], [0, 6, 9, 9], [0, 50, 7, 1], [False, False, True, True], 100, 2)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "example_4_larger_label_parent",
+   "code": "result = sol.min_pruning_cost([-1, 2, 0], [1, 4, 0], [0, 3, 10], [0, 1, 100], [False] * 3, 5, 10)",
+   "expected": {
+    "value": 41
+   }
+  },
+  {
+   "name": "single_root_ok",
+   "code": "result = sol.min_pruning_cost([-1], [3], [0], [0], [False], 3, 7)",
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "single_root_over",
+   "code": "result = sol.min_pruning_cost([-1], [4], [0], [0], [True], 3, 7)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "root_over_cap_even_if_all_cut",
+   "code": "result = sol.min_pruning_cost([-1, 0, 0], [6, 1, 1], [0, 5, 5], [0, 1, 1], [False] * 3, 5, 1)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "root_cap_forces_cut",
+   "code": "result = sol.min_pruning_cost([-1, 0, 0, 0], [1, 2, 3, 4], [0, 9, 9, 9], [0, 4, 4, 4], [False] * 4, 6, 1)",
+   "expected": {
+    "value": 8
+   }
+  },
+  {
+   "name": "zero_penalty_cheapest_cut",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 2], [0, 1, 1, 5], [0, 7, 6, 4], [0, 3, 2, 9], [False] * 4, 50, 0)",
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "zero_demand_nodes_free",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 2], [0, 0, 0, 0], [0, 0, 0, 0], [0, 5, 5, 5], [False] * 4, 0, 10**6)",
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "deep_cut_vs_shallow_cut",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1, 1, 2, 2, 3], [0, 1, 2, 2, 3, 3, 4], [0, 10, 6, 8, 5, 5, 5], [0, 100, 9, 9, 2, 2, 1], [False, False, False, False, False, False, True], 100, 3)",
+   "expected": {
+    "value": 22
+   }
+  },
+  {
+   "name": "critical_zero_demand_blocks",
+   "code": "result = sol.min_pruning_cost([-1, 0, 1], [0, 5, 0], [0, 4, 9], [0, 1, 1], [False, False, True], 9, 1)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "random_small",
+   "code": "import random\nr = random.Random(31)\nout = []\nfor _ in range(60):\n    n = r.randint(1, 10)\n    perm = list(range(1, n)); r.shuffle(perm); lab = [0] + perm\n    par = [-1] * n\n    for i in range(1, n): par[lab[i]] = lab[r.randrange(i)]\n    out.append(sol.min_pruning_cost(par, [r.randint(0, 5) for _ in range(n)], [r.randint(0, 12) for _ in range(n)], [r.randint(0, 9) for _ in range(n)], [r.random() < 0.15 for _ in range(n)], r.randint(0, 20), r.randint(0, 4)))\nresult = out",
+   "expected": {
+    "value": [
+     null,
+     0,
+     45,
+     0,
+     35,
+     35,
+     null,
+     12,
+     15,
+     27,
+     12,
+     1,
+     12,
+     17,
+     15,
+     0,
+     null,
+     1,
+     null,
+     0,
+     41,
+     17,
+     26,
+     29,
+     null,
+     4,
+     null,
+     37,
+     0,
+     18,
+     0,
+     18,
+     0,
+     null,
+     8,
+     44,
+     0,
+     16,
+     null,
+     16,
+     0,
+     22,
+     19,
+     0,
+     null,
+     0,
+     6,
+     null,
+     null,
+     19,
+     0,
+     46,
+     123,
+     null,
+     16,
+     1,
+     44,
+     9,
+     null,
+     7
+    ]
+   }
+  },
+  {
+   "name": "random_medium",
+   "code": "import random\nr = random.Random(32)\nout = []\nfor _ in range(4):\n    n = 13\n    perm = list(range(1, n)); r.shuffle(perm); lab = [0] + perm\n    par = [-1] * n\n    for i in range(1, n): par[lab[i]] = lab[r.randrange(i)]\n    out.append(sol.min_pruning_cost(par, [r.randint(0, 5) for _ in range(n)], [r.randint(0, 20) for _ in range(n)], [r.randint(0, 50) for _ in range(n)], [r.random() < 0.1 for _ in range(n)], r.randint(5, 30), r.randint(0, 9)))\nresult = out",
+   "expected": {
+    "value": [
+     126,
+     157,
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "stress_random_tree",
+   "code": "import random\nr = random.Random(33)\nn = 250\nperm = list(range(1, n)); r.shuffle(perm); lab = [0] + perm\npar = [-1] * n\nfor i in range(1, n): par[lab[i]] = lab[r.randrange(max(0, i - 6), i)]\ndem = [r.randint(3, 5) for _ in range(n)]\ncap = [r.randint(200, 1250) for _ in range(n)]\ncc = [r.randint(0, 10**6) for _ in range(n)]\ncrit = [r.random() < 0.02 for _ in range(n)]\nresult = [sol.min_pruning_cost(par, dem, cap, cc, crit, rc, p) for rc, p in ((500, 10**5), (900, 1), (1250, 10**6))]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     80114047,
+     13468443,
+     676814047
+    ]
+   }
+  },
+  {
+   "name": "stress_reverse_path",
+   "code": "import random\nr = random.Random(34)\nn = 250\npar = [-1] + [0] * (n - 1)\npath = [0] + list(range(n - 1, 0, -1))\nfor a, b in zip(path, path[1:]): par[b] = a\ndem = [r.randint(0, 5) for _ in range(n)]\ncap = [0] + [max(0, 1250 - 5 * k + r.randint(-40, 0)) for k in range(1, n)]\ncc = [r.randint(0, 1000) for _ in range(n)]\ncrit = [False] * n\nresult = [sol.min_pruning_cost(par, dem, [cap[path.index(v)] if v else 0 for v in range(n)], cc, crit, rc, 50) for rc in (100, 400, 1250)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     27101,
+     12322,
+     623
+    ]
+   }
+  },
+  {
+   "name": "stress_star_of_paths",
+   "code": "import random\nr = random.Random(35)\nn = 250\npar = [-1] * n\nfor v in range(1, n): par[v] = 0 if v % 10 == 1 else v - 1\ndem = [r.randint(2, 5) for _ in range(n)]\ncap = [r.randint(40, 400) for _ in range(n)]\ncc = [r.randint(0, 200) for _ in range(n)]\ncrit = [v % 37 == 0 for v in range(n)]\nresult = [sol.min_pruning_cost(par, dem, cap, cc, crit, rc, 7) for rc in (60, 400, 1250)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     null,
+     3540,
+     0
+    ]
+   }
+  }
+ ]
+}

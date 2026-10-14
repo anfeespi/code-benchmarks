@@ -1,0 +1,27 @@
+{
+ "slug": "drone-battery-kiosk-queue",
+ "cases": [
+  {
+   "case": "stress_huge_gaps",
+   "seconds": 0.081,
+   "timeout_s": 15,
+   "margin": 185.9,
+   "ok": true
+  },
+  {
+   "case": "stress_dense_queue",
+   "seconds": 0.332,
+   "timeout_s": 15,
+   "margin": 45.2,
+   "ok": true
+  },
+  {
+   "case": "stress_sparse_bursts",
+   "seconds": 0.126,
+   "timeout_s": 15,
+   "margin": 119.0,
+   "ok": true
+  }
+ ],
+ "min_margin": 45.2
+}

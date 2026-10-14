@@ -1,0 +1,20 @@
+{
+ "slug": "tokenizer-positions-and-escapes",
+ "cases": [
+  {
+   "case": "stress_long_program",
+   "seconds": 0.199,
+   "timeout_s": 10,
+   "margin": 50.2,
+   "ok": true
+  },
+  {
+   "case": "stress_huge_string",
+   "seconds": 0.07,
+   "timeout_s": 10,
+   "margin": 143.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 50.2
+}

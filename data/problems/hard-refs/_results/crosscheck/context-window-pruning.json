@@ -1,0 +1,12 @@
+{
+ "slug": "context-window-pruning",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 550,
+  "exc": 50
+ },
+ "seconds": 0.11,
+ "mismatches": []
+}

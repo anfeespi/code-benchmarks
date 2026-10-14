@@ -1,0 +1,34 @@
+{
+ "slug": "tally-expression-evaluator",
+ "cases": [
+  {
+   "case": "stress_deep_parens",
+   "seconds": 0.069,
+   "timeout_s": 5,
+   "margin": 72.6,
+   "ok": true
+  },
+  {
+   "case": "stress_long_chain",
+   "seconds": 0.152,
+   "timeout_s": 5,
+   "margin": 33.0,
+   "ok": true
+  },
+  {
+   "case": "stress_power_tower_error",
+   "seconds": 0.156,
+   "timeout_s": 5,
+   "margin": 32.1,
+   "ok": true
+  },
+  {
+   "case": "stress_unary_ternary_nest",
+   "seconds": 0.11,
+   "timeout_s": 5,
+   "margin": 45.6,
+   "ok": true
+  }
+ ],
+ "min_margin": 32.1
+}

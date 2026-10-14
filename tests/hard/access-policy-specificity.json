@@ -1,0 +1,925 @@
+{
+ "title": "Path-pattern access policy with specificity and deny precedence",
+ "entry_point": "evaluate_access",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "rules = ['ALLOW group:eng read,write /repos/**', 'DENY  *         *          /repos/*/secrets/**', 'ALLOW user:ann  read       /repos/core/secrets/**', 'ALLOW group:eng *          /repos/*/secrets/**', 'DENY  group:ops *          /repos/*/secrets/**']\nresult = sol.evaluate_access(rules, [('bob', ['eng'], 'read', '/repos/core/src/main.py'), ('ann', ['eng'], 'read', '/repos/core/secrets/key'), ('bob', ['eng'], 'read', '/repos/core/secrets/key'), ('bob', ['eng', 'ops'], 'read', '/repos/core/secrets/key'), ('bob', [], 'read', '/repos/core/secrets'), ('bob', [], 'read', '/')])",
+   "expected": {
+    "value": [
+     "ALLOW by rule 0",
+     "ALLOW by rule 2",
+     "ALLOW by rule 3",
+     "DENY by rule 4",
+     "DENY by rule 1",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "example_2_bad_action",
+   "code": "try:\n    sol.evaluate_access(['ALLOW * read /a'], [('x', [], 'Read', '/a')])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "request 0: bad action 'Read'"
+    ]
+   }
+  },
+  {
+   "name": "empty_inputs",
+   "code": "result = [sol.evaluate_access([], []), sol.evaluate_access(['ALLOW * * /**'], []), sol.evaluate_access([], [('a', [], 'read', '/')])]",
+   "expected": {
+    "value": [
+     [],
+     [],
+     [
+      "DENY by default"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "root_and_doublestar",
+   "code": "rules = ['ALLOW * * /', 'DENY * * /**', 'ALLOW * read /**/x', 'ALLOW user:u * /**/**/a/**']\nresult = sol.evaluate_access(rules, [('u', [], 'read', p) for p in ['/', '/x', '/a/x', '/a', '/b/a/c', '/a/b/x']])",
+   "expected": {
+    "value": [
+     "DENY by rule 1",
+     "ALLOW by rule 2",
+     "ALLOW by rule 3",
+     "ALLOW by rule 3",
+     "ALLOW by rule 3",
+     "ALLOW by rule 3"
+    ]
+   }
+  },
+  {
+   "name": "star_is_exactly_one",
+   "code": "rules = ['ALLOW * read /a/*', 'DENY * read /a/*/*']\nresult = sol.evaluate_access(rules, [('u', [], 'read', p) for p in ['/a', '/a/b', '/a/b/c', '/a/b/c/d']])",
+   "expected": {
+    "value": [
+     "DENY by default",
+     "ALLOW by rule 0",
+     "DENY by rule 1",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "literal_count_beats_principal",
+   "code": "rules = ['ALLOW user:u * /a/*', 'DENY * * /a/b', 'ALLOW * * /a/b/**']\nresult = sol.evaluate_access(rules, [('u', [], 'read', '/a/b'), ('u', [], 'read', '/a/c'), ('u', [], 'read', '/a/b/c'), ('v', [], 'read', '/a/c')])",
+   "expected": {
+    "value": [
+     "DENY by rule 1",
+     "ALLOW by rule 0",
+     "ALLOW by rule 2",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "tie_deny_wins_lowest_index",
+   "code": "rules = ['ALLOW * read /a/*', 'ALLOW * read /a/**', 'DENY * read /*/b', 'DENY * read /a/**', 'ALLOW * read /a/b']\nresult = sol.evaluate_access(rules, [('u', [], 'read', '/a/b'), ('u', [], 'read', '/a/c'), ('u', [], 'read', '/a'), ('u', [], 'read', '/z/b')])",
+   "expected": {
+    "value": [
+     "ALLOW by rule 4",
+     "DENY by rule 3",
+     "DENY by rule 3",
+     "DENY by rule 2"
+    ]
+   }
+  },
+  {
+   "name": "action_specificity",
+   "code": "rules = ['DENY group:g * /p', 'ALLOW group:g read /p', 'ALLOW * read,write /p', 'DENY user:me write,read /p', 'ALLOW user:me * /p']\nresult = sol.evaluate_access(rules, [('me', ['g'], 'read', '/p'), ('me', ['g'], 'exec', '/p'), ('you', ['g'], 'read', '/p'), ('you', ['g'], 'exec', '/p'), ('you', [], 'write', '/p'), ('you', [], 'exec', '/p')])",
+   "expected": {
+    "value": [
+     "DENY by rule 3",
+     "ALLOW by rule 4",
+     "ALLOW by rule 1",
+     "DENY by rule 0",
+     "ALLOW by rule 2",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "group_membership_and_names",
+   "code": "rules = ['ALLOW group:a_1 * /x', 'DENY group:eng * /x', 'ALLOW user:eng * /x']\nresult = sol.evaluate_access(rules, [('eng', [], 'go', '/x'), ('bob', ['eng'], 'go', '/x'), ('bob', ['a_1'], 'go', '/x'), ('bob', ['a_1', 'eng'], 'go', '/x'), ('bob', ['a'], 'go', '/x')])",
+   "expected": {
+    "value": [
+     "ALLOW by rule 2",
+     "DENY by rule 1",
+     "ALLOW by rule 0",
+     "DENY by rule 1",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "whitespace_splitting",
+   "code": "rules = ['\\tALLOW\\n* \\t read   /a ', 'DENY\\u00a0*\\u2003read\\u3000/a/b']\nresult = sol.evaluate_access(rules, [('u', [], 'read', '/a'), ('u', [], 'read', '/a/b')])",
+   "expected": {
+    "value": [
+     "ALLOW by rule 0",
+     "DENY by rule 1"
+    ]
+   }
+  },
+  {
+   "name": "rule_validation_messages",
+   "code": "out = []\nfor r in ['ALLOW * read', 'ALLOW * read /a x', 'allow * read /a', 'ALLOW user:Ann read /a', 'ALLOW user: read /a', 'ALLOW ** read /a', 'ALLOW group:eng-x read /a', 'ALLOW * read, /a', 'ALLOW * read,* /a', 'ALLOW * ** /a', 'ALLOW * read a', 'ALLOW * read /a/', 'ALLOW * read //a', 'ALLOW * read /a/***', 'ALLOW * read /A', 'ALLOW * read /a b', '', '   ', 7, None, 'BLOCK user:Ann Read //']:\n    try:\n        out.append(sol.evaluate_access([r], []))\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "rule 0: expected 4 fields, got 3"
+     ],
+     [
+      "ValueError",
+      "rule 0: expected 4 fields, got 5"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad effect 'allow'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad principal 'user:Ann'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad principal 'user:'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad principal '**'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad principal 'group:eng-x'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad action 'read,'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad action 'read,*'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad action '**'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad resource 'a'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad resource '/a/'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad resource '//a'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad resource '/a/***'"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad resource '/A'"
+     ],
+     [
+      "ValueError",
+      "rule 0: expected 4 fields, got 5"
+     ],
+     [
+      "ValueError",
+      "rule 0: expected 4 fields, got 0"
+     ],
+     [
+      "ValueError",
+      "rule 0: expected 4 fields, got 0"
+     ],
+     [
+      "TypeError",
+      "rule 0: not a str"
+     ],
+     [
+      "TypeError",
+      "rule 0: not a str"
+     ],
+     [
+      "ValueError",
+      "rule 0: bad effect 'BLOCK'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "request_validation_messages",
+   "code": "out = []\nfor q in [('ann', ['eng'], 'read'), ['ann', [], 'read', '/a'], ('Ann', [], 'read', '/a'), ('', [], 'read', '/a'), (5, [], 'read', '/a'), ('ann', ('eng',), 'read', '/a'), ('ann', ['eng', 'Ops'], 'read', '/a'), ('ann', [3], 'read', '/a'), ('ann', [], '', '/a'), ('ann', [], 'read,write', '/a'), ('ann', [], '*', '/a'), ('ann', [], 'read', 'a'), ('ann', [], 'read', '/a/*'), ('ann', [], 'read', '/a/'), ('ann', [], 'read', ''), ('Bad', 'x', '', '')]:\n    try:\n        out.append(sol.evaluate_access(['ALLOW * * /**'], [('ok', [], 'read', '/'), q]))\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      "request 1: expected 4-tuple"
+     ],
+     [
+      "TypeError",
+      "request 1: expected 4-tuple"
+     ],
+     [
+      "ValueError",
+      "request 1: bad user 'Ann'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad user ''"
+     ],
+     [
+      "ValueError",
+      "request 1: bad user 5"
+     ],
+     [
+      "ValueError",
+      "request 1: bad groups"
+     ],
+     [
+      "ValueError",
+      "request 1: bad groups"
+     ],
+     [
+      "ValueError",
+      "request 1: bad groups"
+     ],
+     [
+      "ValueError",
+      "request 1: bad action ''"
+     ],
+     [
+      "ValueError",
+      "request 1: bad action 'read,write'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad action '*'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad path 'a'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad path '/a/*'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad path '/a/'"
+     ],
+     [
+      "ValueError",
+      "request 1: bad path ''"
+     ],
+     [
+      "ValueError",
+      "request 1: bad user 'Bad'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "rules_validated_before_requests",
+   "code": "out = []\nfor args in [(['ALLOW * read /a', 'nope'], [('Bad', [], 'read', '/a')]), (('ALLOW * read /a',), 5), (['ALLOW * read /a'], ('x',)), (['DENY * * /'], [('ok', [], 'read', '/'), ('ok', [], 'read', '//')])]:\n    try:\n        out.append(sol.evaluate_access(*args))\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "rule 1: expected 4 fields, got 1"
+     ],
+     [
+      "TypeError",
+      "rules must be a list"
+     ],
+     [
+      "TypeError",
+      "requests must be a list"
+     ],
+     [
+      "ValueError",
+      "request 1: bad path '//'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "dots_and_dashes_literal",
+   "code": "rules = ['ALLOW * read /a/../b', 'DENY * read /a/*/b', 'ALLOW * read /v1.2-x/**']\nresult = sol.evaluate_access(rules, [('u', [], 'read', '/a/../b'), ('u', [], 'read', '/a/x/b'), ('u', [], 'read', '/v1.2-x'), ('u', [], 'read', '/b')])",
+   "expected": {
+    "value": [
+     "ALLOW by rule 0",
+     "DENY by rule 1",
+     "ALLOW by rule 2",
+     "DENY by default"
+    ]
+   }
+  },
+  {
+   "name": "random_1",
+   "code": "import random\nr = random.Random(81)\nsegs = ['a', 'b', 'c', '*', '**', '**']\nrules = []\nfor _ in range(40):\n    res = '/' + '/'.join(r.choice(segs) for _ in range(r.randint(0, 4)))\n    rules.append(' '.join([r.choice(['ALLOW', 'DENY']), r.choice(['*', 'user:u1', 'user:u2', 'group:g1', 'group:g2']), r.choice(['*', 'read', 'write', 'read,write']), res]))\nreqs = [(r.choice(['u1', 'u2', 'u3']), r.sample(['g1', 'g2', 'g3'], r.randint(0, 2)), r.choice(['read', 'write', 'exec']), '/' + '/'.join(r.choice('abc') for _ in range(r.randint(0, 5)))) for _ in range(300)]\nresult = sol.evaluate_access(rules, reqs)",
+   "expected": {
+    "value": [
+     "DENY by rule 2",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "DENY by rule 19",
+     "ALLOW by rule 8",
+     "DENY by rule 20",
+     "DENY by rule 34",
+     "ALLOW by rule 35",
+     "ALLOW by rule 35",
+     "DENY by rule 25",
+     "DENY by rule 14",
+     "ALLOW by rule 26",
+     "ALLOW by rule 35",
+     "ALLOW by rule 5",
+     "DENY by rule 19",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 8",
+     "DENY by rule 18",
+     "DENY by default",
+     "DENY by rule 34",
+     "DENY by rule 25",
+     "ALLOW by rule 7",
+     "DENY by default",
+     "DENY by rule 18",
+     "DENY by rule 20",
+     "DENY by default",
+     "DENY by rule 20",
+     "ALLOW by rule 5",
+     "DENY by rule 2",
+     "DENY by default",
+     "ALLOW by rule 26",
+     "ALLOW by rule 35",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "ALLOW by rule 10",
+     "DENY by rule 2",
+     "DENY by rule 22",
+     "ALLOW by rule 17",
+     "DENY by rule 20",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 27",
+     "ALLOW by rule 35",
+     "DENY by rule 13",
+     "ALLOW by rule 4",
+     "DENY by rule 2",
+     "DENY by rule 19",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "ALLOW by rule 5",
+     "DENY by default",
+     "ALLOW by rule 35",
+     "DENY by rule 19",
+     "DENY by rule 0",
+     "DENY by default",
+     "ALLOW by rule 38",
+     "DENY by rule 24",
+     "ALLOW by rule 26",
+     "ALLOW by rule 35",
+     "DENY by rule 12",
+     "DENY by rule 33",
+     "DENY by rule 1",
+     "DENY by rule 11",
+     "DENY by rule 34",
+     "DENY by default",
+     "DENY by rule 20",
+     "ALLOW by rule 38",
+     "DENY by default",
+     "DENY by rule 13",
+     "DENY by rule 13",
+     "ALLOW by rule 9",
+     "DENY by rule 20",
+     "DENY by rule 19",
+     "DENY by rule 19",
+     "DENY by default",
+     "ALLOW by rule 5",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by rule 33",
+     "DENY by rule 20",
+     "DENY by rule 14",
+     "DENY by rule 13",
+     "ALLOW by rule 7",
+     "DENY by rule 34",
+     "DENY by default",
+     "DENY by rule 1",
+     "DENY by default",
+     "DENY by rule 34",
+     "ALLOW by rule 35",
+     "ALLOW by rule 3",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by rule 19",
+     "DENY by rule 33",
+     "DENY by default",
+     "DENY by rule 2",
+     "DENY by rule 6",
+     "ALLOW by rule 35",
+     "ALLOW by rule 35",
+     "DENY by rule 2",
+     "DENY by rule 19",
+     "ALLOW by rule 15",
+     "ALLOW by rule 35",
+     "DENY by rule 33",
+     "DENY by rule 20",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 12",
+     "DENY by rule 19",
+     "DENY by rule 13",
+     "DENY by rule 32",
+     "ALLOW by rule 26",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 33",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "ALLOW by rule 7",
+     "ALLOW by rule 5",
+     "DENY by default",
+     "DENY by rule 2",
+     "ALLOW by rule 17",
+     "DENY by default",
+     "DENY by rule 11",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "ALLOW by rule 10",
+     "DENY by rule 32",
+     "DENY by rule 25",
+     "DENY by rule 19",
+     "DENY by rule 2",
+     "DENY by default",
+     "DENY by rule 33",
+     "DENY by rule 14",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 34",
+     "DENY by default",
+     "DENY by rule 19",
+     "ALLOW by rule 35",
+     "ALLOW by rule 7",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "DENY by rule 20",
+     "DENY by rule 25",
+     "ALLOW by rule 15",
+     "ALLOW by rule 15",
+     "DENY by rule 19",
+     "DENY by rule 14",
+     "ALLOW by rule 28",
+     "ALLOW by rule 7",
+     "DENY by rule 22",
+     "DENY by rule 22",
+     "DENY by default",
+     "ALLOW by rule 35",
+     "DENY by rule 20",
+     "ALLOW by rule 35",
+     "ALLOW by rule 7",
+     "ALLOW by rule 38",
+     "DENY by rule 24",
+     "DENY by rule 18",
+     "DENY by rule 0",
+     "ALLOW by rule 4",
+     "ALLOW by rule 17",
+     "DENY by rule 2",
+     "ALLOW by rule 17",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 17",
+     "ALLOW by rule 17",
+     "DENY by rule 34",
+     "DENY by rule 13",
+     "ALLOW by rule 5",
+     "DENY by rule 13",
+     "DENY by rule 19",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by rule 32",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 35",
+     "ALLOW by rule 17",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "DENY by rule 12",
+     "ALLOW by rule 26",
+     "DENY by rule 19",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 4",
+     "DENY by rule 22",
+     "DENY by default",
+     "DENY by rule 22",
+     "DENY by rule 33",
+     "DENY by rule 19",
+     "DENY by rule 19",
+     "DENY by rule 34",
+     "DENY by rule 20",
+     "ALLOW by rule 36",
+     "DENY by default",
+     "DENY by rule 19",
+     "ALLOW by rule 35",
+     "DENY by rule 32",
+     "DENY by rule 32",
+     "DENY by default",
+     "ALLOW by rule 38",
+     "ALLOW by rule 17",
+     "DENY by rule 0",
+     "ALLOW by rule 5",
+     "ALLOW by rule 5",
+     "DENY by rule 2",
+     "DENY by rule 19",
+     "DENY by rule 0",
+     "DENY by default",
+     "ALLOW by rule 30",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by default",
+     "ALLOW by rule 4",
+     "DENY by rule 14",
+     "DENY by rule 0",
+     "DENY by rule 34",
+     "DENY by rule 19",
+     "DENY by default",
+     "ALLOW by rule 15",
+     "DENY by rule 1",
+     "DENY by rule 33",
+     "DENY by rule 0",
+     "DENY by rule 12",
+     "ALLOW by rule 27",
+     "ALLOW by rule 27",
+     "DENY by rule 25",
+     "DENY by rule 33",
+     "DENY by rule 20",
+     "ALLOW by rule 17",
+     "DENY by default",
+     "ALLOW by rule 35",
+     "DENY by rule 19",
+     "DENY by default",
+     "DENY by rule 14",
+     "DENY by rule 33",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by rule 20",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 5",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 5",
+     "ALLOW by rule 38",
+     "DENY by rule 18",
+     "DENY by rule 19",
+     "DENY by rule 19",
+     "ALLOW by rule 17",
+     "DENY by rule 19",
+     "DENY by default",
+     "DENY by rule 2",
+     "DENY by rule 14",
+     "DENY by default",
+     "ALLOW by rule 7",
+     "DENY by rule 14",
+     "ALLOW by rule 5",
+     "ALLOW by rule 4",
+     "DENY by rule 20",
+     "DENY by rule 20",
+     "DENY by default",
+     "DENY by rule 0",
+     "ALLOW by rule 35",
+     "DENY by default",
+     "DENY by default",
+     "DENY by default",
+     "ALLOW by rule 38",
+     "DENY by rule 16",
+     "DENY by rule 12",
+     "DENY by rule 19",
+     "DENY by rule 13",
+     "DENY by rule 14",
+     "DENY by default",
+     "DENY by rule 14",
+     "ALLOW by rule 35",
+     "DENY by rule 12",
+     "ALLOW by rule 38",
+     "DENY by default",
+     "ALLOW by rule 5",
+     "DENY by default",
+     "DENY by rule 32",
+     "DENY by default",
+     "DENY by rule 19",
+     "DENY by rule 0"
+    ]
+   }
+  },
+  {
+   "name": "random_2",
+   "code": "import random\nr = random.Random(82)\nsegs = ['a', 'b', '*', '**']\nrules = []\nfor _ in range(15):\n    res = '/' + '/'.join(r.choice(segs) for _ in range(r.randint(0, 3)))\n    rules.append(' '.join([r.choice(['ALLOW', 'DENY']), r.choice(['*', 'group:g1']), r.choice(['*', 'read']), res]))\nreqs = [('u', r.sample(['g1', 'g2'], r.randint(0, 2)), 'read', '/' + '/'.join(r.choice('ab') for _ in range(r.randint(0, 4)))) for _ in range(200)]\nresult = sol.evaluate_access(rules, reqs)",
+   "expected": {
+    "value": [
+     "ALLOW by rule 13",
+     "DENY by rule 1",
+     "DENY by rule 0",
+     "DENY by rule 3",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 12",
+     "DENY by rule 1",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 1",
+     "ALLOW by rule 13",
+     "ALLOW by rule 14",
+     "DENY by rule 0",
+     "DENY by rule 12",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "DENY by rule 0",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "DENY by rule 5",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "ALLOW by rule 14",
+     "DENY by rule 3",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "ALLOW by rule 13",
+     "ALLOW by rule 14",
+     "DENY by rule 1",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "DENY by rule 3",
+     "DENY by rule 9",
+     "DENY by rule 3",
+     "ALLOW by rule 7",
+     "ALLOW by rule 13",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 3",
+     "DENY by rule 1",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "ALLOW by rule 14",
+     "ALLOW by rule 13",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 12",
+     "ALLOW by rule 14",
+     "ALLOW by rule 13",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "ALLOW by rule 14",
+     "DENY by rule 5",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "DENY by rule 0",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 0",
+     "DENY by rule 0",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "DENY by rule 12",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "ALLOW by rule 14",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "ALLOW by rule 13",
+     "ALLOW by rule 13",
+     "DENY by rule 5",
+     "ALLOW by rule 13",
+     "DENY by rule 5",
+     "DENY by rule 12",
+     "DENY by rule 3",
+     "DENY by rule 1",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 5",
+     "DENY by rule 5",
+     "ALLOW by rule 7",
+     "ALLOW by rule 13",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "ALLOW by rule 13",
+     "DENY by rule 12",
+     "DENY by rule 12",
+     "DENY by rule 3",
+     "ALLOW by rule 13",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "ALLOW by rule 13",
+     "ALLOW by rule 13",
+     "DENY by rule 3",
+     "DENY by rule 0",
+     "DENY by rule 3",
+     "DENY by rule 3",
+     "DENY by rule 9",
+     "ALLOW by rule 14",
+     "DENY by rule 9",
+     "DENY by rule 3",
+     "DENY by rule 1",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 9",
+     "DENY by rule 0",
+     "DENY by rule 9",
+     "DENY by rule 12",
+     "ALLOW by rule 7",
+     "ALLOW by rule 13"
+    ]
+   }
+  },
+  {
+   "name": "stress_many_rules_requests",
+   "code": "import random, hashlib\nr = random.Random(91)\nsegs = ['s%d' % k for k in range(6)] + ['*', '**']\nrules = []\nfor _ in range(300):\n    res = '/' + '/'.join(r.choice(segs) for _ in range(r.randint(1, 5)))\n    rules.append(' '.join([r.choice(['ALLOW', 'DENY']), r.choice(['*', 'user:u%d' % r.randint(0, 9), 'group:g%d' % r.randint(0, 5)]), r.choice(['*', 'read', 'write,read', 'exec']), res]))\nreqs = [('u%d' % r.randint(0, 9), ['g%d' % r.randint(0, 5) for _ in range(r.randint(0, 3))], r.choice(['read', 'write', 'exec', 'list']), '/' + '/'.join('s%d' % r.randint(0, 5) for _ in range(r.randint(0, 7)))) for _ in range(2000)]\nout = sol.evaluate_access(rules, reqs)\nresult = (out[:20], hashlib.sha256('|'.join(out).encode()).hexdigest())",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     [
+      "DENY by rule 249",
+      "DENY by rule 154",
+      "DENY by rule 169",
+      "ALLOW by rule 280",
+      "DENY by rule 98",
+      "DENY by rule 88",
+      "DENY by default",
+      "DENY by rule 236",
+      "DENY by rule 6",
+      "DENY by rule 154",
+      "ALLOW by rule 276",
+      "ALLOW by rule 59",
+      "DENY by rule 154",
+      "DENY by default",
+      "DENY by rule 98",
+      "DENY by rule 122",
+      "ALLOW by rule 254",
+      "DENY by rule 237",
+      "ALLOW by rule 280",
+      "DENY by rule 88"
+     ],
+     "96a0d2f3126bd3980e46939324c233d9114b0d6fc106fef9fe95c0ea80eadc57"
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_paths",
+   "code": "rules = ['ALLOW * * /**', 'DENY * * /**/x/**/x/**/x/**/x/**/x/**/q', 'ALLOW user:u read /**/x/**/x/**/x/**/x/**/x/**/x/**/q/**/z', 'DENY group:g * /**/**/**/**/**/**/**/**/**/**/w']\nreqs = []\nfor i in range(120):\n    p = ['x'] * 48\n    if i % 3 == 0:\n        p[i % 48] = 'q'\n    p.append('qzyw'[i % 4])\n    reqs.append(('u', ['g'] if i % 2 else [], 'read', '/' + '/'.join(p)))\nout = sol.evaluate_access(rules, reqs)\nresult = (sorted(set(out)), [out.count(d) for d in sorted(set(out))], out[:24])",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     [
+      "ALLOW by rule 0",
+      "ALLOW by rule 2",
+      "DENY by rule 1",
+      "DENY by rule 3"
+     ],
+     [
+      50,
+      10,
+      30,
+      30
+     ],
+     [
+      "DENY by rule 1",
+      "ALLOW by rule 0",
+      "ALLOW by rule 0",
+      "DENY by rule 3",
+      "DENY by rule 1",
+      "ALLOW by rule 0",
+      "ALLOW by rule 0",
+      "DENY by rule 3",
+      "DENY by rule 1",
+      "ALLOW by rule 2",
+      "ALLOW by rule 0",
+      "DENY by rule 3",
+      "DENY by rule 1",
+      "ALLOW by rule 0",
+      "ALLOW by rule 0",
+      "DENY by rule 3",
+      "DENY by rule 1",
+      "ALLOW by rule 0",
+      "ALLOW by rule 0",
+      "DENY by rule 3",
+      "DENY by rule 1",
+      "ALLOW by rule 2",
+      "ALLOW by rule 0",
+      "DENY by rule 3"
+     ]
+    ]
+   }
+  }
+ ]
+}

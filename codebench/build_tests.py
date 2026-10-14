@@ -6,20 +6,26 @@ Usage:
   python -m codebench.build_tests expect <slug> [...]        # fill expected values in tests/<slug>.json
   python -m codebench.build_tests expect --all
   python -m codebench.build_tests list                       # slugs, categories, n_tests, has-tests
+Any command accepts --suite <name> (default v4; hard-v1 = the hard tier).
 """
 import json
 import sys
 
-from .harness import TESTS_DIR, load_problems, load_tests, build_expected, score_candidate
+from . import harness
+from .harness import load_problems, load_tests, build_expected, score_candidate
 
 
 def main(argv):
+    if "--suite" in argv:
+        i = argv.index("--suite")
+        harness.use_suite(argv[i + 1])
+        argv = argv[:i] + argv[i + 2:]
     probs = load_problems()
     cmd = argv[0] if argv else "list"
     if cmd == "list":
         for p in probs:
             t = load_tests(p["slug"])
-            print("%-16s %-60s n_tests=%-2s tests=%s" % (p["category"], p["slug"], p["n_tests"], len(t["cases"]) if t else "-"))
+            print("%-16s %-60s n_tests=%-2s tests=%s" % (p["category"], p["slug"], p.get("n_tests"), len(t["cases"]) if t else "-"))
         return
     if cmd == "show":
         key = argv[1]
@@ -46,7 +52,7 @@ def main(argv):
                 print("no tests:", p["slug"])
                 continue
             build_expected(p, t)
-            (TESTS_DIR / (p["slug"] + ".json")).write_text(json.dumps(t, indent=1, ensure_ascii=False))
+            (harness.TESTS_DIR / (p["slug"] + ".json")).write_text(json.dumps(t, indent=1, ensure_ascii=False))
             # sanity: canonical must pass its own tests
             s = score_candidate(p, p["canonical_solution"], t)
             print("%-55s cases=%-2d canonical pass=%s" % (p["slug"], len(t["cases"]), s["pass"]))

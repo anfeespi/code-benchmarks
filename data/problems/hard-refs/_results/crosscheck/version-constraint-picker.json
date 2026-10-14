@@ -1,0 +1,12 @@
+{
+ "slug": "version-constraint-picker",
+ "n": 1500,
+ "agree": 1500,
+ "status": "ok",
+ "outcomes": {
+  "ok": 1075,
+  "exc": 425
+ },
+ "seconds": 0.04,
+ "mismatches": []
+}

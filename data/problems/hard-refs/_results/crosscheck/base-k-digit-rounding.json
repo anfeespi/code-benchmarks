@@ -1,0 +1,12 @@
+{
+ "slug": "base-k-digit-rounding",
+ "n": 1000,
+ "agree": 1000,
+ "status": "ok",
+ "outcomes": {
+  "ok": 924,
+  "exc": 76
+ },
+ "seconds": 0.01,
+ "mismatches": []
+}

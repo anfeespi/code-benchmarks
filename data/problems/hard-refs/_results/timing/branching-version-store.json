@@ -1,0 +1,27 @@
+{
+ "slug": "branching-version-store",
+ "cases": [
+  {
+   "case": "stress_long_chain",
+   "seconds": 0.741,
+   "timeout_s": 10,
+   "margin": 13.5,
+   "ok": true
+  },
+  {
+   "case": "stress_branching",
+   "seconds": 0.755,
+   "timeout_s": 10,
+   "margin": 13.2,
+   "ok": true
+  },
+  {
+   "case": "stress_dense_deletes",
+   "seconds": 0.803,
+   "timeout_s": 10,
+   "margin": 12.4,
+   "ok": true
+  }
+ ],
+ "min_margin": 12.4
+}

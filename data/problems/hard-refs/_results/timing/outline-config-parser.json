@@ -1,0 +1,27 @@
+{
+ "slug": "outline-config-parser",
+ "cases": [
+  {
+   "case": "stress_deep_nesting",
+   "seconds": 0.278,
+   "timeout_s": 6,
+   "margin": 21.6,
+   "ok": true
+  },
+  {
+   "case": "stress_wide_flat",
+   "seconds": 0.136,
+   "timeout_s": 6,
+   "margin": 44.1,
+   "ok": true
+  },
+  {
+   "case": "stress_late_error",
+   "seconds": 0.175,
+   "timeout_s": 6,
+   "margin": 34.3,
+   "ok": true
+  }
+ ],
+ "min_margin": 21.6
+}

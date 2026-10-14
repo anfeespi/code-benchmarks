@@ -1,0 +1,12 @@
+{
+ "slug": "token-bucket-strikes-bans",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 576,
+  "exc": 24
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

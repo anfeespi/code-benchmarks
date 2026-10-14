@@ -1,0 +1,902 @@
+[
+ {
+  "title": "Fastest courier route with battery swaps and regenerative roads",
+  "category": "algorithms",
+  "entry_point": "fastest_delivery",
+  "code": "import heapq\n\ndef fastest_delivery(n, roads, stations, capacity, swap_time, max_swaps, s, t):\n    if s == t:\n        return (0, 0)\n    \n    # Pre-build graph\n    adj = [[] for _ in range(n)]\n    for u, v, m, e in roads:\n        adj[u].append((v, m, e))\n        \n    is_station = [False] * n\n    for st in stations:\n        if 0 <= st < n:\n            is_station[st] = True\n            \n    cap_plus_1 = capacity + 1\n    stride_c = max_swaps + 1\n    stride_u = cap_plus_1 * stride_c\n    total_states = n * stride_u\n\n    INF = 10**18\n    dist = [INF] * total_states\n\n    # Start at s with full capacity and 0 swaps used\n    start_state = (s * cap_plus_1 + capacity) * stride_c + 0\n    dist[start_state] = 0\n    \n    # Priority queue stores (cost, state_id)\n    # cost is encoded as (minutes << 8) | swaps\n    pq = [(0, start_state)]\n    \n    while pq:\n        cost, state_id = heapq.heappop(pq)\n        \n        if cost > dist[state_id]:\n            continue\n            \n        rem, k = divmod(state_id, stride_c)\n        u, c = divmod(rem, cap_plus_1)\n        \n        if u == t:\n            return (cost >> 8, cost & 255)\n            \n        # 1. Drive along an outgoing road\n        for v, m, e in adj[u]:\n            if e > 0 and c < e:\n                continue\n            new_c = min(capacity, c - e)\n            next_state = (v * cap_plus_1 + new_c) * stride_c + k\n            new_cost = cost + (m << 8)\n            if new_cost < dist[next_state]:\n                dist[next_state] = new_cost\n                heapq.heappush(pq, (new_cost, next_state))\n                \n        # 2. Swap battery at current station\n        if is_station[u] and k < max_swaps and c < capacity:\n            next_state = (u * cap_plus_1 + capacity) * stride_c + (k + 1)\n            new_cost = cost + (swap_time << 8) + 1\n            if new_cost < dist[next_state]:\n                dist[next_state] = new_cost\n                heapq.heappush(pq, (new_cost, next_state))\n                \n    return None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Fastest courier route with battery swaps and regenerative roads",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 64.56,
+   "tokens_in": 1084,
+   "tokens_out": 8442,
+   "cost_usd": 0.032145795,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Context window pruning with gap limit, pins and adjacency bonus",
+  "category": "algorithms",
+  "entry_point": "best_context",
+  "code": "def best_context(messages, budget, max_gap, bonus):\n    if budget < 0 or max_gap < 0:\n        raise ValueError(\"budget and max_gap must be non-negative.\")\n\n    n = len(messages)\n    pinned_indices = [i for i, m in enumerate(messages) if m[2]]\n\n    ans = None\n\n    # Case: Empty set S = {}\n    if not pinned_indices and n <= max_gap:\n        ans = 0\n\n    if n == 0:\n        return ans\n\n    # Precompute the last pinned index strictly before i\n    last_pinned_before = [-1] * n\n    last_p = -1\n    for i in range(n):\n        last_pinned_before[i] = last_p\n        if messages[i][2]:\n            last_p = i\n\n    # Precompute the first pinned index strictly after i\n    first_pinned_after = [n] * n\n    first_p = n\n    for i in range(n - 1, -1, -1):\n        first_pinned_after[i] = first_p\n        if messages[i][2]:\n            first_p = i\n\n    INF = float(\"inf\")\n    # dp[i][b]: max score with message i kept and total length b\n    dp = [[-INF] * (budget + 1) for _ in range(n)]\n\n    for i in range(n):\n        length_i, val_i, _ = messages[i]\n        if length_i > budget:\n            continue\n\n        dp_i = dp[i]\n\n        # Option A: message i is the very first kept message\n        if i <= max_gap and last_pinned_before[i] == -1:\n            dp_i[length_i] = val_i\n\n        # Option B: message i is preceded by message j = i - 1 (adjacent -> earns bonus)\n        if i > 0 and (last_pinned_before[i] <= i - 1):\n            dp_prev = dp[i - 1]\n            gain = val_i + bonus\n            for b in range(length_i, budget + 1):\n                prev_score = dp_prev[b - length_i]\n                if prev_score != -INF:\n                    score = prev_score + gain\n                    if score > dp_i[b]:\n                        dp_i[b] = score\n\n        # Option C: message i is preceded by j < i - 1 (non-adjacent -> no bonus)\n        # j must satisfy: i - 1 - max_gap <= j <= i - 2 and j >= last_pinned_before[i]\n        min_j = max(0, i - 1 - max_gap, last_pinned_before[i])\n        max_j = i - 2\n        if min_j <= max_j:\n            # Find the max score among all valid j for each previous budget\n            best_prev = [-INF] * (budget + 1)\n            for j in range(min_j, max_j + 1):\n                dp_j = dp[j]\n                for b in range(budget + 1):\n                    if dp_j[b] > best_prev[b]:\n                        best_prev[b] = dp_j[b]\n\n            for b in range(length_i, budget + 1):\n                prev_score = best_prev[b - length_i]\n                if prev_score != -INF:\n                    score = prev_score + val_i\n                    if score > dp_i[b]:\n                        dp_i[b] = score\n\n        # If message i can be the last kept message, consider its scores for the answer\n        if (n - 1 - i) <= max_gap and first_pinned_after[i] == n:\n            max_for_i = max(dp_i)\n            if max_for_i != -INF:\n                if ans is None or max_for_i > ans:\n                    ans = max_for_i\n\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Context window pruning with gap limit, pins and adjacency bonus",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 29.42,
+   "tokens_in": 701,
+   "tokens_out": 3790,
+   "cost_usd": 0.0145908675,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Cheapest feeder pruning under line capacities with critical loads",
+  "category": "algorithms",
+  "entry_point": "min_pruning_cost",
+  "code": "def min_pruning_cost(parent, demand, cap, cut_cost, critical, root_cap, penalty):\n    n = len(parent)\n    \n    # Build tree representation\n    children = [[] for _ in range(n)]\n    for v in range(1, n):\n        children[parent[v]].append(v)\n        \n    # Iterative post-order traversal (children appear before parents)\n    order = []\n    stack = [0]\n    visited = [False] * n\n    while stack:\n        u = stack[-1]\n        if not visited[u]:\n            visited[u] = True\n            for c in children[u]:\n                stack.append(c)\n        else:\n            stack.pop()\n            order.append(u)\n            \n    # Compute total demand and critical status for each subtree\n    tot_demand = list(demand)\n    has_critical = list(critical)\n    for u in order:\n        for c in children[u]:\n            tot_demand[u] += tot_demand[c]\n            if has_critical[c]:\n                has_critical[u] = True\n\n    INF = float('inf')\n    dp = [[] for _ in range(n)]\n\n    for u in order:\n        cap_limit = min(root_cap if u == 0 else cap[u], tot_demand[u])\n        \n        # If node u's own demand exceeds its capacity, it cannot be retained\n        if demand[u] > cap_limit:\n            dp[u] = []\n            continue\n            \n        # cur_dp stores pairs of (load, min_cost) for node u\n        cur_dp = [(demand[u], 0)]\n        cur_max_load = demand[u]\n        \n        for c in children[u]:\n            # Collect options from child c\n            child_opts = {}\n            # Option 1: Cut line c (only allowed if c's subtree has no critical nodes)\n            if not has_critical[c]:\n                child_opts[0] = cut_cost[c] + penalty * tot_demand[c]\n                \n            # Option 2: Keep line c\n            for l, cost in dp[c]:\n                if l not in child_opts or cost < child_opts[l]:\n                    child_opts[l] = cost\n                    \n            if not child_opts:\n                cur_dp = []\n                break\n                \n            child_items = list(child_opts.items())\n            child_max_load = max(l for l, _ in child_items)\n            \n            # Merge child options into cur_dp\n            new_max_l = min(cap_limit, cur_max_load + child_max_load)\n            new_dp_arr = [INF] * (new_max_l + 1)\n            \n            for l1, c1 in cur_dp:\n                for l2, c2 in child_items:\n                    l = l1 + l2\n                    if l <= new_max_l:\n                        cost = c1 + c2\n                        if cost < new_dp_arr[l]:\n                            new_dp_arr[l] = cost\n                            \n            cur_dp = [(l, cost) for l, cost in enumerate(new_dp_arr) if cost != INF]\n            if not cur_dp:\n                break\n            cur_max_load = cur_dp[-1][0]\n            \n        dp[u] = cur_dp\n\n    if not dp[0]:\n        return None\n    return min(cost for _, cost in dp[0])",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest feeder pruning under line capacities with critical loads",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 84.63,
+   "tokens_in": 1064,
+   "tokens_out": 10670,
+   "cost_usd": 0.040402395,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Earliest timetable arrival with change times and a boarding limit",
+  "category": "algorithms",
+  "entry_point": "earliest_arrival",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Earliest timetable arrival with change times and a boarding limit",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 218.34,
+   "tokens_in": 1013,
+   "tokens_out": 16300,
+   "cost_usd": 0.0612659025,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+  "category": "state_machines",
+  "entry_point": "run_kiosk",
+  "code": "An efficient and clear simulation using an event-driven approach.\n\n### Method Explanation\n\nStepping time unit-by-unit is too slow for times up to $10^{12}$. Instead, we advance time jumping directly between critical event times:\n1. **Next arrival time** from `arrivals`.\n2. **Next expiration time** of the drone at the front of the queue (`arrival_time + patience`). Because `patience` is identical for all drones and arrivals are FIFO, the front of the queue always holds the earliest expiration.\n3. **Next slot ready time**: when any slot currently below `threshold` will reach `threshold` (`t_ready = t_placed + threshold - charge_placed`). Since there are at most 20 slots, checking this takes $O(S)$ time.\n\nWhen the queue is empty, batteries simply charge silently until the next arrival, so we can jump straight to the next arrival time. When the queue is non-empty, all slots are guaranteed to be below threshold, so each slot's ready time is strictly in the future. We simply advance to $t = \\min(t_{\\text{arr}}, t_{\\text{exp}}, t_{\\text{slot}})$ and execute steps 1, 2, and 3 in the exact order required.\n\nSince each event advances time and either processes an arrival, expires a drone, or swaps a battery, the total number of events across the simulation is at most $O(N + S)$, running in under a second for $N = 100{,}000$ and $S = 20$.\n\n### Python 3 Implementation\n\n```python\nfrom collections import deque\n\ndef run_kiosk(levels, threshold, patience, arrivals):\n    # Validate non-decreasing arrival times\n    for i in range(1, len(arrivals)):\n        if arrivals[i][0] < arrivals[i - 1][0]:\n            raise ValueError(\"Arrival times must be non-decreasing.\")\n\n    if not arrivals:\n        return []\n\n    num_slots = len(levels)\n    # slots[k] = (charge_at_deposit, time_of_deposit)\n    slots = [(levels[k], 0) for k in range(num_slots)]\n\n    def get_best_slot(t):\n        best_slot = -1\n        best_charge = -1\n        for k in range(num_slots):\n            c_k, t_k = slots[k]\n            charge = min(100, c_k + (t - t_k))\n            if charge >= threshold:\n                if charge > best_charge:\n                    best_charge = charge\n                    best_slot = k\n        return best_slot if best_slot != -1 else None\n\n    records = []\n    queue = deque()  # stores tuples: (drone, arrival_time, arrival_charge)\n    arr_idx = 0\n    num_arrivals = len(arrivals)\n\n    # Start at the time of the first",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 123.45,
+   "tokens_in": 1093,
+   "tokens_out": 16380,
+   "cost_usd": 0.0616223025,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 10) (sol.py, line 10)"
+  ]
+ },
+ {
+  "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+  "category": "state_machines",
+  "entry_point": "run_lock_manager",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 143.69,
+   "tokens_in": 1535,
+   "tokens_out": 16326,
+   "cost_usd": 0.0617500125,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+  "category": "state_machines",
+  "entry_point": "admit_requests",
+  "code": "from collections import deque\n\n\nclass _ClientState:\n    __slots__ = (\"tokens\", \"last_t\", \"ban_until\", \"strikes\")\n\n    def __init__(self, tokens: int, last_t: int):\n        self.tokens = tokens\n        self.last_t = last_t\n        self.ban_until = 0\n        self.strikes = deque()\n\n\ndef admit_requests(requests, config):\n    # Validate non-decreasing timestamp order first\n    prev_t = -1\n    for req in requests:\n        if req[0] < prev_t:\n            raise ValueError(\"Request timestamps must be non-decreasing\")\n        prev_t = req[0]\n\n    cap = config[\"cap\"]\n    period = config[\"period\"]\n    gcap = config[\"gcap\"]\n    gperiod = config[\"gperiod\"]\n    reserve = config[\"reserve\"]\n    strikes_needed = config[\"strikes\"]\n    window = config[\"window\"]\n    ban = config[\"ban\"]\n\n    g_tokens = gcap\n    g_last_t = 0\n\n    clients = {}\n    result = []\n\n    for t, client, cost, vip in requests:\n        # Refill global bucket up to time t\n        g_refills = t // gperiod - g_last_t // gperiod\n        if g_refills:\n            g_tokens = min(gcap, g_tokens + g_refills)\n        g_last_t = t\n\n        # Client bucket lookup and refill up to time t\n        if client not in clients:\n            state = _ClientState(cap, t)\n            clients[client] = state\n        else:\n            state = clients[client]\n            c_refills = t // period - state.last_t // period\n            if c_refills:\n                state.tokens = min(cap, state.tokens + c_refills)\n            state.last_t = t\n\n        # Rule 1: Check if banned\n        if t < state.ban_until:\n            result.append(\"BANNED\")\n            continue\n\n        # Rule 2: Check client tokens\n        if state.tokens < cost:\n            c_strikes = state.strikes\n            min_strike_t = t - window\n            while c_strikes and c_strikes[0] <= min_strike_t:\n                c_strikes.popleft()\n            c_strikes.append(t)\n\n            if len(c_strikes) >= strikes_needed:\n                state.ban_until = t + ban\n                c_strikes.clear()\n                result.append(\"BAN\")\n            else:\n                result.append(\"DENY\")\n            continue\n\n        # Rule 3: Check global bucket\n        if vip:\n            global_ok = g_tokens >= cost\n        else:\n            global_ok = g_tokens - cost >= reserve\n\n        if not global_ok:\n            result.append(\"BUSY\")\n            continue\n\n        # Rule 4: Admit request\n        state.tokens -= cost\n        g_tokens -= cost\n        result.append(\"OK\")\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 101.27,
+   "tokens_in": 1331,
+   "tokens_out": 13982,
+   "cost_usd": 0.0528964425,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Vending machine with escrow, greedy change and inactivity return",
+  "category": "state_machines",
+  "entry_point": "simulate_vending",
+  "code": "def simulate_vending(prices, stock, bank, events, timeout):\n    # Validate timestamp ordering before processing or mutating anything\n    prev_t = -1\n    for ev in events:\n        t = ev[0]\n        if t < prev_t:\n            raise ValueError(\"Event timestamps must be non-decreasing.\")\n        prev_t = t\n\n    # Initialize working state (do not mutate inputs)\n    stock_state = dict(stock)\n    bank_counts = {\n        5: bank.get(5, 0),\n        10: bank.get(10, 0),\n        25: bank.get(25, 0),\n        100: bank.get(100, 0),\n    }\n    escrow = []\n    log = []\n    last_activity = None\n\n    def check_timeout(current_t):\n        nonlocal last_activity\n        if escrow and last_activity is not None and current_t >= last_activity + timeout:\n            coins = tuple(sorted(escrow, reverse=True))\n            log.append((\"TIMEOUT\", last_activity + timeout, coins))\n            escrow.clear()\n\n    for t, kind, arg in events:\n        # Check if an automatic return must fire before this event\n        check_timeout(t)\n\n        if kind == \"coin\":\n            val = arg\n            if val not in (5, 10, 25, 100) or len(escrow) >= 10:\n                log.append((\"REJECT\", t, val))\n            else:\n                escrow.append(val)\n                last_activity = t\n\n        elif kind == \"select\":\n            slot = arg\n            last_activity = t\n            if slot not in prices:\n                log.append((\"UNKNOWN\", t, slot))\n            elif stock_state[slot] == 0:\n                log.append((\"SOLD_OUT\", t, slot))\n            else:\n                escrow_total = sum(escrow)\n                price = prices[slot]\n                if escrow_total < price:\n                    log.append((\"NEED\", t, price - escrow_total))\n                else:\n                    # Move all escrow coins into the bank\n                    for coin in escrow:\n                        bank_counts[coin] += 1\n\n                    remaining = escrow_total - price\n                    change_coins = []\n                    for denom in (100, 25, 10, 5):\n                        k = min(bank_counts[denom], remaining // denom)\n                        bank_counts[denom] -= k\n                        remaining -= k * denom\n                        change_coins.extend([denom] * k)\n\n                    if remaining == 0:\n                        stock_state[slot] -= 1\n                        escrow.clear()\n                        log.append((\"VEND\", t, slot, tuple(change_coins)))\n                    else:\n                        # Rollback change taken and escrow coins moved into bank\n                        for coin in change_coins:\n                            bank_counts[coin] += 1\n                        for coin in escrow:\n                            bank_counts[coin] -= 1\n                        log.append((\"EXACT_ONLY\", t, slot))\n\n        elif kind == \"cancel\":\n            last_activity = t\n            if escrow:\n                coins = tuple(sorted(escrow, reverse=True))\n                log.append((\"RETURN\", t, coins))\n                escrow.clear()\n\n    # Handle any pending automatic return after all events have finished\n    if escrow and last_activity is not None:\n        coins = tuple(sorted(escrow, reverse=True))\n        log.append((\"TIMEOUT\", last_activity + timeout, coins))\n        escrow.clear()\n\n    final_bank = (\n        bank_counts[5],\n        bank_counts[10],\n        bank_counts[25],\n        bank_counts[100],\n    )\n    return log, final_bank",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Vending machine with escrow, greedy change and inactivity return",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 41.62,
+   "tokens_in": 1581,
+   "tokens_out": 6605,
+   "cost_usd": 0.025694955,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Path-pattern access policy with specificity and deny precedence",
+  "category": "spec_compliance",
+  "entry_point": "evaluate_access",
+  "code": "None\n    return True, segs\n```\nWait! What if resource is `\"//\"`?\nStarts with `/`, ends with `/`, caught by `res.endswith(\"/\")`.\nWhat if resource is `\"/a//b\"`?\n`segs` contains `\"\"`. `s != \"*\" and s != \"**\"` and `SEGMENT_RE.fullmatch(\"\")` is None -> returns False!\nWhat if resource is `\"\"`?\n`not res.startswith(\"/\")` -> False!\nWhat if resource is `\"/a\"`?\n`segs` = `['a']`. Returns True, `['a']`.\nWhat if resource is `\"/.\"` or `\"/..\"`?\n`SEGMENT_RE` has `.`, so `.` and `..` match `[a-z0-9._-]+`.\nPrompt says: \"one or more characters from [a-z0-9._-]\". So `.` or `..` or `a.b` or `a-b` or `a_b` are all valid!\nWhat if resource is `\"/a/*/**/b.txt\"`?\nsegs: `['a', '*', '**', 'b.txt']`. All valid!\nIf not valid:\n`raise ValueError(f\"rule {i}: bad resource {resource!r}\")`\n\nWait, how is L calculated?\n\"L = number of RESOURCE segments that are neither \"*\" nor \"**\";\"\n`L = sum(1 for s in segs if s != \"*\" and s != \"**\")`\nFor resource `\"/\"`, `segs = []`, `L = 0`.\nSpecificity is `(L, P, A)`.\n\nStep 4: Request validation:\n\"4. Then every request, in index order; for request j:\n   not a tuple of length 4 -> TypeError(f\"request {j}: expected 4-tuple\");\n   user not a str NAME -> ValueError(f\"request {j}: bad user {user!r}\");\n   groups not a list, or any element not a str NAME -> ValueError(f\"request {j}: bad groups\");\n   action not a str action word -> ValueError(f\"request {j}: bad action {action!r}\");\n   path not a valid str path -> ValueError(f\"request {j}: bad path {path!r}\").\"\n\nLet's check each request validation check carefully:\n1. `not isinstance(req, tuple) or len(req) != 4`:\n   `raise TypeError(f\"request {j}: expected 4-tuple\")`\n   Wait! Note: what if `req` is a list of length 4? \"not a tuple of length 4\" -> TypeError!\n   What if `req` is a tuple of length 3? -> TypeError!\n   So: `if not isinstance(req, tuple) or len(req) != 4:`\n\n2. `user, groups, action, path = req`\n   \"user not a str NAME -> ValueError",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Path-pattern access policy with specificity and deny precedence",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 122.36,
+   "tokens_in": 1458,
+   "tokens_out": 16380,
+   "cost_usd": 0.061893315,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: IndentationError: unexpected indent (sol.py, line 2)"
+  ]
+ },
+ {
+  "title": "Layered config merge with delete/append directives and JSON paths",
+  "category": "spec_compliance",
+  "entry_point": "merge_layers",
+  "code": "import copy\nimport json\nimport re\n\n_IDENT_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')\n\n\ndef _type_name(v) -> str:\n    if v is None:\n        return \"null\"\n    if isinstance(v, bool):\n        return \"bool\"\n    if isinstance(v, int):\n        return \"int\"\n    if isinstance(v, float):\n        return \"float\"\n    if isinstance(v, str):\n        return \"str\"\n    if isinstance(v, list):\n        return \"list\"\n    if isinstance(v, dict):\n        return \"dict\"\n    return type(v).__name__\n\n\ndef _format_path(p: str, name: str) -> str:\n    if _IDENT_RE.match(name):\n        return f\"{p}.{name}\"\n    return f\"{p}[{json.dumps(name, ensure_ascii=False)}]\"\n\n\ndef _merge_dict(overlay: dict, target: dict, path: str, layer_idx: int, warnings: list[str]) -> None:\n    for k, v in overlay.items():\n        if not isinstance(k, str):\n            raise TypeError(f\"layer {layer_idx}: non-string key at {path}\")\n\n        # Classify key and extract NAME\n        if k.startswith(\"-\"):\n            directive = \"DELETE\"\n            name = k[1:]\n        elif k.endswith(\"+\"):\n            directive = \"APPEND\"\n            name = k[:-1]\n        else:\n            directive = \"SET\"\n            name = k\n\n        if not name:\n            raise ValueError(f\"layer {layer_idx}: empty key name at {path}\")\n\n        q = _format_path(path, name)\n\n        if directive == \"DELETE\":\n            if v is not None:\n                raise ValueError(f\"layer {layer_idx}: delete directive needs null at {q}\")\n            if name in target:\n                del target[name]\n            else:\n                warnings.append(f\"layer {layer_idx}: delete of missing key at {q}\")\n\n        elif directive == \"APPEND\":\n            if not isinstance(v, list):\n                raise ValueError(f\"layer {layer_idx}: append directive needs a list at {q}\")\n            if name not in target:\n                target[name] = copy.deepcopy(v)\n            elif isinstance(target[name], list):\n                target[name].extend(copy.deepcopy(item) for item in v)\n            else:\n                raise ValueError(f\"layer {layer_idx}: cannot append to {_type_name(target[name])} at {q}\")\n\n        else:  # SET\n            if name in target and _type_name(target[name]) != _type_name(v):\n                warnings.append(\n                    f\"layer {layer_idx}: type change at {q}: {_type_name(target[name])} -> {_type_name(v)}\"\n                )\n\n            if isinstance(v, dict):\n                if name in target and isinstance(target[name], dict):\n                    _merge_dict(v, target[name], q, layer_idx, warnings)\n                else:\n                    new_dict: dict = {}\n                    target[name] = new_dict\n                    _merge_dict(v, new_dict, q, layer_idx, warnings)\n            else:\n                target[name] = copy.deepcopy(v)\n\n\ndef merge_layers(layers) -> tuple[dict, list[str]]:\n    if not isinstance(layers, list):\n        raise TypeError(\"layers must be a list\")\n\n    result: dict = {}\n    warnings: list[str] = []\n\n    for l_idx, layer in enumerate(layers):\n        if not isinstance(layer, dict):\n            raise TypeError(f\"layer {l_idx} is not a dict\")\n        _merge_dict(layer, result, \"$\", l_idx, warnings)\n\n    return result, warnings",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Layered config merge with delete/append directives and JSON paths",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 51.42,
+   "tokens_in": 1243,
+   "tokens_out": 7443,
+   "cost_usd": 0.028555065,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Account statement renderer with automatic overdraft fees",
+  "category": "spec_compliance",
+  "entry_point": "render_statement",
+  "code": "import datetime\nimport re\n\n\ndef _money_from_cents(cents: int) -> str:\n    sign = \"-\" if cents < 0 else \"\"\n    cents = abs(cents)\n    dollars = cents // 100\n    rem = cents % 100\n    return f\"{sign}{dollars:,}.{rem:02d}\"\n\n\ndef _parse_cents(amount_str: str) -> int:\n    if \".\" in amount_str:\n        ip, dp = amount_str.split(\".\")\n        return int(ip) * 100 + int(dp.ljust(2, \"0\"))\n    return int(amount_str) * 100\n\n\ndef render_statement(opening: str, entries: list) -> list[str]:\n    # 1. Validate opening type\n    if not isinstance(opening, str):\n        raise TypeError(\"opening must be a str\")\n\n    # 2. Validate opening format\n    if not re.fullmatch(r\"-?(0|[1-9][0-9]{0,8})\\.[0-9]{2}\", opening):\n        raise ValueError(\"opening: bad amount \" + repr(opening))\n\n    # 3. Validate entries type\n    if not isinstance(entries, list):\n        raise TypeError(\"entries must be a list\")\n\n    # 4. Validate each entry\n    prev_date = None\n    for i, entry in enumerate(entries):\n        # 4a. 4-tuple check\n        if not isinstance(entry, tuple) or len(entry) != 4:\n            raise TypeError(f\"entry {i}: expected 4-tuple\")\n\n        date, kind, amount, memo = entry\n\n        # 4b. Date validity check\n        valid_date = False\n        if isinstance(date, str) and re.fullmatch(r\"[0-9]{4}-[0-9]{2}-[0-9]{2}\", date):\n            y, m, d = int(date[:4]), int(date[5:7]), int(date[8:10])\n            if 1900 <= y <= 2999:\n                try:\n                    datetime.date(y, m, d)\n                    valid_date = True\n                except ValueError:\n                    pass\n        if not valid_date:\n            raise ValueError(f\"entry {i}: bad date {date!r}\")\n\n        # 4c. Date order check\n        if prev_date is not None and date < prev_date:\n            raise ValueError(f\"entry {i}: date out of order\")\n        prev_date = date\n\n        # 4d. Kind check\n        if kind not in (\"credit\", \"debit\", \"fee\"):\n            raise ValueError(f\"entry {i}: bad kind {kind!r}\")\n\n        # 4e. Amount check\n        valid_amount = False\n        if isinstance(amount, str) and re.fullmatch(r\"(0|[1-9][0-9]{0,8})(\\.[0-9]{1,2})?\", amount):\n            amt_cents = _parse_cents(amount)\n            if amt_cents > 0:\n                valid_amount = True\n        if not valid_amount:\n            raise ValueError(f\"entry {i}: bad amount {amount!r}\")\n\n        # 4f. Memo check\n        if (\n            not isinstance(memo, str)\n            or not memo.split()\n            or any(ord(c) < 32 or ord(c) == 127 for c in memo)\n        ):\n            raise ValueError(f\"entry {i}: bad memo\")\n\n    # Processing\n    # Parse opening balance\n    is_neg = opening.startswith(\"-\")\n    raw_opening = opening[1:] if is_neg else opening\n    opening_cents = _parse_cents(raw_opening)\n    if is_neg:\n        opening_cents = -opening_cents\n    if opening_cents == -0:\n        opening_cents = 0\n\n    balance = opening_cents\n    lines = [\"Opening balance: \" + _money_from_cents(balance)]\n\n    credits_count = 0\n    debits_count = 0\n    fees_count = 0\n    auto_fee_dates = set()\n\n    def format_entry_line(entry_date: str, entry_memo: str, sign_char: str, amt_cents: int, bal_cents: int) -> str:\n        memo_norm = \" \".join(entry_memo.split())\n        if len(memo_norm) > 20:\n            memo_norm = memo_norm[:19] + \"~\"\n        memo_col = memo_norm.ljust(20)\n\n        amt_str = f\"{sign_char}{_money_from_cents(amt_cents)}\"\n        amt_col = amt_str.rjust(14)\n\n        bal_col = _money_from_cents(bal_cents).rjust(15)\n        flag = \" OD\" if bal_cents < 0 else \"\"\n\n        return f\"{entry_date}  {memo_col}  {amt_col}  {bal_col}{flag}\"\n\n    for date, kind, amount, memo in entries:\n        amt_cents = _parse_cents(amount)\n\n        if kind == \"credit\":\n            balance += amt_cents\n            credits_count += 1\n            lines.append(format_entry_line(date, memo, \"+\", amt_cents, balance))\n        elif kind == \"debit\":\n            balance -= amt_cents\n            debits_count += 1\n            lines.append(format_entry_line(date, memo, \"-\", amt_cents, balance))\n\n            # Check for automatic overdraft fee\n            if balance < 0 and date not in auto_fee_dates:\n                auto_fee_dates.add(date)\n                fee_cents = 2500  # 25.00\n                balance -= fee_cents\n                fees_count += 1\n                lines.append(format_entry_line(date, \"OVERDRAFT FEE\", \"-\", fee_cents, balance))\n        elif kind == \"fee\":\n            balance -= amt_cents\n            fees_count += 1\n            lines.append(format_entry_line(date, memo, \"-\", amt_cents, balance))\n\n    lines.append(\"Closing balance: \" + _money_from_cents(balance))\n    lines.append(f\"Credits: {credits_count}  Debits: {debits_count}  Fees: {fees_count}\")\n\n    return lines",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Account statement renderer with automatic overdraft fees",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 79.22,
+   "tokens_in": 1582,
+   "tokens_out": 12271,
+   "cost_usd": 0.0467307225,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Version picker for a custom constraint language with release candidates",
+  "category": "spec_compliance",
+  "entry_point": "pick_version",
+  "code": "```python\nimport re\n\nVERSION_RE = re.compile(\n    r'^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:~rc([1-9][0-9]*))?$'\n)\nAT_RE = re.compile(r'^@(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$')\nX_STAR_RE = re.compile(r'^(0|[1-9][0-9]*)\\.\\*$')\nXY_STAR_RE = re.compile(r'^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.\\*$')\n\n\ndef _parse_version(s: str):\n    if not isinstance(s, str):\n        return None\n    m = VERSION_RE.match(s)\n    if not m:\n        return None\n    x, y, z, rc = m.groups()\n    if rc is None:\n        return (int(x), int(y), int(z), 1, 0)\n    return (int(x), int(y), int(z), 0, int(rc))\n\n\ndef _make_cmp(op, target):\n    if op == \"=\":\n        return lambda v_key: v_key == target\n    if op == \"!=\":\n        return lambda v_key: v_key != target\n    if op == \">\":\n        return lambda v_key: v_key > target\n    if op == \">=\":\n        return lambda v_key: v_key >= target\n    if op == \"<\":\n        return lambda v_key: v_key < target\n    if op == \"<=\":\n        return lambda v_key: v_key <= target\n\n\ndef _parse_clause(clause: str):\n    if clause == \"*\":\n        return lambda v_key: True\n\n    for op in (\">=\", \"<=\", \"!=\"):\n        if clause.startswith(op):\n            target = _parse_version(clause[2:])\n            if target is None:\n                return None\n            return _make_cmp(op, target)\n\n    for op in (\">\", \"<\", \"=\"):\n        if clause.startswith(op):\n            target = _parse_version(clause[1:])\n            if target is None:\n                return None\n            return _make_cmp(op, target)\n\n    m = AT_RE.match(clause)\n    if m:\n        x, y = int(m.group(1)), int(m.group(2))\n        return lambda v_key, x=x, y=y: v_key[0] == x and v_key[1] >= y\n\n    m = X_STAR_RE.match(clause)\n    if m:",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Version picker for a custom constraint language with release candidates",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 110.41,
+   "tokens_in": 992,
+   "tokens_out": 16380,
+   "cost_usd": 0.06154731,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: invalid syntax (sol.py, line 1)"
+  ]
+ },
+ {
+  "title": "Indentation outline config parser with line-exact errors",
+  "category": "parsing",
+  "entry_point": "parse_outline",
+  "code": "a:\n  b:\nc: 3",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Indentation outline config parser with line-exact errors",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 133.32,
+   "tokens_in": 1480,
+   "tokens_out": 16380,
+   "cost_usd": 0.06190965,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: invalid syntax (sol.py, line 1)"
+  ]
+ },
+ {
+  "title": "Pile stack-language interpreter with quotations and step limit",
+  "category": "parsing",
+  "entry_point": "run_pile",
+  "code": "push one iteration at a time:\nWhen the iteration finishes, `FRAME_TIMES` decrements `remaining_count` and pushes `[q.elements, 0]` again!\nLet's trace:\n`[FRAME_TIMES, q.elements, n]` is on the stack.\nWhen it becomes the top of the stack:\nIf `n > 0`:\n  decrement `n` (or update frame)\n  push `[FRAME_SEQ, q.elements, 0]`!\nIf `n == 0`:\n  pop `FRAME_TIMES`!\nWait, what if `q.elements` is empty?\nIf `len(q.elements) == 0`:\nIt does NOTHING! (0 steps). So `times` can just check:\n`if n <= 0 or not q.elements: pass`\nAnd not even push `FRAME_TIMES`!\nThat makes `[ ] 1000000000 times` take O(1) time!\nAnd if `n > 0` and `q.elements`:\nEach iteration runs `q.elements`, consuming steps per element!\n\nWait! Now what about `while`?\nLet's check `while c b` carefully!\n\"while c b -- repeatedly: execute quotation c, then pop the top value v (it must\nexist and be an int); if v != 0 execute quotation b and repeat, otherwise stop\"\n\"In while, a missing or non-int v after running c is 'stack underflow' / 'type error' at the while token.\"\nHow can `while` be modeled with frames?\nLet's trace:\nWhen `while` is executed at token `tok_idx`:\nOperands `c` and `b` have been validated and popped.\nWe want to:\nState 1: run `c`\nState 2: check top of stack:\n  If stack empty -> error \"stack underflow\" at `tok_idx`!\n  `v = data_stack.pop()`\n  If `type(v) is not int` -> error \"type error\" at `tok_idx`!\n  If `v != 0`:\n    run `b`, then go back to State 1!\n  If `v == 0`:\n    loop ends!\n\nCan we represent this with a frame?\n`FRAME_WHILE = 3`: `[FRAME_WHILE, c, b, tok_idx, state]`\nLet's trace:\nInitial state = 0 (about to run `c`).\nWhen interpreter sees `FRAME_WHILE` at top of `call_stack`:\nIf `state == 0`:\n  Frame changes to `state = 1` (waiting for `c` to finish).\n  Push `[FRAME_SEQ, c.elements, 0]`.\nIf `state == 1`:\n  `c` has finished!\n  Now check `v`:\n  If not `data_",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Pile stack-language interpreter with quotations and step limit",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 119.02,
+   "tokens_in": 1762,
+   "tokens_out": 16380,
+   "cost_usd": 0.062119035,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 3) (sol.py, line 3)"
+  ]
+ },
+ {
+  "title": "Sieve record query language with three-valued logic",
+  "category": "parsing",
+  "entry_point": "filter_records",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Sieve record query language with three-valued logic",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 114.02,
+   "tokens_in": 1425,
+   "tokens_out": 15728,
+   "cost_usd": 0.0594482625,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Tally expression evaluator with exact error positions",
+  "category": "parsing",
+  "entry_point": "evaluate",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Tally expression evaluator with exact error positions",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 126.5,
+   "tokens_in": 1354,
+   "tokens_out": 16261,
+   "cost_usd": 0.0613743075,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Fence repainting with run-structure reports",
+  "category": "performance",
+  "entry_point": "fence_report",
+  "code": "An efficient segment tree with lazy propagation solves this problem within the required time limits.\n\n### Method Explanation\n\nThe fence can be modeled using an **iterative segment tree with lazy propagation**:\n1. **Node State**: Each node representing an interval of planks stores:\n   - `lc`, `rc`: colors of the leftmost and rightmost planks.\n   - `llen`, `rlen`: length of the run prefix (from the left boundary) and run suffix (to the right boundary).\n   - `runs`: total number of distinct color runs in the interval.\n   - `max_run`: maximum length of any run within the interval.\n   - `length`: total number of planks in this node's interval.\n\n2. **Merging Two Nodes (`left` and `right`)**:\n   - If `left.rc == right.lc`, the boundary planks merge:\n     - `runs = left.runs + right.runs - 1`\n     - The run formed across the seam has length `left.rlen + right.llen`. `max_run` is updated with `max(left.max_run, right.max_run, left.rlen + right.llen)`.\n     - Prefix and suffix runs extend into the adjacent node if either node consists entirely of a single color.\n   - If `left.rc != right.lc`, runs do not merge across the seam (`runs = left.runs + right.runs`).\n\n3. **Operations**:\n   - `\"paint\"`: Lazy propagation applies the new color to canonical intervals in $O(\\log n)$ time.\n   - `\"query\"`: Canonical intervals covering $l..r$ are combined in left-to-right order in $O(\\log n)$ time.\n\nUsing an iterative segment tree with flat lists minimizes Python's function call overhead, easily handling 200,000 planks and 100,000 operations in ~1–2 seconds.\n\n### Python 3 Implementation\n\n```python\ndef fence_report(colors: list[int], operations: list[tuple]) -> list[tuple[int, int]]:\n    n = len(colors)\n    if n == 0:\n        return []\n\n    # Choose power of two tree size N >= n\n    bit_len = (n - 1).bit_length() if n > 1 else 1\n    N = 1 << max(1, bit_len)\n    h = bit_len if n > 1 else 1\n\n    size = 2 * N\n    tree_lc = [0] * size\n    tree_rc = [0] * size\n    tree_llen = [0] * size\n    tree_rlen = [0] * size\n    tree_runs = [0] * size\n    tree_max = [0] * size\n    tree_len = [0] * size\n    lazy = [-1] * N\n\n    # Precompute interval lengths for each node\n    tree_len[1] = N\n    for i in",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Fence repainting with run-structure reports",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 103.3,
+   "tokens_in": 695,
+   "tokens_out": 16380,
+   "cost_usd": 0.0613267875,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 11) (sol.py, line 11)"
+  ]
+ },
+ {
+  "title": "Leaderboard rank after every submission",
+  "category": "performance",
+  "entry_point": "leaderboard_ranks",
+  "code": "def leaderboard_ranks(submissions: list[tuple[str, int]]) -> list[int]:\n    if not submissions:\n        return []\n\n    n = len(submissions)\n\n    # Pass 1: Identify all keys that will ever be inserted\n    player_max: dict[str, int] = {}\n    keys_to_insert: list[tuple[int, int]] = []\n\n    for i, (player, score) in enumerate(submissions):\n        curr_max = player_max.get(player)\n        if curr_max is None or score > curr_max:\n            player_max[player] = score\n            keys_to_insert.append((-score, i))\n\n    # Coordinate compression: sort keys and map each to a 1-based index\n    sorted_keys = sorted(keys_to_insert)\n    key_to_idx = {k: idx + 1 for idx, k in enumerate(sorted_keys)}\n    m = len(sorted_keys)\n\n    # Fenwick Tree (Binary Indexed Tree)\n    bit = [0] * (m + 1)\n\n    def bit_add(idx: int, val: int) -> None:\n        while idx <= m:\n            bit[idx] += val\n            idx += idx & (-idx)\n\n    def bit_query(idx: int) -> int:\n        s = 0\n        while idx > 0:\n            s += bit[idx]\n            idx -= idx & (-idx)\n        return s\n\n    # Pass 2: Process submissions and record ranks\n    player_best: dict[str, tuple[int, int]] = {}\n    ranks: list[int] = [0] * n\n\n    for i, (player, score) in enumerate(submissions):\n        old_key = player_best.get(player)\n        if old_key is None or score > -old_key[0]:\n            if old_key is not None:\n                bit_add(key_to_idx[old_key], -1)\n            new_key = (-score, i)\n            player_best[player] = new_key\n            new_idx = key_to_idx[new_key]\n            bit_add(new_idx, 1)\n            ranks[i] = bit_query(new_idx)\n        else:\n            ranks[i] = bit_query(key_to_idx[old_key])\n\n    return ranks",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Leaderboard rank after every submission",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 21.5,
+   "tokens_in": 617,
+   "tokens_out": 2180,
+   "cost_usd": 0.0085513725,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Budget shopping sprees over shelf ranges",
+  "category": "performance",
+  "entry_point": "budget_purchases",
+  "code": "def budget_purchases(prices: list[int], queries: list[tuple[int, int, int]]) -> list[tuple[int, int]]:\n    if not queries:\n        return []\n    if not prices:\n        return [(0, 0)] * len(queries)\n\n    n = len(prices)\n    \n    # Coordinate compression of unique prices\n    unique_prices = sorted(set(prices))\n    m = len(unique_prices)\n    price_to_rank = {p: i for i, p in enumerate(unique_prices)}\n    \n    # Round tree size up to the next power of 2 for easy traversal\n    tree_size = 1\n    while tree_size < m:\n        tree_size <<= 1\n\n    # Persistent segment tree represented with flat parallel lists\n    # Maximum nodes created: tree_size * 2 for initial empty tree (or just 0-initialized)\n    # Plus at most n * (log2(tree_size) + 1) nodes.\n    depth = tree_size.bit_length()\n    max_nodes = 2 + n * (depth + 1)\n    \n    lc = [0] * max_nodes\n    rc = [0] * max_nodes\n    cnt = [0] * max_nodes\n    sm = [0] * max_nodes\n    \n    node_count = 1  # Node 0 is the null/empty node\n    \n    roots = [0] * (n + 1)\n    \n    # Build persistent versions\n    for i, p in enumerate(prices):\n        rank = price_to_rank[p]\n        prev_root = roots[i]\n        \n        # Create new root\n        node_count += 1\n        new_root = node_count\n        roots[i + 1] = new_root\n        \n        curr_new = new_root\n        curr_prev = prev_root\n        \n        low = 0\n        high = tree_size - 1\n        \n        while low < high:\n            cnt[curr_new] = cnt[curr_prev] + 1\n            sm[curr_new] = sm[curr_prev] + p\n            \n            mid = (low + high) >> 1\n            node_count += 1\n            if rank <= mid:\n                lc[curr_new] = node_count\n                rc[curr_new] = rc[curr_prev]\n                curr_new = node_count\n                curr_prev = lc[curr_prev]\n                high = mid\n            else:\n                rc[curr_new] = node_count\n                lc[curr_new] = lc[curr_prev]\n                curr_new = node_count\n                curr_prev = rc[curr_prev]\n                low = mid + 1\n                \n        cnt[curr_new] = cnt[curr_prev] + 1\n        sm[curr_new] = sm[curr_prev] + p\n\n    # Process queries\n    result = []\n    for l, r, budget in queries:\n        if budget <= 0 or l > r:\n            result.append((0, 0))\n            continue\n            \n        u = roots[r + 1]\n        v = roots[l]\n        \n        total_count = 0\n        total_spent = 0\n        rem_budget = budget\n        \n        low = 0\n        high = tree_size - 1\n        \n        while low < high:\n            u_left = lc[u]\n            v_left = lc[v]\n            left_sum = sm[u_left] - sm[v_left]\n            \n            if left_sum <= rem_budget:\n                total_count += cnt[u_left] - cnt[v_left]\n                total_spent += left_sum\n                rem_budget -= left_sum\n                \n                u = rc[u]\n                v = rc[v]\n                low = ((low + high) >> 1) + 1\n            else:\n                u = u_left\n                v = v_left\n                high = (low + high) >> 1\n                \n        # Leaf node reached\n        if low < m and rem_budget > 0:\n            leaf_avail = cnt[u] - cnt[v]\n            if leaf_avail > 0:\n                p = unique_prices[low]\n                take = rem_budget // p\n                if take > leaf_avail:\n                    take = leaf_avail\n                total_count += take\n                total_spent += take * p\n\n        result.append((total_count, total_spent))\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Budget shopping sprees over shelf ranges",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 21.48,
+   "tokens_in": 632,
+   "tokens_out": 2935,
+   "cost_usd": 0.0113654475,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tide-gauge records with a minimum margin over many windows",
+  "category": "performance",
+  "entry_point": "count_records",
+  "code": "def count_records(\n    levels: list[int], margin: int, queries: list[tuple[int, int]]\n) -> list[int]:\n    n = len(levels)\n    if not queries or n == 0:\n        return []\n\n    # 1. Build an iterative segment tree to find next record positions\n    size = 1\n    while size < n:\n        size <<= 1\n\n    NEG_INF = -10**18\n    tree = [NEG_INF] * (2 * size)\n    for i in range(n):\n        tree[size + i] = levels[i]\n    for i in range(size - 1, 0, -1):\n        left_val = tree[i << 1]\n        right_val = tree[(i << 1) | 1]\n        tree[i] = left_val if left_val >= right_val else right_val\n\n    # nxt[i] will store the first index j > i such that levels[j] >= levels[i] + margin\n    nxt = [n] * (n + 1)\n\n    for i in range(n):\n        target = levels[i] + margin\n        # Search the first index in [i + 1, n - 1] with value >= target\n        L = size + i + 1\n        R = size + n - 1\n        found_idx = -1\n\n        # Collect candidate subtrees from left to right\n        nodes = []\n        r_nodes = []\n        while L <= R:\n            if L & 1:\n                nodes.append(L)\n                L += 1\n            if not (R & 1):\n                r_nodes.append(R)\n                R -= 1\n            L >>= 1\n            R >>= 1\n        nodes.extend(reversed(r_nodes))\n\n        # Walk into the first subtree whose maximum >= target\n        for node in nodes:\n            if tree[node] >= target:\n                curr = node\n                while curr < size:\n                    curr <<= 1\n                    if tree[curr] < target:\n                        curr |= 1\n                found_idx = curr - size\n                break\n\n        if found_idx != -1:\n            nxt[i] = found_idx\n\n    # 2. Precompute binary lifting table\n    # LOG = 18 covers jumps up to 2^17 = 131,072 (n <= 200,000)\n    LOG = 18\n    up = [[n] * (n + 1) for _ in range(LOG)]\n    up[0] = nxt\n\n    for k in range(1, LOG):\n        up_k = up[k]\n        up_prev = up[k - 1]\n        for i in range(n + 1):\n            up_k[i] = up_prev[up_prev[i]]\n\n    # 3. Answer queries\n    res = []\n    for l, r in queries:\n        ans = 1\n        curr = l\n        for k in range(LOG - 1, -1, -1):\n            nxt_pos = up[k][curr]\n            if nxt_pos <= r:\n                ans += 1 << k\n                curr = nxt_pos\n        res.append(ans)\n\n    return res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Tide-gauge records with a minimum margin over many windows",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 36.64,
+   "tokens_in": 631,
+   "tokens_out": 3247,
+   "cost_usd": 0.012523005,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact-cent loan amortization schedule",
+  "category": "numeric",
+  "entry_point": "amortize",
+  "code": "from fractions import Fraction\nimport re\n\n\ndef amortize(\n    principal: str, annual_rate_pct: str, months: int\n) -> list[tuple[str, str, str]]:\n    # 1. Validation\n    if not isinstance(principal, str) or not re.fullmatch(\n        r\"[0-9]+(\\.[0-9]{1,2})?\", principal\n    ):\n        raise ValueError(\"Invalid principal format\")\n\n    if not isinstance(annual_rate_pct, str) or not re.fullmatch(\n        r\"[0-9]+(\\.[0-9]{1,6})?\", annual_rate_pct\n    ):\n        raise ValueError(\"Invalid annual_rate_pct format\")\n\n    if type(months) is not int or not (1 <= months <= 1200):\n        raise ValueError(\"months must be an integer between 1 and 1200\")\n\n    P_frac = Fraction(principal)\n    if P_frac <= 0:\n        raise ValueError(\"principal must be greater than 0\")\n\n    rate_pct_frac = Fraction(annual_rate_pct)\n    if rate_pct_frac > 100:\n        raise ValueError(\"annual_rate_pct must be <= 100\")\n\n    # 2. Level payment calculation\n    # P in cents (exact integer)\n    bal_cents = int(P_frac * 100)\n\n    # Monthly rate m = annual_rate_pct / 100 / 12 = annual_rate_pct / 1200\n    m = rate_pct_frac / 1200\n\n    if m == 0:\n        A_cents = Fraction(bal_cents, months)\n    else:\n        # A = P * m / (1 - (1 + m)**(-months)) = P * m * (1 + m)**months / ((1 + m)**months - 1)\n        one_plus_m_n = (1 + m) ** months\n        A_cents = bal_cents * m * one_plus_m_n / (one_plus_m_n - 1)\n\n    # PAY rounded UP to a whole cent\n    pay_cents = -(-A_cents.numerator // A_cents.denominator)\n\n    def format_cents(c: int) -> str:\n        return f\"{c // 100}.{c % 100:02d}\"\n\n    schedule: list[tuple[str, str, str]] = []\n\n    # 3. Amortization loop\n    for t in range(1, months + 1):\n        # INTEREST = BAL * m rounded to nearest cent, ties to even\n        # interest in cents: (bal_cents * m)\n        interest_frac = bal_cents * m\n        q, rem = divmod(interest_frac.numerator, interest_frac.denominator)\n        double_rem = 2 * rem\n        denom = interest_frac.denominator\n\n        if double_rem < denom:\n            interest_cents = q\n        elif double_rem > denom:\n            interest_cents = q + 1\n        else:  # tie: exactly half a cent\n            interest_cents = q if q % 2 == 0 else q + 1\n\n        # Check for final row\n        if t == months or bal_cents + interest_cents <= pay_cents:\n            actual_pay_cents = bal_cents + interest_cents\n            bal_cents = 0\n            schedule.append(\n                (\n                    format_cents(actual_pay_cents),\n                    format_cents(interest_cents),\n                    format_cents(bal_cents),\n                )\n            )\n            break\n        else:\n            bal_cents -= pay_cents - interest_cents\n            schedule.append(\n                (\n                    format_cents(pay_cents),\n                    format_cents(interest_cents),\n                    format_cents(bal_cents),\n                )\n            )\n\n    return schedule",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Exact-cent loan amortization schedule",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 28.87,
+   "tokens_in": 960,
+   "tokens_out": 4676,
+   "cost_usd": 0.01807245,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fraction to base-b string with half-even rounding at k digits",
+  "category": "numeric",
+  "entry_point": "format_base",
+  "code": "_DIGITS = \"0123456789abcdefghijklmnopqrstuvwxyz\"\n\n\ndef _small_to_base(n: int, base: int, length: int) -> list[str]:\n    \"\"\"Convert an integer n into a list of `length` base-`base` digit characters.\"\"\"\n    res = [\"0\"] * length\n    idx = length - 1\n    while n > 0:\n        res[idx] = _DIGITS[n % base]\n        n //= base\n        idx -= 1\n    return res\n\n\ndef _int_to_base_str(n: int, base: int) -> str:\n    \"\"\"Convert a positive integer n to base `base` as a string without leading zeros.\"\"\"\n    if n == 0:\n        return \"0\"\n    digits = []\n    while n > 0:\n        digits.append(_DIGITS[n % base])\n        n //= base\n    return \"\".join(reversed(digits))\n\n\ndef _to_base_fixed(n: int, base: int, length: int) -> str:\n    \"\"\"\n    Convert integer n into exactly `length` digits in base `base`\n    using divide-and-conquer base conversion.\n    \"\"\"\n    if length == 0:\n        return \"\"\n\n    # Precompute powers of base of the form base^(2^i)\n    # to quickly retrieve base^m for any m\n    powers = {}\n\n    def get_pow(m: int) -> int:\n        if m not in powers:\n            powers[m] = base**m\n        return powers[m]\n\n    chunks = []\n\n    def dc(val: int, l: int) -> None:\n        if l <= 16:\n            chunks.extend(_small_to_base(val, base, l))\n            return\n        m = l >> 1\n        hi, lo = divmod(val, get_pow(m))\n        dc(hi, l - m)\n        dc(lo, m)\n\n    dc(n, length)\n    return \"\".join(chunks)\n\n\ndef format_base(p: int, q: int, base: int, k: int) -> str:\n    # Validation\n    if q == 0:\n        raise ValueError(\"Denominator q cannot be zero.\")\n    if not (2 <= base <= 36):\n        raise ValueError(\"Base must be between 2 and 36 inclusive.\")\n    if k < 0:\n        raise ValueError(\"k must be non-negative.\")\n\n    # Determine sign of x = p / q\n    is_neg = (p < 0) ^ (q < 0)\n    abs_p, abs_q = abs(p), abs(q)\n\n    # Base power: base^k\n    base_k = base**k\n\n    # Compute N = round(|x| * base^k) = round((abs_p * base^k) / abs_q)\n    # Using integer arithmetic: P = abs_p * base_k, Q = abs_q\n    P = abs_p * base_k\n    d, r = divmod(P, abs_q)\n\n    two_r = 2 * r\n    if two_r > abs_q:\n        N = d + 1\n    elif two_r < abs_q:\n        N = d\n    else:\n        # Exact tie: choose even N\n        N = d if (d % 2 == 0) else d + 1\n\n    # If N rounds to 0\n    if N == 0:\n        return \"0\"\n\n    # Split into integer part and fractional part\n    I, F = divmod(N, base_k)\n\n    int_str = _int_to_base_str(I, base)\n\n    if F != 0:\n        frac_str = _to_base_fixed(F, base, k).rstrip(\"0\")\n        res = f\"{int_str}.{frac_str}\"\n    else:\n        res = int_str\n\n    return f\"-{res}\" if is_neg else res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Fraction to base-b string with half-even rounding at k digits",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 28.89,
+   "tokens_in": 812,
+   "tokens_out": 3511,
+   "cost_usd": 0.0136374975,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Closest fraction under numerator and denominator bounds",
+  "category": "numeric",
+  "entry_point": "closest_fraction",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Closest fraction under numerator and denominator bounds",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 123.65,
+   "tokens_in": 745,
+   "tokens_out": 16315,
+   "cost_usd": 0.0611226,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Correctly rounded decimal string to binary16 bits",
+  "category": "numeric",
+  "entry_point": "decimal_to_half_bits",
+  "code": ": # i.e. R > 0\n        # v > M(k)\n    else: # R == 0\n        # v == M(k)\n```\n That is 100% mathematically exact!\n\nLet's check `goes_right(k)` with this comparison:\nRemember:\nFor even $k$:\n`goes_right(k)` is True if $v > M(k)$, else False.\nSo:\nIf $V_{25} > T(k)$, True.\nIf $V_{25} < T(k)$, False.\nIf $V_{25} == T(k)$, True if $R > 0$ else False.\nIn other words, for even $k$:\n`goes_right(k) = (V25 > T(k)) or (V25 == T(k) and has_remainder)`\n\nFor odd $k$:\n`goes_right(k)` is True if $v \\ge M(k)$, else False.\nSo:\nIf $V_{25} > T(k)$, True.\nIf $V_{25} < T(k)$, False.\nIf $V_{25} == T(k)$, True (regardless of $R$, because $v \\ge M(k)$ is True both when $v == M(k)$ and $v > M(k)$)!\nIn other words, for odd $k$:\n`goes_right(k) = (V25 >= T(k))`\n\nLOOK AT THAT!\nFor odd $k$: `V25 >= T(k)`!\nFor even $k$: `V25 > T(k) or (V25 == T(k) and has_remainder)`!\nThat is SO simple!\n\nNow, how do we compute $V_{25}$ and `has_remainder`?\nLet's see: what is $v$?\n$v = \\text{mantissa} \\times 10^{\\text{exp\\_val}}$.\nWe want $v \\times 10^{25} = \\text{mantissa} \\times 10^{\\text{exp\\_val} + 25}$.\nLet $P = \\text{exp\\_val} + 25$.\nWhat is mantissa?\nThe mantissa is formed by `int_str` and `frac_str`.\nLet the concatenated digit string of the mantissa be:\nAll digits without decimal point:\nWait, let's keep track of the decimal point!\nIn the original mantissa, the decimal point is after `len(int_str)` digits.\nSo the value of the mantissa is:\n$\\text{integer formed by all mantissa digits} \\times 10^{-\\text{len}(frac\\_str)}$.\nSo:\n$$v \\times 10^{25} = \\text{all\\_mantissa\\_digits} \\times 10^{P - \\text{len}(",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Correctly rounded decimal string to binary16 bits",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 116.17,
+   "tokens_in": 1047,
+   "tokens_out": 16380,
+   "cost_usd": 0.0615881475,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 8) (sol.py, line 8)"
+  ]
+ },
+ {
+  "title": "Branching version store with range and rank queries",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Branching version store with range and rank queries",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 127.18,
+   "tokens_in": 909,
+   "tokens_out": 15737,
+   "cost_usd": 0.059098545,
+   "stop_reason": "tool_calls",
+   "refused": true,
+   "empty_output": true,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Checkpoint and rollback multiset with order statistics",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "def run_ops(ops: list[tuple]) -> list:\n    if not ops:\n        return []\n\n    # 1. Coordinate compression\n    unique_vals = set()\n    for op in ops:\n        name = op[0]\n        if name in (\"add\", \"remove\", \"count_less\"):\n            unique_vals.add(op[1])\n\n    vals = sorted(unique_vals)\n    N = len(vals)\n    val_to_idx = {v: i + 1 for i, v in enumerate(vals)}\n\n    # Binary lifting mask for Fenwick tree\n    bit_mask = 1 << (N.bit_length() - 1) if N > 0 else 0\n\n    # Fenwick tree and state tracking\n    tree = [0] * (N + 1)\n    counts = [0] * (N + 1)\n    size = 0\n    num_distinct = 0\n\n    # Undo stack records:\n    #   +idx for an add of idx (undo will remove it)\n    #   -idx for a remove of idx (undo will add it back)\n    undo_stack = []\n\n    # Checkpoint management\n    next_cp_id = 0\n    cp_stack_len = [0]\n    is_valid = [False]\n    active_cp_ids = []\n\n    out = []\n\n    for op in ops:\n        name = op[0]\n\n        if name == \"add\":\n            x_idx = val_to_idx[op[1]]\n            counts[x_idx] += 1\n            if counts[x_idx] == 1:\n                num_distinct += 1\n            size += 1\n            idx = x_idx\n            while idx <= N:\n                tree[idx] += 1\n                idx += idx & (-idx)\n            undo_stack.append(x_idx)\n            out.append(size)\n\n        elif name == \"remove\":\n            x_idx = val_to_idx[op[1]]\n            if counts[x_idx] > 0:\n                counts[x_idx] -= 1\n                if counts[x_idx] == 0:\n                    num_distinct -= 1\n                size -= 1\n                idx = x_idx\n                while idx <= N:\n                    tree[idx] -= 1\n                    idx += idx & (-idx)\n                undo_stack.append(-x_idx)\n                out.append(True)\n            else:\n                out.append(False)\n\n        elif name == \"checkpoint\":\n            next_cp_id += 1\n            cp_stack_len.append(len(undo_stack))\n            is_valid.append(True)\n            active_cp_ids.append(next_cp_id)\n            out.append(next_cp_id)\n\n        elif name == \"rollback\":\n            c = op[1]\n            if 1 <= c <= next_cp_id and is_valid[c]:\n                # Invalidate every checkpoint > c\n                while active_cp_ids[-1] > c:\n                    popped = active_cp_ids.pop()\n                    is_valid[popped] = False\n\n                # Undo operations until the state matches checkpoint c\n                target_len = cp_stack_len[c]\n                while len(undo_stack) > target_len:\n                    action = undo_stack.pop()\n                    if action > 0:\n                        # Undo an add\n                        counts[action] -= 1\n                        if counts[action] == 0:\n                            num_distinct -= 1\n                        size -= 1\n                        idx = action\n                        while idx <= N:\n                            tree[idx] -= 1\n                            idx += idx & (-idx)\n                    else:\n                        # Undo a remove\n                        idx = -action\n                        counts[idx] += 1\n                        if counts[idx] == 1:\n                            num_distinct += 1\n                        size += 1\n                        while idx <= N:\n                            tree[idx] += 1\n                            idx += idx & (-idx)\n\n                out.append(size)\n            else:\n                out.append(\"BADCP\")\n\n        elif name == \"median\":\n            if size == 0:\n                out.append(None)\n            else:\n                k = (size + 1) // 2\n                idx = 0\n                mask = bit_mask\n                while mask:\n                    next_idx = idx + mask\n                    if next_idx <= N and tree[next_idx] < k:\n                        idx = next_idx\n                        k -= tree[next_idx]\n                    mask >>= 1\n                out.append(vals[idx])\n\n        elif name == \"count_less\":\n            x_idx = val_to_idx[op[1]]\n            idx = x_idx - 1\n            s = 0\n            while idx > 0:\n                s += tree[idx]\n                idx -= idx & (-idx)\n            out.append(s)\n\n        elif name == \"distinct\":\n            out.append(num_distinct)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Checkpoint and rollback multiset with order statistics",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 84.79,
+   "tokens_in": 795,
+   "tokens_out": 11634,
+   "cost_usd": 0.0437815125,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking calendar with first-fit gap search",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Room booking calendar with first-fit gap search",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 141.53,
+   "tokens_in": 747,
+   "tokens_out": 16300,
+   "cost_usd": 0.0610683975,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Segment painter with run merging and change counts",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "` and `paint` still merge with touching neighbors?\nYES!\nFor example: paint [0, 5, \"x\"] then paint [5, 8, \"x\"].\nWhen painting [5, 8, \"x\"]:\nOverlapping is empty!\n`left_piece` is None.\n`cand = find_le(5)` finds [0, 5, \"x\"]!\n`cand.e == 5` and `cand.label == \"x\"`!\nSo `new_l` becomes 0, and [0, 5, \"x\"] is deleted!\nThen [0, 8, \"x\"] is inserted!\nNumber of runs becomes 1!\nOutput of paint is 3!\nLet's check Example 1:\n`paint(0, 5, 'x')` -> 5\n`paint(5, 8, 'x')` -> 3\n`runs` -> 1!\nExactly as in Example 1!\n\nWait, let's trace Example 1 further:\n`paint(2, 6, 'y')`:\nCurrent tree: [0, 8, 'x'].\n`l = 2, r = 6, label = 'y'`.\nOverlapping: [0, 8, 'x'].\n`overlapping[0].s = 0 < 2` -> `left_piece = (0, 2, 'x')`.\n`overlapping[-1].e = 8 > 6` -> `right_piece = (6, 8, 'x')`.\n`already_same`: [0, 8, 'x'] has label 'x' != 'y', so 0.\n`ans = (6 - 2) - 0 = 4`.\nDelete [0, 8, 'x'].\n`new_l = 2, new_r = 6`.\n`left_piece` has 'x' != 'y', so not merged.\n`right_piece` has 'x' != 'y', so not merged.\nInsert `left_piece`: (0, 2, 'x').\nInsert (2, 6, 'y').\nInsert `right_piece`: (6, 8, 'x').\nTree now has: [0, 2, 'x'], [2, 6, 'y'], [6, 8, 'x'].\nRuns: 3.\nOutput of `paint(2, 6, 'y')`: 4.\nRuns: 3.\nTotal 'x': (2 - 0) + (8 - 6) = 4.\n`next_change(0)`:\n`node = find_le(0)` -> [0, 2, 'x'].\n$0 \\le 0 < 2$ is True -> returns `node.e` = 2.\n`next_change(6)`:\n`node = find_le(6)` -> [",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Segment painter with run merging and change counts",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 128.24,
+   "tokens_in": 842,
+   "tokens_out": 16380,
+   "cost_usd": 0.061435935,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 13) (sol.py, line 13)"
+  ]
+ },
+ {
+  "title": "Fix the LRU cache with per-entry TTL replay",
+  "category": "bug_fixing",
+  "entry_point": "run_cache",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the LRU cache with per-entry TTL replay",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 166.59,
+   "tokens_in": 1218,
+   "tokens_out": 1753,
+   "cost_usd": 0,
+   "stop_reason": "error",
+   "refused": true,
+   "empty_output": true,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "empty output"
+  ]
+ },
+ {
+  "title": "Fix the priority job scheduler with release times and deadlines",
+  "category": "bug_fixing",
+  "entry_point": "schedule",
+  "code": "import heapq\n\n\ndef schedule(jobs):\n    \"\"\"Single-machine, non-preemptive priority scheduler with optional deadlines.\"\"\"\n    seen = set()\n    for job in jobs:\n        if not isinstance(job, tuple) or len(job) != 5:\n            raise ValueError(\"each job must be a 5-tuple\")\n        job_id, release, duration, priority, deadline = job\n        if job_id in seen:\n            raise ValueError(\"duplicate job id %r\" % (job_id,))\n        seen.add(job_id)\n        if release < 0:\n            raise ValueError(\"job %r has a negative release time\" % (job_id,))\n        if duration < 1:\n            raise ValueError(\"job %r has a non-positive duration\" % (job_id,))\n\n    # Do not mutate the caller's list\n    sorted_jobs = sorted(jobs, key=lambda j: j[1])\n\n    runs = []\n    dropped = []\n    ready = []\n    clock = 0\n    nxt = 0\n    n = len(sorted_jobs)\n\n    while nxt < n or ready:\n        # If no jobs are ready, machine idles until the earliest release\n        if not ready and clock < sorted_jobs[nxt][1]:\n            clock = sorted_jobs[nxt][1]\n\n        # Admit all jobs that have been released by now (release <= clock)\n        while nxt < n and sorted_jobs[nxt][1] <= clock:\n            j_id, rel, dur, prio, dline = sorted_jobs[nxt]\n            # Heap tuple: (-priority, release, job_id, duration, deadline)\n            # Highest priority first, ties broken by smaller release, then smaller job_id\n            heapq.heappush(ready, (-prio, rel, j_id, dur, dline))\n            nxt += 1\n\n        neg_prio, rel, j_id, dur, dline = heapq.heappop(ready)\n\n        # Check deadline\n        if dline is not None and clock + dur > dline:\n            dropped.append(j_id)\n            continue\n\n        runs.append((j_id, clock, clock + dur))\n        clock += dur\n\n    return runs, dropped",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the priority job scheduler with release times and deadlines",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 42.53,
+   "tokens_in": 1348,
+   "tokens_out": 5831,
+   "cost_usd": 0.0226484775,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the sliding-window median with missing readings",
+  "category": "bug_fixing",
+  "entry_point": "window_medians",
+  "code": "Wait! Look at `rebalance()`:\nIf `sizes[\"low\"] > sizes[\"high\"] + 1`:\nWe call `prune_low()`.\nThen `val = -heapq.heappop(low)`.\nWait! Is `val` a live element?\nYES, because `prune_low()` just discarded all delayed elements at the top of `low`!\nSo `val` is definitely a live element!\nThen we push `val` to `high`.\n`sizes[\"low\"] -= 1`\n`sizes[\"high\"] += 1`.\nWait! What if after pushing `val` to `high`, `prune_high()` is needed?\n`val` is live, so it's not delayed!\nWhat about the rest of `high`? Any delayed elements in `high` will be pruned when they reach the top.\nWait, what about `low`?\nAfter `heappop(low)`, could the NEW top of `low` be delayed?\nIf the loop continues (i.e. `sizes[\"low\"] > sizes[\"high\"] + 1` still), the next iteration calls `prune_low()` first!\nSo the next element popped is ALSO guaranteed to be live!\n\nWait! What about `while sizes[\"low\"] < sizes[\"high\"]:`?\nFirst call `prune_high()`.\nThen `val = heapq.heappop(high)`.\nSince `prune_high()` was just called, `val` is definitely live!\nPush `-val` to `low`.\n`sizes[\"high\"] -= 1`\n`sizes[\"low\"] += 1`.\n\nNow let's look at `add(x)`:",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the sliding-window median with missing readings",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 107.67,
+   "tokens_in": 1094,
+   "tokens_out": 16380,
+   "cost_usd": 0.061623045,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "import: SyntaxError: unterminated string literal (detected at line 12) (sol.py, line 12)"
+  ]
+ },
+ {
+  "title": "Fix the expression tokenizer with positions, escapes and exponents",
+  "category": "bug_fixing",
+  "entry_point": "tokenize",
+  "code": "",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the expression tokenizer with positions, escapes and exponents",
+   "model": "google/gemini-3.8-flash",
+   "provider": "openrouter",
+   "latency_s": 114.53,
+   "tokens_in": 2073,
+   "tokens_out": 16029,
+   "cost_usd": 0.061046865,
+   "stop_reason": "length",
+   "refused": false,
+   "empty_output": true,
+   "error": null,
+   "truncated": true
+  },
+  "detail": [
+   "empty output"
+  ]
+ }
+]

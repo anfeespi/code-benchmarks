@@ -1,0 +1,12 @@
+{
+ "slug": "layered-config-merge-directives",
+ "n": 1000,
+ "agree": 1000,
+ "status": "ok",
+ "outcomes": {
+  "ok": 634,
+  "exc": 366
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

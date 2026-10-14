@@ -1,0 +1,1 @@
+{"id": "hard-sliding-median-with-gaps", "title": "Fix the sliding-window median with missing readings", "category": "bug_fixing", "entry_point": "window_medians"}

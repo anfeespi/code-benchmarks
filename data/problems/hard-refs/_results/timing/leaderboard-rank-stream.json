@@ -1,0 +1,27 @@
+{
+ "slug": "leaderboard-rank-stream",
+ "cases": [
+  {
+   "case": "stress_many_players",
+   "seconds": 0.438,
+   "timeout_s": 15,
+   "margin": 34.3,
+   "ok": true
+  },
+  {
+   "case": "stress_monotone_climb",
+   "seconds": 0.283,
+   "timeout_s": 15,
+   "margin": 53.0,
+   "ok": true
+  },
+  {
+   "case": "stress_ties_heavy",
+   "seconds": 0.335,
+   "timeout_s": 15,
+   "margin": 44.8,
+   "ok": true
+  }
+ ],
+ "min_margin": 34.3
+}

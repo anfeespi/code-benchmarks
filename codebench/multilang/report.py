@@ -50,7 +50,10 @@ def suite_stats(rows, strict=False):
     lat = [meta(r).get("latency_s") for r in rows if meta(r).get("latency_s")]
     cost = sum((meta(r).get("cost_usd") or 0) for r in rows)
     return {"pass": sum(r["scores"]["pass"] for r in rows), "n": len(rows),
-            "refused": sum(1 for r in rows if meta(r).get("refused") and not meta(r).get("truncated")),
+            # stop_reason "error" is the provider failing the call, not the model declining.
+            "refused": sum(1 for r in rows if meta(r).get("refused") and not meta(r).get("truncated")
+                           and meta(r).get("stop_reason") != "error"),
+            "provider_errors": sum(1 for r in rows if meta(r).get("stop_reason") == "error"),
             "truncated": sum(1 for r in rows if meta(r).get("truncated")),
             "cost": cost or None, "p50": statistics.median(lat) if lat else None}
 
@@ -145,7 +148,7 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
 <p class=sub>Gemini 4 Carbon across the suites, and the first per-language grading. %(date)s.</p>
 
 <div class=key><b>What this says</b><ul>
-<li><b>Gemini 4 Carbon is a top-tier coding model on these suites.</b> 48/48 on v4 (also under the strict tests), 31/32 on the hard suite and 18/18 on the agentic Go suite. Its only miss anywhere is one refusal; everything it attempted passed.</li>
+<li><b>Gemini 4 Carbon is a top-tier coding model on these suites.</b> 48/48 on v4 (also under the strict tests), 31/32 on the hard suite and 18/18 on the agentic Go suite. Its only miss anywhere is one call the provider failed; every answer it returned passed.</li>
 <li><b>It is slow and not cheap.</b> Median 224 s per hard problem against 18 s for Claude Sonnet 5.5, and it cost more than three times Sonnet on the per-language run.</li>
 <li><b>Per-language grading works and separates models.</b> On the 17 problems with static types, in five languages: Sonnet 5.5 84/85, Carbon 82/85, Argon 76/85.</li>
 <li><b>A grading bug was hiding real passes.</b> Python answers that import numpy failed at import. With numpy installed, Sonnet 5.5 goes from 30 to 32/32 on the hard suite and Opus 5.5 from 30 to 31/32.</li>
@@ -166,7 +169,7 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
 <tbody>%(hard)s</tbody></table></div>
 <ul>
 <li>Carbon gains 4 problems over Gemini 4 Argon (27 to 31) and ties Claude Opus 5.5 and Claude Fable 5.1.</li>
-<li>Its one failure is a refusal on <span class=mono>lock-manager-deadlock-victims</span>, a state-machine problem. No wrong answers.</li>
+<li>Its one failure is not a wrong answer and not a refusal. On <span class=mono>lock-manager-deadlock-victims</span> the provider returned an error (503, provider overloaded) after about eight minutes with no output. The problem was repeated 8 times: 5 calls failed the same way and 3 completed, each after more than 490 s and 42,000 to 53,000 output tokens. The 2 completed answers that were graded both pass every test. The official score stays 31/32 because every model gets one run, but the miss is about availability on a very long generation, not about capability.</li>
 <li>It writes long answers: a median of about 14,700 output tokens per hard problem, against about 2,500 for Sonnet 5.5. That is where the time and the cost come from.</li>
 <li>On the agentic Go suite Carbon passes 18/18 tasks and all 52 hidden tests, for $6.81. It used 581 tool calls, the most of any model, and hit the 40-call budget on 4 tasks that it still passed.</li>
 <li>Cost is "n/a" for models run on Amazon Bedrock, which does not report it per call.</li>

@@ -36,7 +36,9 @@ counts as a failure. `v4 strict` is the same 48 problems under a larger test set
 Reading notes:
 
 - Most `v4` failures of Claude Fable 5.1, Fable 5 and Opus 5 are refusals (8, 13 and 13), not wrong code.
-- Gemini 4 Carbon's only miss is one refusal on `hard-v1`. It is slow: a median of 224 s per hard problem.
+- Gemini 4 Carbon's only miss on `hard-v1` is a provider error (503 after about eight minutes) on
+  `lock-manager-deadlock-victims`, not a refusal or a wrong answer; repeated, the calls that complete
+  pass. It is slow: a median of 224 s per hard problem.
 - Kimi K3 and GLM 5.2 lose problems to empty or truncated answers at the provider's output limit.
   The same happens to Gemini 3.8 Flash on `hard-v1` (16 truncated).
 - Claude Fable 5.1 ran `v4` on the Anthropic API and the other two suites on Bedrock.

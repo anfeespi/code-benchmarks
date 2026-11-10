@@ -1,0 +1,9 @@
+{
+ "id": "15-idempotency-purge-perf",
+ "type": "performance",
+ "title": "Idempotency Begin gets slower with every stored key",
+ "ticket": "PAY-4570 [Bug][Perf] POST latency grows with traffic since last deploy\n\nAfter the last deploy, p99 of POST /payments and POST /payments/{id}/refunds grows\nsteadily with traffic and only recovers when pods restart: ~5ms right after a restart,\n>2s after a few hours of peak traffic. CPU profiles show almost all time under\nidempotency.(*Memory).Begin.\n\nExpected: Begin cost must not grow with the number of stored keys (a store holding tens\nof thousands of live keys must keep Begin in the microsecond range). Expiry semantics\nmust not change: expired keys must never be replayed, and expired records must still be\nevicted so memory stays bounded (evicting at most once per minute is acceptable).",
+ "solution_files": [
+  "idempotency/store.go"
+ ]
+}

@@ -1,0 +1,153 @@
+diff -ruN a/api/errors.go b/api/errors.go
+--- a/api/errors.go	2026-10-14 11:03:22
++++ b/api/errors.go	2026-10-14 11:20:23
+@@ -6,6 +6,7 @@
+ 
+ 	"example.com/gopayments/money"
+ 	"example.com/gopayments/payment"
++	"example.com/gopayments/webhook"
+ )
+ 
+ // errorResponse maps a domain error to an HTTP status and error body. The
+@@ -13,7 +14,7 @@
+ func errorResponse(err error) (int, any) {
+ 	status, code := http.StatusInternalServerError, "internal_error"
+ 	switch {
+-	case errors.Is(err, payment.ErrNotFound):
++	case errors.Is(err, payment.ErrNotFound), errors.Is(err, webhook.ErrDeadLetterNotFound):
+ 		status, code = http.StatusNotFound, "not_found"
+ 	case errors.Is(err, payment.ErrInvalidTransition):
+ 		status, code = http.StatusConflict, "invalid_transition"
+diff -ruN a/api/handlers.go b/api/handlers.go
+--- a/api/handlers.go	2026-10-14 11:03:22
++++ b/api/handlers.go	2026-10-14 11:20:23
+@@ -122,6 +122,16 @@
+ 	writeJSON(w, http.StatusOK, map[string]any{"data": out})
+ }
+ 
++func (s *Server) replayDeadLetter(w http.ResponseWriter, r *http.Request) {
++	id := r.PathValue("eventID")
++	delivered, err := s.hooks.Replay(r.Context(), id)
++	if err != nil {
++		writeError(w, err)
++		return
++	}
++	writeJSON(w, http.StatusOK, map[string]any{"event_id": id, "delivered": delivered})
++}
++
+ func (s *Server) respondPayment(w http.ResponseWriter, op func() (payment.Payment, error)) {
+ 	p, err := op()
+ 	if err != nil {
+diff -ruN a/api/server.go b/api/server.go
+--- a/api/server.go	2026-10-14 11:02:45
++++ b/api/server.go	2026-10-14 11:20:23
+@@ -33,6 +33,7 @@
+ 	s.mux.HandleFunc("POST /payments/{id}/refunds", s.refundPayment)
+ 	s.mux.HandleFunc("GET /merchants/{merchantID}/payments", s.listPayments)
+ 	s.mux.HandleFunc("GET /webhooks/dead-letters", s.listDeadLetters)
++	s.mux.HandleFunc("POST /webhooks/dead-letters/{eventID}/replay", s.replayDeadLetter)
+ }
+ 
+ // ServeHTTP implements http.Handler.
+diff -ruN a/webhook/dispatcher.go b/webhook/dispatcher.go
+--- a/webhook/dispatcher.go	2026-10-14 11:02:28
++++ b/webhook/dispatcher.go	2026-10-14 11:20:23
+@@ -5,6 +5,7 @@
+ import (
+ 	"context"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"net/http"
+ 	"sync"
+@@ -14,6 +15,9 @@
+ 	"example.com/gopayments/payment"
+ )
+ 
++// ErrDeadLetterNotFound is returned when replaying an event that is not dead-lettered.
++var ErrDeadLetterNotFound = errors.New("dead letter not found")
++
+ // Event is the webhook payload.
+ type Event struct {
+ 	ID         string          `json:"id"`
+@@ -166,7 +170,7 @@
+ 	d.mu.Unlock()
+ 
+ 	for i, ev := range batch {
+-		if err := d.deliver(ctx, ev); err != nil {
++		if _, err := d.deliver(ctx, ev); err != nil {
+ 			d.mu.Lock()
+ 			d.queue = append(append([]Event(nil), batch[i:]...), d.queue...)
+ 			d.mu.Unlock()
+@@ -176,17 +180,45 @@
+ 	return nil
+ }
+ 
+-// deliver attempts ev until success, a permanent failure or MaxAttempts.
+-// It only returns an error when ctx is done.
+-func (d *Dispatcher) deliver(ctx context.Context, ev Event) error {
++// Replay re-delivers a dead-lettered event with the normal retry policy.
++func (d *Dispatcher) Replay(ctx context.Context, eventID string) (bool, error) {
++	d.mu.Lock()
++	idx := -1
++	for i, dl := range d.dead {
++		if dl.Event.ID == eventID {
++			idx = i
++			break
++		}
++	}
++	if idx < 0 {
++		d.mu.Unlock()
++		return false, fmt.Errorf("replay %s: %w", eventID, ErrDeadLetterNotFound)
++	}
++	dl := d.dead[idx]
++	d.dead = append(d.dead[:idx:idx], d.dead[idx+1:]...)
++	d.mu.Unlock()
++
++	delivered, err := d.deliver(ctx, dl.Event)
++	if err != nil {
++		d.mu.Lock()
++		d.dead = append(d.dead, dl)
++		d.mu.Unlock()
++		return false, fmt.Errorf("replay %s: %w", eventID, err)
++	}
++	return delivered, nil
++}
++
++// deliver attempts ev until success, a permanent failure or MaxAttempts and
++// reports whether it was delivered. It only returns an error when ctx is done.
++func (d *Dispatcher) deliver(ctx context.Context, ev Event) (bool, error) {
+ 	ep, ok := d.endpoints.Endpoint(ev.MerchantID)
+ 	if !ok {
+-		return nil // merchant has no webhook configured
++		return false, nil // merchant has no webhook configured
+ 	}
+ 	body, err := json.Marshal(ev)
+ 	if err != nil {
+ 		d.deadLetter(ev, 0, 0, fmt.Errorf("encode event: %w", err))
+-		return nil
++		return false, nil
+ 	}
+ 	var (
+ 		status  int
+@@ -204,17 +236,17 @@
+ 			d.mu.Lock()
+ 			d.delivered++
+ 			d.mu.Unlock()
+-			return nil
++			return true, nil
+ 		}
+ 		if !retryable(status, sendErr) || attempt == d.policy.MaxAttempts {
+ 			break
+ 		}
+ 		if err := d.clock.Sleep(ctx, d.policy.Backoff(attempt)); err != nil {
+-			return err
++			return false, err
+ 		}
+ 	}
+ 	d.deadLetter(ev, attempt, status, sendErr)
+-	return nil
++	return false, nil
+ }
+ 
+ func (d *Dispatcher) deadLetter(ev Event, attempts, status int, err error) {

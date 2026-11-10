@@ -1,0 +1,10 @@
+{
+ "id": "12-transition-table-refactor",
+ "type": "refactor",
+ "title": "Centralize the payment status machine in one transition table",
+ "ticket": "PAY-4541 [Tech debt] Single source of truth for status transitions\n\nThe allowed status changes are scattered across switch statements in\npayment.Service (Authorize, Capture, Decline, Refund). Every new status means touching\nall of them, and we already shipped one inconsistency last quarter.\n\nDo:\n- Add `func CanTransition(from, to Status) bool` in package payment. It is the only place\n  that knows which transitions are allowed:\n  CREATED->PENDING, CREATED->DECLINED, PENDING->SUCCEEDED, PENDING->DECLINED,\n  SUCCEEDED->REFUNDED. Nothing else (no self transitions). A partial refund is not a\n  status change; it is allowed exactly when a full refund would be.\n- Every service method must validate status changes through CanTransition; no\n  `switch p.Status` (or equivalent if/else chains on the status) may remain in\n  payment/service.go.\n- Pure refactor: public behaviour, events, returned payments and errors (still wrapping\n  ErrInvalidTransition, ErrRefundExceedsRemaining, ...) must not change.",
+ "solution_files": [
+  "payment/service.go",
+  "payment/transitions.go"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "id": "16-split-payout-rounding",
+ "type": "trap",
+ "title": "Split payouts do not reconcile with the charged amount",
+ "ticket": "PAY-4588 [Bug] Marketplace split payouts lose or create cents\n\nMarketplace merchants split each charge between sub-merchants with money.Allocate.\nFinance reconciliation fails daily:\n- a 100.00 USD charge split equally across 3 sub-merchants pays out 33.33 x 3 = 99.99;\n- a 0.10 USD charge split 1:1:1:1:1:1:1 pays out 0.07;\n- some splits pay out MORE than was charged (0.05 USD split 1:1 pays 0.03 + 0.03).\n\nFix the split so payouts always reconcile, respecting the documented contract of\nmoney.Allocate.",
+ "solution_files": [
+  "money/allocate.go"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "id": "01-currency-exponent-format",
+ "type": "bug",
+ "title": "CLP/JPY/KWD amounts rendered with the wrong number of decimals",
+ "ticket": "PAY-4411 [Bug] Wrong amounts shown for CLP, JPY and KWD payments\n\nA merchant in Chile created a payment of 15000 CLP. The create call succeeds, but every\nresponse (POST /payments, GET /payments/{id}, list) shows \"amount\": \"150.00\" and the fee\nlooks wrong too. Our Japanese merchant reports the same with JPY. KWD (Kuwaiti dinar,\n3 decimals) payments of 1.234 KWD come back as \"12.34\".\n\nExpected: amounts are always rendered in major units with exactly the number of decimals\nof their currency (CLP/JPY: none, USD/EUR/BRL/...: 2, KWD: 3). Negative amounts keep the\nminus sign. USD behaviour must not change.",
+ "solution_files": [
+  "money/amount.go"
+ ]
+}

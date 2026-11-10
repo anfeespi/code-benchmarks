@@ -1,0 +1,90 @@
+diff -ruN a/api/handlers.go b/api/handlers.go
+--- a/api/handlers.go	2026-10-14 11:03:22
++++ b/api/handlers.go	2026-10-14 11:20:23
+@@ -14,6 +14,11 @@
+ const maxBodyBytes = 1 << 20
+ 
+ func (s *Server) createPayment(w http.ResponseWriter, r *http.Request) {
++	fp, err := bodyFingerprint(r)
++	if err != nil {
++		writeError(w, err)
++		return
++	}
+ 	var req createPaymentRequest
+ 	if err := decodeJSON(r, &req); err != nil {
+ 		writeError(w, err)
+@@ -25,7 +30,7 @@
+ 		return
+ 	}
+ 	in := payment.CreateInput{MerchantID: req.MerchantID, Amount: amount}
+-	s.idempotent(w, r, createFingerprint(in), func() (int, any) {
++	s.idempotent(w, r, fp, func() (int, any) {
+ 		p, err := s.svc.Create(r.Context(), in)
+ 		if err != nil {
+ 			return errorResponse(err)
+@@ -66,6 +71,11 @@
+ 
+ func (s *Server) refundPayment(w http.ResponseWriter, r *http.Request) {
+ 	id := r.PathValue("id")
++	fp, err := bodyFingerprint(r)
++	if err != nil {
++		writeError(w, err)
++		return
++	}
+ 	var req refundRequest
+ 	if err := decodeJSON(r, &req); err != nil {
+ 		writeError(w, err)
+@@ -81,7 +91,7 @@
+ 		writeError(w, fmt.Errorf("amount: %w", err))
+ 		return
+ 	}
+-	s.idempotent(w, r, refundFingerprint(id, amount), func() (int, any) {
++	s.idempotent(w, r, fp, func() (int, any) {
+ 		p, _, err := s.svc.Refund(r.Context(), id, amount)
+ 		if err != nil {
+ 			return errorResponse(err)
+diff -ruN a/api/idempotency.go b/api/idempotency.go
+--- a/api/idempotency.go	2026-10-14 11:03:23
++++ b/api/idempotency.go	2026-10-14 11:20:23
+@@ -1,15 +1,16 @@
+ package api
+ 
+ import (
++	"bytes"
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"net/http"
+ 
+ 	"example.com/gopayments/idempotency"
+-	"example.com/gopayments/money"
+ 	"example.com/gopayments/payment"
+ )
+ 
+@@ -68,14 +69,15 @@
+ 	_, _ = w.Write(raw)
+ }
+ 
+-// createFingerprint hashes the decoded request, not the raw body, so
+-// semantically identical retries match regardless of JSON formatting.
+-func createFingerprint(in payment.CreateInput) string {
+-	return hash(fmt.Sprintf("create|%s|%d|%s", in.MerchantID, in.Amount.Minor, in.Amount.Currency.Code))
+-}
+-
+-func refundFingerprint(paymentID string, amount money.Amount) string {
+-	return hash(fmt.Sprintf("refund|%s|%d|%s", paymentID, amount.Minor, amount.Currency.Code))
++// bodyFingerprint hashes the request path and raw body, then restores the
++// body so the handler can decode it.
++func bodyFingerprint(r *http.Request) (string, error) {
++	raw, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes))
++	if err != nil {
++		return "", fmt.Errorf("%w: read body: %v", payment.ErrInvalidInput, err)
++	}
++	r.Body = io.NopCloser(bytes.NewReader(raw))
++	return hash(r.URL.Path + "|" + string(raw)), nil
+ }
+ 
+ func hash(s string) string {

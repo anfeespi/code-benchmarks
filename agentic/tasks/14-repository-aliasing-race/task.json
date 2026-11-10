@@ -1,0 +1,9 @@
+{
+ "id": "14-repository-aliasing-race",
+ "type": "concurrency",
+ "title": "In-memory repository shares mutable state with callers",
+ "ticket": "PAY-4561 [Bug] DATA RACE and phantom refunds under concurrent refunds\n\nOur integration suite (`go test -race`, store.Memory as repository) reports DATA RACE\nbetween payment.(*Service).Refund calls running concurrently on the same payment.\nIn a staging soak test one payment ended with 5 entries in `refunds` whose amounts do not\nadd up to `refunded_amount`; one refund id appears that was never returned to any client\n(its request had failed with a version conflict).\n\nExpected: concurrent operations on the same payment are race-free; a failed update\n(version conflict) leaves no trace in the stored payment; values handed to or returned by\nthe repository never share mutable state with what is stored. Optimistic locking\nsemantics must not change.",
+ "solution_files": [
+  "store/memory.go"
+ ]
+}

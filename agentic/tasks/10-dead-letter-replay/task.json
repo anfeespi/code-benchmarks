@@ -1,0 +1,12 @@
+{
+ "id": "10-dead-letter-replay",
+ "type": "feature",
+ "title": "Replay a dead-lettered webhook event",
+ "ticket": "PAY-4523 [Story] Ops can re-deliver dead-lettered webhooks\n\nAfter a merchant fixes their endpoint, ops needs to re-send the events that ended in\nthe dead-letter list (GET /webhooks/dead-letters already lists them).\n\nAcceptance criteria:\n- New method `func (d *Dispatcher) Replay(ctx context.Context, eventID string) (delivered bool, err error)`\n  in package webhook. It removes the event from the dead-letter list and delivers it\n  again with the normal retry policy, with the SAME event id and payload (merchants\n  dedupe on Webhook-Id; the signature is recomputed at send time as usual).\n  - delivered: returns (true, nil); the event is no longer dead-lettered.\n  - fails again: returns (false, nil); the event is in the dead-letter list exactly once,\n    with the attempts/status of the new delivery.\n  - unknown event id: returns an error wrapping the new exported `webhook.ErrDeadLetterNotFound`.\n- HTTP: POST /webhooks/dead-letters/{eventID}/replay returns 200\n  {\"event_id\": \"<id>\", \"delivered\": true|false}; unknown id -> 404 not_found.",
+ "solution_files": [
+  "api/errors.go",
+  "api/handlers.go",
+  "api/server.go",
+  "webhook/dispatcher.go"
+ ]
+}

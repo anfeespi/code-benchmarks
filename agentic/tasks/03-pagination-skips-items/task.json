@@ -1,0 +1,9 @@
+{
+ "id": "03-pagination-skips-items",
+ "type": "bug",
+ "title": "Cursor pagination silently drops one payment per page",
+ "ticket": "PAY-4432 [Bug] Reconciliation misses payments when paging\n\nThe nightly reconciliation job walks GET /merchants/{merchantID}/payments?limit=50\nfollowing next_cursor until it is empty. For merchant m_204 (1,000 payments) it only\ncollects 981 payments; the missing ones are never the first page's. With limit=1 it\nreturns about half of the payments.\n\nExpected: walking all pages returns every payment of the merchant exactly once, in\ncreation order, for any limit. next_cursor must be empty on the last page (also when\nthe total is an exact multiple of the limit).",
+ "solution_files": [
+  "store/memory.go"
+ ]
+}

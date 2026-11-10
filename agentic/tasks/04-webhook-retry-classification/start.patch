@@ -1,0 +1,10 @@
+diff -ruN a/webhook/dispatcher.go b/webhook/dispatcher.go
+--- a/webhook/dispatcher.go	2026-10-14 11:02:28
++++ b/webhook/dispatcher.go	2026-10-14 11:20:22
+@@ -233,5 +233,5 @@
+ 	if err != nil {
+ 		return true
+ 	}
+-	return status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500
++	return status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || (status >= 400 && status < 500)
+ }

@@ -1,0 +1,16 @@
+diff -ruN a/money/amount.go b/money/amount.go
+--- a/money/amount.go	2026-10-14 11:20:22
++++ b/money/amount.go	2026-10-14 11:20:22
+@@ -94,7 +94,11 @@
+ 		sign = "-"
+ 		m = -m
+ 	}
+-	return fmt.Sprintf("%s%d.%02d", sign, m/100, m%100)
++	if a.Currency.Exponent == 0 {
++		return sign + strconv.FormatInt(m, 10)
++	}
++	f := a.Currency.Factor()
++	return fmt.Sprintf("%s%d.%0*d", sign, m/f, a.Currency.Exponent, m%f)
+ }
+ 
+ // String renders "10.50 USD".

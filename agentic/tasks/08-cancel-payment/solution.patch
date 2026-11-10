@@ -1,0 +1,74 @@
+diff -ruN a/api/handlers.go b/api/handlers.go
+--- a/api/handlers.go	2026-10-14 11:03:22
++++ b/api/handlers.go	2026-10-14 11:20:23
+@@ -64,6 +64,10 @@
+ 	})
+ }
+ 
++func (s *Server) cancelPayment(w http.ResponseWriter, r *http.Request) {
++	s.respondPayment(w, func() (payment.Payment, error) { return s.svc.Cancel(r.Context(), r.PathValue("id")) })
++}
++
+ func (s *Server) refundPayment(w http.ResponseWriter, r *http.Request) {
+ 	id := r.PathValue("id")
+ 	var req refundRequest
+diff -ruN a/api/server.go b/api/server.go
+--- a/api/server.go	2026-10-14 11:02:45
++++ b/api/server.go	2026-10-14 11:20:23
+@@ -30,6 +30,7 @@
+ 	s.mux.HandleFunc("POST /payments/{id}/authorize", s.authorizePayment)
+ 	s.mux.HandleFunc("POST /payments/{id}/capture", s.capturePayment)
+ 	s.mux.HandleFunc("POST /payments/{id}/decline", s.declinePayment)
++	s.mux.HandleFunc("POST /payments/{id}/cancel", s.cancelPayment)
+ 	s.mux.HandleFunc("POST /payments/{id}/refunds", s.refundPayment)
+ 	s.mux.HandleFunc("GET /merchants/{merchantID}/payments", s.listPayments)
+ 	s.mux.HandleFunc("GET /webhooks/dead-letters", s.listDeadLetters)
+diff -ruN a/payment/payment.go b/payment/payment.go
+--- a/payment/payment.go	2026-10-14 11:01:22
++++ b/payment/payment.go	2026-10-14 11:20:23
+@@ -22,9 +22,10 @@
+ 	StatusSucceeded Status = "SUCCEEDED"
+ 	StatusDeclined  Status = "DECLINED"
+ 	StatusRefunded  Status = "REFUNDED"
++	StatusCanceled  Status = "CANCELED"
+ )
+ 
+-var allStatuses = []Status{StatusCreated, StatusPending, StatusSucceeded, StatusDeclined, StatusRefunded}
++var allStatuses = []Status{StatusCreated, StatusPending, StatusSucceeded, StatusDeclined, StatusRefunded, StatusCanceled}
+ 
+ // ParseStatus parses a status name, case-insensitively.
+ func ParseStatus(s string) (Status, error) {
+@@ -38,7 +39,9 @@
+ }
+ 
+ // Final reports whether no further transitions are possible from s.
+-func (s Status) Final() bool { return s == StatusDeclined || s == StatusRefunded }
++func (s Status) Final() bool {
++	return s == StatusDeclined || s == StatusRefunded || s == StatusCanceled
++}
+ 
+ // Domain errors. Callers must match them with errors.Is: they are always wrapped.
+ var (
+diff -ruN a/payment/service.go b/payment/service.go
+--- a/payment/service.go	2026-10-14 11:01:22
++++ b/payment/service.go	2026-10-14 11:20:23
+@@ -148,6 +148,19 @@
+ 	})
+ }
+ 
++// Cancel moves a CREATED or PENDING payment to CANCELED.
++func (s *Service) Cancel(ctx context.Context, id string) (Payment, error) {
++	return s.mutate(ctx, id, func(p *Payment) (Event, error) {
++		switch p.Status {
++		case StatusCreated, StatusPending:
++			p.Status = StatusCanceled
++			return Event{Type: "payment.canceled"}, nil
++		default:
++			return Event{}, fmt.Errorf("%w: cannot cancel a %s payment", ErrInvalidTransition, p.Status)
++		}
++	})
++}
++
+ // Refund refunds amount of a SUCCEEDED payment. Partial refunds keep the
+ // payment SUCCEEDED; once the whole amount is refunded it becomes REFUNDED.
+ func (s *Service) Refund(ctx context.Context, id string, amount money.Amount) (Payment, Refund, error) {

@@ -1,0 +1,56 @@
+diff -ruN a/idempotency/store.go b/idempotency/store.go
+--- a/idempotency/store.go	2026-10-14 11:01:51
++++ b/idempotency/store.go	2026-10-14 11:20:23
+@@ -77,12 +77,13 @@
+ 	if key == "" {
+ 		return Record{}, false, ErrEmptyKey
+ 	}
+-	m.mu.Lock()
+-	defer m.mu.Unlock()
+ 	now := m.clock.Now()
++	m.mu.Lock()
+ 	m.purgeLocked(now)
++	r, ok := m.records[key]
++	m.mu.Unlock()
+ 
+-	if r, ok := m.records[key]; ok && now.Before(r.ExpiresAt) {
++	if ok && now.Before(r.ExpiresAt) {
+ 		if r.Fingerprint != fingerprint {
+ 			return Record{}, false, fmt.Errorf("%w: key %q", ErrKeyReuse, key)
+ 		}
+@@ -91,15 +92,16 @@
+ 		}
+ 		return copyRecord(r), false, nil
+ 	}
+-	r := &Record{Key: key, Fingerprint: fingerprint, ExpiresAt: now.Add(m.ttl)}
++	r = &Record{Key: key, Fingerprint: fingerprint, ExpiresAt: now.Add(m.ttl)}
++	m.mu.Lock()
+ 	m.records[key] = r
++	m.mu.Unlock()
+ 	return copyRecord(r), true, nil
+ }
+ 
+-// Complete implements Store.
++// Complete implements Store. Only the request that began key writes its
++// record, so no locking is needed here.
+ func (m *Memory) Complete(_ context.Context, key string, resp Response) error {
+-	m.mu.Lock()
+-	defer m.mu.Unlock()
+ 	r, ok := m.records[key]
+ 	if !ok {
+ 		return fmt.Errorf("%w: %q", ErrUnknownKey, key)
+@@ -111,12 +113,12 @@
+ 
+ // Release implements Store.
+ func (m *Memory) Release(_ context.Context, key string) error {
+-	m.mu.Lock()
+-	defer m.mu.Unlock()
+ 	if _, ok := m.records[key]; !ok {
+ 		return fmt.Errorf("%w: %q", ErrUnknownKey, key)
+ 	}
++	m.mu.Lock()
+ 	delete(m.records, key)
++	m.mu.Unlock()
+ 	return nil
+ }
+ 

@@ -1,0 +1,37 @@
+diff -ruN a/money/allocate.go b/money/allocate.go
+--- a/money/allocate.go	2026-10-14 11:20:23
++++ b/money/allocate.go	2026-10-14 11:20:23
+@@ -2,7 +2,7 @@
+ 
+ import (
+ 	"fmt"
+-	"math"
++	"sort"
+ )
+ 
+ // Allocate splits a into len(ratios) parts proportional to ratios, for example
+@@ -32,9 +32,22 @@
+ 	}
+ 
+ 	parts := make([]Amount, len(ratios))
++	rems := make([]int64, len(ratios))
++	var assigned int64
+ 	for i, r := range ratios {
+-		share := float64(a.Minor) * float64(r) / float64(total)
+-		parts[i] = Amount{Minor: int64(math.Round(share)), Currency: a.Currency}
++		share := a.Minor * r
++		parts[i] = Amount{Minor: share / total, Currency: a.Currency}
++		rems[i] = share % total
++		assigned += parts[i].Minor
++	}
++
++	order := make([]int, len(ratios))
++	for i := range order {
++		order[i] = i
++	}
++	sort.SliceStable(order, func(x, y int) bool { return rems[order[x]] > rems[order[y]] })
++	for i := int64(0); i < a.Minor-assigned; i++ {
++		parts[order[i]].Minor++
+ 	}
+ 	return parts, nil
+ }

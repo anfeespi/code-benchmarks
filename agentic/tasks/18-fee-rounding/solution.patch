@@ -1,0 +1,34 @@
+diff -ruN a/money/fee.go b/money/fee.go
+--- a/money/fee.go	2026-10-14 11:20:23
++++ b/money/fee.go	2026-10-14 11:20:23
+@@ -1,9 +1,6 @@
+ package money
+ 
+-import (
+-	"fmt"
+-	"math"
+-)
++import "fmt"
+ 
+ // Fee returns bps basis points (1 bps = 0.01%) of a.
+ //
+@@ -16,6 +13,17 @@
+ 	if bps < 0 || bps > 10000 {
+ 		return Amount{}, fmt.Errorf("%w: bps %d out of range [0, 10000]", ErrInvalidAmount, bps)
+ 	}
+-	fee := math.Ceil(float64(a.Minor) * float64(bps) / 10000)
+-	return Amount{Minor: int64(fee), Currency: a.Currency}, nil
++	// Split a into a multiple of 10000 and a remainder so a*bps never overflows.
++	q, r := a.Minor/10000, a.Minor%10000
++	fee := q * bps
++	num := r * bps
++	fee += num / 10000
++	rem := num % 10000
++	switch {
++	case rem*2 > 10000:
++		fee++
++	case rem*2 == 10000 && fee%2 != 0:
++		fee++
++	}
++	return Amount{Minor: fee, Currency: a.Currency}, nil
+ }

@@ -1,0 +1,9 @@
+{
+ "id": "04-webhook-retry-classification",
+ "type": "bug",
+ "title": "Webhook dispatcher retries permanent 4xx failures and gives up on 5xx",
+ "ticket": "PAY-4450 [Bug] Webhook retries behave backwards\n\nTwo merchant complaints this week:\n1. Merchant m_77 decommissioned an old endpoint that now answers 410 Gone. Every event is\n   still POSTed to it MaxAttempts times with backoff, which their WAF flags as abuse.\n   Same with 400/401/404 responses.\n2. Merchant m_91 had a 5-minute outage (503). All events from that window went straight\n   to the dead-letter list after a single attempt, nothing was retried.\n\nExpected: the dispatcher follows the retry policy documented in the service README.\nDead letters must record the number of attempts and the last HTTP status.",
+ "solution_files": [
+  "webhook/dispatcher.go"
+ ]
+}

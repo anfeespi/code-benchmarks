@@ -1,0 +1,27 @@
+{
+ "slug": "vending-escrow-greedy-change",
+ "cases": [
+  {
+   "case": "stress_huge_time_gaps",
+   "seconds": 0.026,
+   "timeout_s": 10,
+   "margin": 378.8,
+   "ok": true
+  },
+  {
+   "case": "stress_long_run",
+   "seconds": 0.159,
+   "timeout_s": 20,
+   "margin": 126.0,
+   "ok": true
+  },
+  {
+   "case": "stress_escrow_churn",
+   "seconds": 0.139,
+   "timeout_s": 20,
+   "margin": 144.2,
+   "ok": true
+  }
+ ],
+ "min_margin": 126.0
+}

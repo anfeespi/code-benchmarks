@@ -1,0 +1,1392 @@
+{
+ "title": "Tally expression evaluator with exact error positions",
+ "entry_point": "evaluate",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.evaluate('-2^2 + 2^3^2', {})",
+   "expected": {
+    "value": [
+     "ok",
+     508
+    ]
+   }
+  },
+  {
+   "name": "example_2",
+   "code": "result = sol.evaluate('-7/2 + -7%2*10', {})",
+   "expected": {
+    "value": [
+     "ok",
+     6
+    ]
+   }
+  },
+  {
+   "name": "example_3",
+   "code": "result = sol.evaluate('x > 1 ? 10 / (x - 3) : 0', {'x': 0})",
+   "expected": {
+    "value": [
+     "ok",
+     0
+    ]
+   }
+  },
+  {
+   "name": "example_4",
+   "code": "result = sol.evaluate('a < b < c', {'a': 1, 'b': 2, 'c': 3})",
+   "expected": {
+    "value": [
+     "error",
+     6,
+     "unexpected token '<'"
+    ]
+   }
+  },
+  {
+   "name": "example_5",
+   "code": "result = sol.evaluate('3 * (4 + y', {})",
+   "expected": {
+    "value": [
+     "error",
+     10,
+     "unexpected end of input"
+    ]
+   }
+  },
+  {
+   "name": "example_6",
+   "code": "result = sol.evaluate('n = 3', {'n': 1})",
+   "expected": {
+    "value": [
+     "error",
+     2,
+     "unexpected character '='"
+    ]
+   }
+  },
+  {
+   "name": "example_7",
+   "code": "result = sol.evaluate('8 % (k - k)', {'k': 5})",
+   "expected": {
+    "value": [
+     "error",
+     2,
+     "division by zero"
+    ]
+   }
+  },
+  {
+   "name": "example_8",
+   "code": "result = sol.evaluate('2^-1', {})",
+   "expected": {
+    "value": [
+     "error",
+     1,
+     "negative exponent"
+    ]
+   }
+  },
+  {
+   "name": "ternary_laziness",
+   "code": "result = [sol.evaluate(s, {'a': 0, 'b': 0}) for s in ['0 ? nope : 5', 'a ? 1/0 : b ? 2 : 3', '1 ? 0 ? 5 : 6 : 7', '1 ? 2 : 3 < 4', 'a ? 1 : 2 ? 3 : 4/0', 'b ? zz : 1 - 1 ? 9 : -9']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      5
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      6
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      -9
+     ]
+    ]
+   }
+  },
+  {
+   "name": "comparison_chains",
+   "code": "result = [sol.evaluate(s, {}) for s in ['1 < 2 == 1', '(1 < 2) == 1', '1 < (2 == 1)', '1<=1>=1', '3 != 4 ? 1 < 2 : 0', '1 + 2 > 2 + 0 * 9', '1 >= 2 ? 3 : 4 == 4']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      6,
+      "unexpected token '=='"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      4,
+      "unexpected token '>='"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "unary_vs_power",
+   "code": "result = [sol.evaluate(s, {}) for s in ['--3^2', '-3^2', '(-3)^2', '2^-0', '0^0', '2^3^0', '-2^-2^-0', '- - -2 * -3', '2*-3^2', '2^ -1+5']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      9
+     ],
+     [
+      "ok",
+      -9
+     ],
+     [
+      "ok",
+      9
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      2,
+      "negative exponent"
+     ],
+     [
+      "ok",
+      6
+     ],
+     [
+      "ok",
+      -18
+     ],
+     [
+      "error",
+      1,
+      "negative exponent"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "floor_semantics",
+   "code": "result = [sol.evaluate(s, {}) for s in ['7%-2', '-7/-2', '7/-2', '-1%5', '0-7%3', '-(7%3)', '10/3*3+10%3', '-10/3*3+-10%3']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      -1
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      -4
+     ],
+     [
+      "ok",
+      4
+     ],
+     [
+      "ok",
+      -1
+     ],
+     [
+      "ok",
+      -1
+     ],
+     [
+      "ok",
+      10
+     ],
+     [
+      "ok",
+      -10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "lexing_edges",
+   "code": "result = [sol.evaluate(s, {'ab': 1, '_': 2, 'a1_b': 3}) for s in ['12ab', '007+_', 'a1_b*_', '1 ! = 2', '1 =< 2', '1 + \\t2', 'x\\u00e9', 'A', '1 <== 2', '1.5', '_ _']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      2,
+      "unexpected token 'ab'"
+     ],
+     [
+      "ok",
+      9
+     ],
+     [
+      "ok",
+      6
+     ],
+     [
+      "error",
+      2,
+      "unexpected character '!'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected character '='"
+     ],
+     [
+      "error",
+      4,
+      "unexpected character '\t'"
+     ],
+     [
+      "error",
+      1,
+      "unexpected character 'é'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected character 'A'"
+     ],
+     [
+      "error",
+      4,
+      "unexpected character '='"
+     ],
+     [
+      "error",
+      1,
+      "unexpected character '.'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token '_'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "syntax_edges",
+   "code": "result = [sol.evaluate(s, {}) for s in ['', '   ', '()', '((1)', '1 +', 'a ? b', 'a : b', '1 2', ')', '1 ? 2 : ', '(1 ? 2) : 3', '?', '- ', '^2', '2^^2', '1 */ 2']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      3,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      1,
+      "unexpected token ')'"
+     ],
+     [
+      "error",
+      4,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      3,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      5,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token ':'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token '2'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token ')'"
+     ],
+     [
+      "error",
+      8,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      6,
+      "unexpected token ')'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '?'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '^'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token '^'"
+     ],
+     [
+      "error",
+      3,
+      "unexpected token '/'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "error_order",
+   "code": "result = [sol.evaluate(s, {'z': 0}) for s in ['q + 1/0', '1/0 + q', '1/z + 2^-1', '2^-1 + 1/z', '2^(0-1)', '2^257', '(1/z) ? 1 : 2', 'z ? 1/z : q', '2^(1/z)', '(0-1)^(1/z)']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "unknown name 'q'"
+     ],
+     [
+      "error",
+      1,
+      "division by zero"
+     ],
+     [
+      "error",
+      1,
+      "division by zero"
+     ],
+     [
+      "error",
+      1,
+      "negative exponent"
+     ],
+     [
+      "error",
+      1,
+      "negative exponent"
+     ],
+     [
+      "error",
+      1,
+      "exponent too large"
+     ],
+     [
+      "error",
+      2,
+      "division by zero"
+     ],
+     [
+      "error",
+      10,
+      "unknown name 'q'"
+     ],
+     [
+      "error",
+      4,
+      "division by zero"
+     ],
+     [
+      "error",
+      8,
+      "division by zero"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "exponent_boundary",
+   "code": "r = sol.evaluate('2^256 - 3^255 + 1^256', {})\nresult = (r[0], r[1] % 1000000007, sol.evaluate('2^256^1', {}), sol.evaluate('(2^16)^(2^4) == 2^256', {}))",
+   "expected": {
+    "value": [
+     "ok",
+     368811676,
+     [
+      "ok",
+      115792089237316195423570985008687907853269984665640564039457584007913129639936
+     ],
+     [
+      "ok",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "big_ints",
+   "code": "result = sol.evaluate('99999999999999999999 * 99999999999999999999 - x / 3', {'x': -10**30})",
+   "expected": {
+    "value": [
+     "ok",
+     10000000000333333333133333333333333333335
+    ]
+   }
+  },
+  {
+   "name": "random_batch_1",
+   "code": "result = [sol.evaluate(s, e) for s, e in [('x_1', {'a': 4, 'b': -3, 'zz': 4, '_t': 0, 'q9': 1}), ('3 ? (7) : 21', {'a': 4, 'b': 2, 'zz': 1, 'x_1': 4, '_t': -3, 'q9': 10}), ('-300 /5%a >= -3', {'b': -3, 'zz': 1, '_t': 1}), ('-0 ^ (a)%7 ? 0 : b%_t', {'a': 0, 'b': 4, 'zz': 0, 'x_1': -3, 'q9': 1}), ('-33%zz % -2^ 3 ? ((a>=((b))))==a : 5^(x_1) ^ -5^300 + q9%-x_1+2', {'b': 4, 'zz': 0, 'x_1': 0, '_t': -3}), (' q9', {'a': 4, 'b': 2, 'zz': 10, 'x_1': 1, '_t': 0}), ('5#%30<0', {'a': 0, 'b': 0, 'zz': -3, 'x_1': 0, '_t': 2}), ('5 % a-q9 ^ 0', {'a': 1, 'b': -3, '_t': -3, 'q9': 4}), ('a', {'a': -3, 'zz': 10, 'x_1': 4, '_t': 1, 'q9': -3}), ('-(33<1 ? (1) : 5)---b * ((0))', {'x_1': 10, 'q9': 4}), ('x_1', {'zz': -3, '_t': 2, 'q9': 4}), ('zz%q9', {'a': 0, 'b': 0, 'zz': 2, '_t': -3, 'q9': 1}), ('zz + 1^2 % (zz) + x_1%20^7 * 2 * -5 - b / 7/(q9)', {'a': 10, 'b': 4, 'zz': 0, 'x_1': 2, '_t': 4, 'q9': -3}), ('-a + 3 / 12^-2+3/25 / a-x_1 / (a)-_t ^ 5 <= zz * 7!=x_1^_t % 3 ^ a<b*3 - 12 ^ b ^ 3', {'a': 4, 'b': 1, 'zz': 2, '_t': 10, 'q9': 0}), ('(1 ^ 7)', {'a': -3, 'b': 10, 'zz': 0, 'x_1': 4, 'q9': 2}), ('1 ? zz>zz : (300)^x_1^a%b / (-12) ? 12 ^ 0*<=x_1 % _.t : -2 ? 2 : 2', {'a': 4, 'x_1': 4, '_t': 10, 'q9': 4}), ('b * a/1+300', {'b': -3, '_t': -3, 'q9': 2}), ('2', {'x_1': 10, '_t': 2, 'q9': -3}), ('(É(q9<b))', {'a': 10, 'b': 0, 'zz': 10, 'x_1': 1, '_t': 4, 'q9': 1}), ('-300 ? a : 2 > q9%-(3 ? 65 : 7)', {'b': 4, 'zz': -3, '_t': 0}), ('0 / 3 == (2) ^ q9/-q9 ? x_1/(b)%(_t) : (a)%0 / zz', {'a': 1, 'b': 2, 'zz': 4, '_t': 1, 'q9': 2}), ('a%-3%q9-a', {'a': 2, 'b': 0, 'zz': 1, 'x_1': 2, '_t': -3, 'q9': 4}), ('5 / b+(zz)%zz ^ 1+((7))', {'a': 1, 'b': -3, 'zz': -3, 'x_1': 4, 'q9': 2}), ('x_1', {'b': 4, 'zz': 4, '_t': -3, 'q9': 0}), ('2%3 % q9#', {'a': 1, 'b': 1, 'zz': -3, '_t': 1, 'q9': -3}), ('-(3', {'_t': 0}), ('-7', {'b': 4, 'x_1': 2, '_t': 1, 'q9': 0}), ('a', {'b': 10, 'zz': -3, 'q9': -3}), ('0 + 7%q9*7', {'a': 2, 'zz': 10, 'x_1': -3, 'q9': 4}), ('q9 - 5*zz', {'a': 1, 'b': -3, 'x_1': -3, '_t': 0, 'q9': -3}), ('a', {'a': 2, 'b': 0, 'x_1': 1, 'q9': -3}), ('5', {'a': 10, 'b': 0, 'x_1': 1}), (' * ((zz) >= 12 ? 300 : b)', {'a': 2, 'b': -3, 'zz': 4, 'x_1': -3, '_t': 0, 'q9': 2}), ('23^b % 12', {'b': 2, 'x_1': 4, '_t': 4}), ('(14  zz)', {'a': -3, 'x_1': 2, '_t': -3, 'q9': 0}), (')2*-zz10', {'a': 2, 'x_1': 0, '_t': -3, 'q9': -3}), ('7', {'b': 2, 'zz': 0, 'x_1': -3, '_t': 0}), ('5', {'b': 0, 'zz': 4, 'x_1': 2, '_t': -3, 'q9': 10}), ('1#2', {'a': 2, 'b': 0, 'x_1': -3, '_t': 1}), ('b', {'a': 4, 'zz': 10, 'x_1': -3, 'q9': 4}), ('-0/5 % (0)>x_1 % b + 1 == 1<=_t*(2)', {'a': 0, 'x_1': 4, 'q9': 1}), ('b^^0 ^ 01%b', {'a': 0, 'b': -3, 'zz': 2, 'x_1': 10, '_t': 2, 'q9': 1}), ('0 / 300/12 / 300', {'zz': -3, '_t': 4, 'q9': -3}), ('b-q9 + _t^2', {'a': 1, 'b': 4, 'zz': 4, 'x_1': 1, '_t': -3, 'q9': 10}), ('0', {'zz': 1, 'x_1': 0, '_t': 2, 'q9': 1}), ('(1^b != 2 ^ (1) / 2==5*(a', {'a': 0, 'x_1': 2, '_t': 0, 'q9': 0}), ('(2/x_1) ? (3 - 12) : 10', {'a': -3, 'b': -3, 'x_1': 2, '_t': 10}), ('(7)', {'a': 1, 'b': 0, 'zz': 2, 'x_1': 0, '_t': -3, 'q9': -3}), ('(9*-zz+-24/(_t))', {'a': 4, 'b': -3, 'zz': 10, '_t': 4}), ('0 < (1) / 300 ? (2) : b ^ 3', {'a': 4, 'b': -3, 'zz': 4, 'x_1': 0, '_t': 4, 'q9': 10}), ('q9 ? a : 5', {'a': 10, 'b': -3, 'x_1': 0, '_t': 2}), ('b ^ zz%60 ^ 5 ? 0 * q9 : 96! + 12', {'a': -3, 'x_1': 10, '_t': -3, 'q9': 10}), ('x_1', {'a': 2, 'b': 10, 'zz': 4, 'x_1': 2, 'q9': 0}), ('.(a) + _t / (98%a) >= 7', {'a': -3, 'b': 2, 'zz': 4, 'x_1': 4, '_t': 10, 'q9': 1}), ('q9+(b)%300 ^ 5/-(_t)%(91) % -_t/', {'a': -3, 'x_1': -3, '_t': 2, 'q9': 1}), ('3 <x_1', {'zz': -3, 'x_1': 4, '_t': 10, 'q9': 4}), ('(7) % 10/3 ? 0 : 300/2', {'a': 4, 'x_1': 10, '_t': -3, 'q9': 1}), ('5', {'a': 0, 'b': 2, 'x_1': 1, '_t': 4}), ('3%(7) + 7*zz * (zz)+7/(0) ^ (2) ? 0 ? 3 : 2^11^q9 : x_1%_t / q9 * 1', {'a': 10, 'zz': 0, '_t': 10, 'q9': 2}), ('-zz', {'b': 2, 'zz': 2, 'x_1': -3, '_t': 4})]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "unknown name 'x_1'"
+     ],
+     [
+      "ok",
+      7
+     ],
+     [
+      "error",
+      8,
+      "unknown name 'a'"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      3,
+      "division by zero"
+     ],
+     [
+      "error",
+      1,
+      "unknown name 'q9'"
+     ],
+     [
+      "error",
+      1,
+      "unexpected character '#'"
+     ],
+     [
+      "ok",
+      -1
+     ],
+     [
+      "ok",
+      -3
+     ],
+     [
+      "error",
+      20,
+      "unknown name 'b'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'x_1'"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      9,
+      "division by zero"
+     ],
+     [
+      "error",
+      50,
+      "unexpected token '!='"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      43,
+      "unexpected token '<='"
+     ],
+     [
+      "error",
+      4,
+      "unknown name 'a'"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      1,
+      "unexpected character 'É'"
+     ],
+     [
+      "error",
+      7,
+      "unknown name 'a'"
+     ],
+     [
+      "error",
+      42,
+      "division by zero"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'x_1'"
+     ],
+     [
+      "error",
+      8,
+      "unexpected character '#'"
+     ],
+     [
+      "error",
+      3,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      -7
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'a'"
+     ],
+     [
+      "ok",
+      21
+     ],
+     [
+      "error",
+      7,
+      "unknown name 'zz'"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      1,
+      "unexpected token '*'"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      5,
+      "unexpected token 'zz'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token ')'"
+     ],
+     [
+      "ok",
+      7
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      1,
+      "unexpected character '#'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'b'"
+     ],
+     [
+      "error",
+      23,
+      "unexpected token '=='"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token '^'"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      19,
+      "unexpected token '=='"
+     ],
+     [
+      "ok",
+      -9
+     ],
+     [
+      "ok",
+      7
+     ],
+     [
+      "ok",
+      -96
+     ],
+     [
+      "ok",
+      -27
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'q9'"
+     ],
+     [
+      "error",
+      27,
+      "unexpected character '!'"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      0,
+      "unexpected character '.'"
+     ],
+     [
+      "error",
+      32,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      21,
+      "division by zero"
+     ],
+     [
+      "ok",
+      -2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_2",
+   "code": "result = [sol.evaluate(s, e) for s, e in [('--2 * <5', {'a': 1, 'zz': 4, 'x_1': 4, '_t': 1, 'q9': 1}), ('(5) - 5 / 2/300 <= -300 - 0 ? zz : (t)', {'a': -3, 'b': 4, 'zz': 10, 'x_1': 0}), ('12', {'b': 4, 'zz': 4, 'x_1': 2, '_t': 10, 'q9': 10}), ('_t ? 8', {'a': 0, 'b': 10, 'zz': 1, 'q9': 2}), ('x_1 <= q9*q9 / 3 <= (1) ? 0 : 1', {'a': 0, 'b': 10, 'zz': 10, 'x_1': 2, 'q9': 0}), ('12 % 0 ^ (b) % 300', {'a': 1, 'zz': 10, 'x_1': 10, '_t': 1, 'q9': 10}), ('q9/1', {'a': 0, 'b': 0, 'zz': 1, 'x_1': 4, '_t': -3}), ('-12', {'zz': 4, 'q9': 2}), ('1- ^ 3', {'a': 2, 'b': 2, 'zz': 2, '_t': 1, 'q9': 0}), ('84', {'b': 4, 'zz': 2, '_t': 10, 'q9': 4}), ('_t ? 2/3 ? 2%x_1 : 2 : -b-(62)', {'_t': -3, 'q9': 1}), ('3', {'a': 4, 'x_1': 4, '_t': 10, 'q9': 1}), ('(3 % 7)', {'a': -3, 'b': -3, 'zz': 4, 'x_1': 4, 'q9': 0}), ('x_1 ^ 0/12', {'a': -3, 'zz': 10, 'x_1': 10, 'q9': -3}), ('(a', {'a': 4, 'b': 1, 'zz': 2, '_t': -3, 'q9': 10}), ('q9', {'a': 2, 'b': 10, 'x_1': -3, '_t': 4, 'q9': 10}), ('0', {'a': 1, 'b': 2, 'zz': 10, 'x_1': 4, '_t': 2}), ('x_1 /2', {'a': 1, 'b': 0, 'zz': 2, 'x_1': 4, 'q9': 4}), ('a', {'b': 10, 'zz': 2, 'x_1': 1, 'q9': 1}), ('7', {'b': 10, 'zz': 0, 'x_1': 1, '_t': 1, 'q9': 2}), ('', {'b': 4, 'zz': -3, 'x_1': -3}), ('zz*_1 % 12 * 7 - -q9/5!=_t+(_t)*x_1 + (3^-a)', {'a': 2, 'b': 4, 'zz': 1, 'x_1': 1}), ('12', {'a': -3, 'b': 4, 'zz': 4, 'x_1': -3, '_t': 10}), ('((8) ? 3 : 2 ? _t : b + 7) % a<x_1 - a / 5+(12) / 0^b/3 / (12) ? 7^(2) : a+zz', {'a': 0, 'zz': 0, 'x_1': 0, '_t': 1, 'q9': 1}), ('zz', {'a': 10, 'zz': 2, '_t': 1, 'q9': 4}), ('x_1', {'a': 10, 'zz': 0, 'x_1': 10, '_t': 1, 'q9': -3}), ('_t+1', {'a': 1, 'b': 0, 'zz': 4, '_t': -3, 'q9': 1}), ('12', {'a': 1, 'b': 2, 'x_1': 1, 'q9': 4}), ('2 ? x_1 : _t+2^(_t)%3 ^ 2 + ((300))', {'a': 10, 'b': 10, 'q9': -3}), ('5+-(((zz))!=0', {'b': 0, 'q9': 0}), ('3 % 3', {'a': 0, 'b': -3, 'zz': 1, 'x_1': 2, '_t': 1, 'q9': 2}), ('12 * _t ? zz : 3', {'a': 1, 'b': 2, 'zz': 2, 'x_1': 4, '_t': 0, 'q9': 2}), ('5', {'a': 2, 'b': 2, 'zz': -3, 'x_1': 0, '_t': 4, 'q9': 0}), ('9)', {'a': -3, 'zz': 0, '_t': 4}), ('((zz))-1 ^ zz+(300) ', {'a': 4, 'b': -3, 'x_1': 2, '_t': 10, 'q9': 0}), ('(300)%-30', {'a': 2, 'b': 2, 'zz': -3, 'x_1': -3, 'q9': 2}), ('(3)^((3', {'a': 2, 'b': -3, 'zz': 10, 'x_1': -3, '_t': 2, 'q9': 2}), ('0^0', {'b': -3, 'zz': 0, 'x_1': 2, 'q9': 2}), ('0 ? 300 % (12)/1 : (1) ? 12 : zz ^ 1%0 - q9 % q / 2 != 0', {'b': 4, 'x_1': 10}), ('zz', {'a': 2, 'x_1': 0, '_t': 10}), ('(12) ^ b%q9%(12)', {'a': 0, 'b': 4, 'zz': 2, 'x_1': 10, '_t': 1}), ('+q9', {'a': 4, 'b': 1, 'x_1': 10, '_t': 10, 'q9': 10}), ('48', {'a': 1, 'b': -3, 'zz': 10, 'q9': -3}), ('0%b*3%zz ? 1 : (7) > x_1-300/300 == -x_1', {'a': -3, 'b': 1, 'zz': -3, 'x_1': 1, '_t': 0, 'q9': -3}), ('', {'a': 10, 'b': 2, 'zz': 1, 'x_1': 1}), ('5 ', {'b': 1, 'zz': 2, 'x_1': -3, '_t': -3}), ('zz', {'a': 4, 'b': -3, 'x_1': 1, '_t': 0, 'q9': 4}), ('(2) % (q9)-2  7 % b-a%x_1==a%-a*x_1 / -2+3', {'a': 4, 'b': 0, 'zz': 10, 'x_1': 1, 'q9': 0}), ('(zz', {'b': 1, 'x_1': -3, '_t': 4, 'q9': 10}), ('', {'a': 4, 'b': 0, 'zz': 4, 'x_1': -3, '_t': 1, 'q9': -3}), ('5', {'a': 1, 'b': 0, 'zz': 1, 'x_1': 1, '_t': 0, 'q9': 2}), ('-1 % 5 >= 300 ? zz : 2', {'a': 4, 'b': 2, 'zz': 4, 'q9': 1}), ('300 ? x_1 : (zz)', {'b': 4, 'x_1': 4, '_t': 4}), ('zz', {'a': 4, 'zz': 10, 'x_1': 0, '_t': -3, 'q9': 2}), ('(0+q9+12) * 33%a / ', {'a': 2, 'b': 4, 'zz': 1, 'x_1': 4, 'q9': 2}), ('0', {'a': -3, 'b': -3, 'zz': 2, 'x_1': -3}), ('-5', {'a': 2, 'zz': 1, 'x_1': 4, '_t': 10, 'q9': 0}), ('q', {'a': 4, 'zz': -3, 'x_1': 0, 'q9': -3}), ('_t!=7^-3^0 + 3 + 7 + (2) ^ _t', {'a': 4, 'zz': 2, 'x_1': 0, 'q9': 4}), ('7', {'a': 0, 'x_1': 0, '_t': 10, 'q9': 2})]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      6,
+      "unexpected token '<'"
+     ],
+     [
+      "error",
+      36,
+      "unknown name 't'"
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      6,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      17,
+      "unexpected token '<='"
+     ],
+     [
+      "error",
+      10,
+      "unknown name 'b'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'q9'"
+     ],
+     [
+      "ok",
+      -12
+     ],
+     [
+      "error",
+      3,
+      "unexpected token '^'"
+     ],
+     [
+      "ok",
+      84
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      2,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      10
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'a'"
+     ],
+     [
+      "ok",
+      7
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      3,
+      "unknown name '_1'"
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      27,
+      "division by zero"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      10
+     ],
+     [
+      "ok",
+      -2
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      4,
+      "unknown name 'x_1'"
+     ],
+     [
+      "error",
+      13,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      3
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      1,
+      "unexpected token ')'"
+     ],
+     [
+      "error",
+      2,
+      "unknown name 'zz'"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "error",
+      7,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'zz'"
+     ],
+     [
+      "error",
+      9,
+      "unknown name 'q9'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '+'"
+     ],
+     [
+      "ok",
+      48
+     ],
+     [
+      "error",
+      33,
+      "unexpected token '=='"
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'zz'"
+     ],
+     [
+      "error",
+      14,
+      "unexpected token '7'"
+     ],
+     [
+      "error",
+      3,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      5
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      4
+     ],
+     [
+      "ok",
+      10
+     ],
+     [
+      "error",
+      19,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      -5
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'q'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name '_t'"
+     ],
+     [
+      "ok",
+      7
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_3",
+   "code": "result = [sol.evaluate(s, e) for s, e in [('z % 12', {'b': 2, 'x_1': 10, '_t': 2, 'q9': -3}), ('1 ? *5 : 5', {'a': 1, 'b': 1, 'zz': -3, 'x_1': 1, '_t': 4}), ('((a))-a^7', {'a': 0, 'b': 1, 'x_1': 0, 'q9': 2}), ('12/2 / (300)', {'a': -3, 'b': 0, 'x_1': 2, '_t': 1, 'q9': 0}), ('2', {'a': 2, 'b': 1, 'x_1': -3, '_t': 4, 'q9': 0}), ('0 / 12', {'a': 0, 'b': 1, 'zz': 4, 'x_1': 0, '_t': 1, 'q9': -3}), ('-(x_1) / x_1 + b', {'a': 10, 'b': 1, 'x_1': 10}), ('300', {'b': 0, 'zz': 0, 'x_1': -3, '_t': 0}), ('10 % 3 != 2', {'a': -3, 'b': 10, 'zz': 1, 'x_1': 0}), ('7%q9 + 1 <= 12 / 1 ^ 2^(x_1/(300)<=a + 38% 7 == 300/a / (q9))', {'b': 1, 'x_1': 4, 'q9': -3}), ('((12))', {'a': -3, 'b': 0, 'zz': 1, '_t': 2}), ('zz*a', {'a': 2, 'b': 0, 'x_1': -3, '_t': 0, 'q9': 1}), ('x_1*(_t)', {'a': 0, 'b': 1, 'x_1': 4, 'q9': -3}), ('zz^x_1 ^ 12', {'a': -3, 'b': 10, 'zz': -3, 'q9': -3}), ('7*0 % 2-q9 <= q9', {'b': 10, 'x_1': 2, '_t': 1, 'q9': 4}), ('2 ^ (-79 ? 300 * _t : (', {'a': 1, 'b': 2, 'zz': -3, '_t': 1, 'q9': 10}), ('2', {'a': 2, 'b': 4, 'zz': 2, '_t': 0}), ('-300 / 7 / _t ^ b%5^b+0', {'a': 0, 'b': 0, 'x_1': -3, 'q9': 1}), ('5 + _t%(x_1/b) ^ 12!=(1)- / x_1 / (q9) * a * 0', {'a': 1, 'b': 10, 'zz': -3, '_t': 10}), (')', {'zz': 1, 'x_1': 1, 'q9': 10}), ('12', {'a': 0, 'b': 4, 'zz': -3, '_t': 10, 'q9': -3}), ('1', {'a': -3, 'b': 1, 'zz': 1, 'x_1': 4, '_t': 10}), ('-zz+3 * 5 - ((7) ? q9 : 300) ^ 7/b^(q9 % 0) / (b) >= 7 ? b : zz', {'a': 1, 'b': 2, 'x_1': -3, 'q9': 1}), ('12', {'b': 1, 'zz': 0, 'x_1': -3, '_t': 10, 'q9': 10}), ('-(3>)a', {'zz': 4, 'x_1': 2, '_t': -3, 'q9': 0}), ('x_1', {'zz': 0, 'x_1': 2, '_t': 4}), (':2', {'a': 4, 'b': 0, 'zz': 1, 'x_1': -3, '_t': 0, 'q9': -3}), ('/?3', {'a': 1, 'b': 1, 'zz': 10, 'x_1': 2, '_t': -3}), ('', {'a': 4, 'zz': 10, 'x_1': 4, 'q9': 1}), ('a*^q9', {'a': 4, 'b': 0, 'zz': 10, 'x_1': 2, 'q9': 1}), ('<=', {'a': -3, 'zz': 10, 'x_1': 0, '_t': 1, 'q9': 0}), ('b%x_1', {'zz': 4, '_t': -3}), ('(1)%q9^2%x_1', {'a': 10, 'x_1': 0, '_t': 10}), ('', {'a': 10, 'b': 1, 'zz': 2}), ('zz', {'a': 0, 'b': 1, 'zz': 2, 'x_1': 4, '_t': 4, 'q9': -3}), ('((300 ^ 3) * -b%x_1)', {'b': 2, 'zz': 0, 'x_1': 4, '_t': 0}), ('300<=40', {'a': 0, 'b': 0, 'x_1': 4, '_t': 10, 'q9': 0}), ('(1)', {'a': 10, 'zz': -3, '_t': 0, 'q9': 2}), ('-2>7 != zz % 300 ^ (zz) + x_1 * 2 % x_1-12*b==48 * -q9*/7 ? 0 : 0%(x_1+32)', {'b': -3, '_t': 1}), ('300 % 5-5 % 3/(zz)', {'a': 1, 'b': -3, 'zz': -3, 'x_1': 4, '_t': 2, 'q9': 10}), ('zz / (b)%zz É? 12 : 2 - 7É-12', {'a': -3, 'x_1': 10, 'q9': -3}), ('2-', {'a': -3, 'b': 4, 'zz': -3, 'x_1': 4, 'q9': 10}), ('_t', {'a': 0, 'b': -3, 'zz': 1, 'x_1': 10, 'q9': 4}), ('z / a ^ 5 ? (54) : 300+1', {'a': 2, 'b': 2, 'zz': -3, 'x_1': 10, 'q9': 0}), ('2', {'a': -3, 'b': 4, 'q9': 1}), ('#q9', {'zz': -3, 'x_1': 1, '_t': 1, 'q9': 4}), ('', {'b': 0, 'x_1': -3}), ('zz', {'b': -3, 'zz': -3, 'x_1': 2, '_t': 1, 'q9': -3}), ('/9', {'a': 10, 'zz': 0, 'q9': 2}), ('?_.t', {'a': 0, 'b': 1, 'x_1': 10, '_t': 2, 'q9': 2}), ('a - 12', {'a': 0, 'b': 2, 'zz': 10, 'x_1': 10, '_t': 0, 'q9': 2}), ('-a', {'b': 10, 'x_1': 4, '_t': 0, 'q9': 4}), ('zz>2', {'a': 1, 'x_1': 10, 'q9': 0}), ('30a', {'b': 4, 'zz': 1, 'x_1': 1, '_t': 4, 'q9': 10}), ('300 ? x_1+ : 1 ^ 5/(a)<X=q9', {'a': 2, 'b': 4, 'zz': 1, 'q9': 10}), ('7<3 ? 7 : (', {'a': -3, 'b': -3, 'zz': 4, 'q9': 10}), ('1a2', {'a': 2, 'b': 10, 'zz': 2, 'x_1': 2, '_t': 1, 'q9': 10}), ('>0', {'x_1': 2, '_t': 2, 'q9': 10}), ('5+b', {'zz': 2, 'x_1': 2, '_t': 2, 'q9': 1}), ('-a', {'a': 2, 'b': 1, 'zz': 1, 'x_1': 10, '_t': 0})]]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      0,
+      "unknown name 'z'"
+     ],
+     [
+      "error",
+      4,
+      "unexpected token '*'"
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      300
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      45,
+      "unexpected token '=='"
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'zz'"
+     ],
+     [
+      "error",
+      5,
+      "unknown name '_t'"
+     ],
+     [
+      "error",
+      3,
+      "unknown name 'x_1'"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      23,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      11,
+      "unknown name '_t'"
+     ],
+     [
+      "error",
+      26,
+      "unexpected token '/'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token ')'"
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      1,
+      "unknown name 'zz'"
+     ],
+     [
+      "ok",
+      12
+     ],
+     [
+      "error",
+      4,
+      "unexpected token ')'"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      0,
+      "unexpected token ':'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '/'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token '^'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '<='"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'b'"
+     ],
+     [
+      "error",
+      4,
+      "unknown name 'q9'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      0
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      5,
+      "unexpected token '!='"
+     ],
+     [
+      "ok",
+      1
+     ],
+     [
+      "error",
+      12,
+      "unexpected character 'É'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      0,
+      "unknown name '_t'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'z'"
+     ],
+     [
+      "ok",
+      2
+     ],
+     [
+      "error",
+      0,
+      "unexpected character '#'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected end of input"
+     ],
+     [
+      "ok",
+      -3
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '/'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '?'"
+     ],
+     [
+      "ok",
+      -12
+     ],
+     [
+      "error",
+      1,
+      "unknown name 'a'"
+     ],
+     [
+      "error",
+      0,
+      "unknown name 'zz'"
+     ],
+     [
+      "error",
+      2,
+      "unexpected token 'a'"
+     ],
+     [
+      "error",
+      11,
+      "unexpected token ':'"
+     ],
+     [
+      "error",
+      11,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      1,
+      "unexpected token 'a2'"
+     ],
+     [
+      "error",
+      0,
+      "unexpected token '>'"
+     ],
+     [
+      "error",
+      2,
+      "unknown name 'b'"
+     ],
+     [
+      "ok",
+      -2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_parens",
+   "code": "d = 30000\ns = '(' * d + '1 + x' + ')' * d + ' * (' + '-' * 20000 + '3)'\nresult = sol.evaluate(s, {'x': 4})",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     15
+    ]
+   }
+  },
+  {
+   "name": "stress_long_chain",
+   "code": "import random\nr = random.Random(7)\nparts = []\nfor i in range(100000):\n    parts.append(str(r.randint(0, 9)))\n    parts.append(r.choice(['+', '-', '*', '+', '-']))\ns = ' '.join(parts) + ' 1'\nv = sol.evaluate(s, {})\nresult = (v[0], v[1] % 1000000007 if v[0] == 'ok' else v)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ok",
+     999866377
+    ]
+   }
+  },
+  {
+   "name": "stress_power_tower_error",
+   "code": "s = '2^' * 30000 + '2'\nresult = (sol.evaluate(s, {}), sol.evaluate('1' + ' + 1' * 99999 + ' +', {}), sol.evaluate('(' * 30000 + '1' + ')' * 29999, {}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "error",
+      59993,
+      "exponent too large"
+     ],
+     [
+      "error",
+      399999,
+      "unexpected end of input"
+     ],
+     [
+      "error",
+      60000,
+      "unexpected end of input"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_unary_ternary_nest",
+   "code": "s = '-' * 30000 + '1 ? ' + '1 ? ' * 20000 + '7' + ' : 0' * 20001\nt = '(' * 25000 + 'q' + ')' * 25000\nresult = (sol.evaluate(s, {}), sol.evaluate(t, {}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      7
+     ],
+     [
+      "error",
+      25000,
+      "unknown name 'q'"
+     ]
+    ]
+   }
+  }
+ ]
+}

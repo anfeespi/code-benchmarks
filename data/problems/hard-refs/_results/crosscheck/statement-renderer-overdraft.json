@@ -1,0 +1,12 @@
+{
+ "slug": "statement-renderer-overdraft",
+ "n": 800,
+ "agree": 800,
+ "status": "ok",
+ "outcomes": {
+  "ok": 346,
+  "exc": 454
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

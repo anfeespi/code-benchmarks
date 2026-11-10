@@ -1,0 +1,12 @@
+{
+ "slug": "vending-escrow-greedy-change",
+ "n": 600,
+ "agree": 600,
+ "status": "ok",
+ "outcomes": {
+  "ok": 574,
+  "exc": 26
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

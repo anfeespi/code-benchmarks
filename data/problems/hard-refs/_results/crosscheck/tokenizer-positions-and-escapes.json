@@ -1,0 +1,12 @@
+{
+ "slug": "tokenizer-positions-and-escapes",
+ "n": 1500,
+ "agree": 1500,
+ "status": "ok",
+ "outcomes": {
+  "ok": 918,
+  "exc": 582
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

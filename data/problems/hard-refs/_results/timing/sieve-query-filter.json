@@ -1,0 +1,27 @@
+{
+ "slug": "sieve-query-filter",
+ "cases": [
+  {
+   "case": "stress_deep_nesting",
+   "seconds": 0.032,
+   "timeout_s": 5,
+   "margin": 156.4,
+   "ok": true
+  },
+  {
+   "case": "stress_long_query",
+   "seconds": 0.043,
+   "timeout_s": 5,
+   "margin": 115.5,
+   "ok": true
+  },
+  {
+   "case": "stress_many_records",
+   "seconds": 0.038,
+   "timeout_s": 5,
+   "margin": 130.1,
+   "ok": true
+  }
+ ],
+ "min_margin": 115.5
+}

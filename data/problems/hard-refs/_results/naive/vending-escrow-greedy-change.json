@@ -1,0 +1,8 @@
+{
+ "slug": "vending-escrow-greedy-change",
+ "stress_cases": 3,
+ "stress_failed": 3,
+ "nonstress_failed": [],
+ "naive_pass": 0,
+ "status": "ok"
+}

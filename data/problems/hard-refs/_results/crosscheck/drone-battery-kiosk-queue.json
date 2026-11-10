@@ -1,0 +1,12 @@
+{
+ "slug": "drone-battery-kiosk-queue",
+ "n": 700,
+ "agree": 700,
+ "status": "ok",
+ "outcomes": {
+  "ok": 679,
+  "exc": 21
+ },
+ "seconds": 0.03,
+ "mismatches": []
+}

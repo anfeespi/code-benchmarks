@@ -1,0 +1,20 @@
+{
+ "slug": "priority-job-scheduler-deadlines",
+ "cases": [
+  {
+   "case": "stress_all_at_once",
+   "seconds": 0.431,
+   "timeout_s": 10,
+   "margin": 23.2,
+   "ok": true
+  },
+  {
+   "case": "stress_waves",
+   "seconds": 0.361,
+   "timeout_s": 10,
+   "margin": 27.7,
+   "ok": true
+  }
+ ],
+ "min_margin": 23.2
+}

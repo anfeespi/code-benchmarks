@@ -1,0 +1,20 @@
+{
+ "slug": "access-policy-specificity",
+ "cases": [
+  {
+   "case": "stress_many_rules_requests",
+   "seconds": 0.079,
+   "timeout_s": 20,
+   "margin": 253.7,
+   "ok": true
+  },
+  {
+   "case": "stress_deep_paths",
+   "seconds": 0.028,
+   "timeout_s": 20,
+   "margin": 706.4,
+   "ok": true
+  }
+ ],
+ "min_margin": 253.7
+}

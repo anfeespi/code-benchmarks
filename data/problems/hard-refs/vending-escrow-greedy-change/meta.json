@@ -1,0 +1,1 @@
+{"id": "hard-vending-escrow-greedy-change", "title": "Vending machine with escrow, greedy change and inactivity return", "category": "state_machines", "entry_point": "simulate_vending"}

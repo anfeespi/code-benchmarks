@@ -1,0 +1,27 @@
+{
+ "slug": "feeder-pruning-tree",
+ "cases": [
+  {
+   "case": "stress_random_tree",
+   "seconds": 0.042,
+   "timeout_s": 20,
+   "margin": 476.3,
+   "ok": true
+  },
+  {
+   "case": "stress_reverse_path",
+   "seconds": 0.036,
+   "timeout_s": 20,
+   "margin": 554.8,
+   "ok": true
+  },
+  {
+   "case": "stress_star_of_paths",
+   "seconds": 0.043,
+   "timeout_s": 20,
+   "margin": 468.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 468.9
+}

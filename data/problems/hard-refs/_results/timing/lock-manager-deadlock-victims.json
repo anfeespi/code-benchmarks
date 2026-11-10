@@ -1,0 +1,27 @@
+{
+ "slug": "lock-manager-deadlock-victims",
+ "cases": [
+  {
+   "case": "stress_wide",
+   "seconds": 0.157,
+   "timeout_s": 15,
+   "margin": 95.5,
+   "ok": true
+  },
+  {
+   "case": "stress_hot_resources",
+   "seconds": 0.88,
+   "timeout_s": 15,
+   "margin": 17.0,
+   "ok": true
+  },
+  {
+   "case": "stress_many_tx",
+   "seconds": 0.496,
+   "timeout_s": 15,
+   "margin": 30.3,
+   "ok": true
+  }
+ ],
+ "min_margin": 17.0
+}

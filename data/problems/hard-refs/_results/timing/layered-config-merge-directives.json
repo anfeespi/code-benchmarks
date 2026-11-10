@@ -1,0 +1,20 @@
+{
+ "slug": "layered-config-merge-directives",
+ "cases": [
+  {
+   "case": "stress_many_layers",
+   "seconds": 0.041,
+   "timeout_s": 15,
+   "margin": 362.5,
+   "ok": true
+  },
+  {
+   "case": "stress_deep_wide",
+   "seconds": 0.154,
+   "timeout_s": 15,
+   "margin": 97.1,
+   "ok": true
+  }
+ ],
+ "min_margin": 97.1
+}

@@ -16,10 +16,10 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 
 from . import strict as kit
-from .harness import ROOT, SUITES, load_problems, load_tests, build_expected, score_candidate, extract_code
+from .harness import ROOT, tests_dir, load_problems, load_tests, build_expected, score_candidate, extract_code
 
 CATEGORIES = ["algorithms", "bug_fixing", "data_structures", "edge_cases", "optimization", "spec_compliance"]
-STRICT_DIR = SUITES["strict"]
+STRICT_DIR = tests_dir("strict")
 OUT = ROOT / "data" / "outputs"
 
 

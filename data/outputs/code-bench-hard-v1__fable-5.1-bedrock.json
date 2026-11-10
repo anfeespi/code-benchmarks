@@ -1,0 +1,887 @@
+[
+ {
+  "title": "Fastest courier route with battery swaps and regenerative roads",
+  "category": "algorithms",
+  "entry_point": "fastest_delivery",
+  "code": "import heapq\n\ndef fastest_delivery(n, roads, stations, capacity, swap_time, max_swaps, s, t):\n    if s == t:\n        return (0, 0)\n\n    C = capacity + 1          # charge levels 0..capacity\n    K = max_swaps + 1         # swaps used 0..max_swaps\n    station_set = set(stations)\n\n    # adjacency list\n    adj = [[] for _ in range(n)]\n    for (u, v, m, e) in roads:\n        adj[u].append((v, m, e))\n\n    INF = float('inf')\n    size = n * C * K\n    dist = [INF] * size\n\n    def idx(v, c, k):\n        return (v * C + c) * K + k\n\n    start = idx(s, capacity, 0)\n    dist[start] = 0\n    heap = [(0, s, capacity, 0)]\n\n    best = None  # (minutes, swaps) for reaching t\n\n    while heap:\n        d, v, c, k = heapq.heappop(heap)\n        if d != dist[idx(v, c, k)]:\n            continue\n        if best is not None and d > best[0]:\n            break\n        if v == t:\n            cand = (d, k)\n            if best is None or cand < best:\n                best = cand\n            continue  # no need to expand from t (any route onward can't improve)\n\n        # swap action\n        if v in station_set and k < max_swaps:\n            nd = d + swap_time\n            ni = idx(v, capacity, k + 1)\n            if nd < dist[ni]:\n                dist[ni] = nd\n                heapq.heappush(heap, (nd, v, capacity, k + 1))\n\n        # drive actions\n        for (w, m, e) in adj[v]:\n            if e > 0 and c < e:\n                continue\n            nc = c - e\n            if nc > capacity:\n                nc = capacity\n            nd = d + m\n            ni = idx(w, nc, k)\n            if nd < dist[ni]:\n                dist[ni] = nd\n                heapq.heappush(heap, (nd, w, nc, k))\n\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Fastest courier route with battery swaps and regenerative roads",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 20.12,
+   "tokens_in": 1411,
+   "tokens_out": 1323,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Context window pruning with gap limit, pins and adjacency bonus",
+  "category": "algorithms",
+  "entry_point": "best_context",
+  "code": "def best_context(messages, budget, max_gap, bonus):\n    if budget < 0 or max_gap < 0:\n        raise ValueError(\"budget and max_gap must be non-negative\")\n\n    n = len(messages)\n    if n == 0:\n        return 0\n\n    NEG = None  # marker for unreachable\n\n    # prefix count of pinned messages: pin[i] = number of pinned among indices < i\n    pin = [0] * (n + 1)\n    for i, (_, _, p) in enumerate(messages):\n        pin[i + 1] = pin[i] + (1 if p else 0)\n\n    def no_pinned(lo, hi):\n        # True if no pinned message with index in [lo, hi)\n        if lo >= hi:\n            return True\n        return pin[hi] - pin[lo] == 0\n\n    best = None\n\n    # Empty set\n    if n <= max_gap and pin[n] == 0:\n        best = 0\n\n    # dp[i] : list over used budget b -> max score with i as last kept message\n    dp = [None] * n\n    for i in range(n):\n        length, value, _ = messages[i]\n        if length > budget:\n            dp[i] = None\n            continue\n        row = [NEG] * (budget + 1)\n        # i as first kept message\n        if i <= max_gap and no_pinned(0, i):\n            if row[length] is NEG or value > row[length]:\n                row[length] = value\n        # transitions from previous kept j\n        lo = max(0, i - 1 - max_gap)\n        for j in range(i - 1, lo - 1, -1):\n            # messages j+1 .. i-1 are dropped; must contain no pinned\n            if not no_pinned(j + 1, i):\n                break  # further j would include this pinned too\n            prev = dp[j]\n            if prev is None:\n                continue\n            add = value + (bonus if j == i - 1 else 0)\n            for b in range(0, budget - length + 1):\n                pv = prev[b]\n                if pv is NEG:\n                    continue\n                nb = b + length\n                cand = pv + add\n                if row[nb] is NEG or cand > row[nb]:\n                    row[nb] = cand\n        dp[i] = row\n\n        # i as last kept message\n        if (n - 1 - i) <= max_gap and no_pinned(i + 1, n):\n            for b in range(budget + 1):\n                v = row[b]\n                if v is NEG:\n                    continue\n                if best is None or v > best:\n                    best = v\n\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Context window pruning with gap limit, pins and adjacency bonus",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 16.59,
+   "tokens_in": 907,
+   "tokens_out": 1225,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Cheapest feeder pruning under line capacities with critical loads",
+  "category": "algorithms",
+  "entry_point": "min_pruning_cost",
+  "code": "def min_pruning_cost(parent, demand, cap, cut_cost, critical, root_cap, penalty):\n    n = len(parent)\n    INF = float('inf')\n\n    children = [[] for _ in range(n)]\n    for v in range(1, n):\n        children[parent[v]].append(v)\n\n    # iterative post-order\n    order = []\n    stack = [0]\n    while stack:\n        v = stack.pop()\n        order.append(v)\n        for c in children[v]:\n            stack.append(c)\n    order.reverse()\n\n    sub_demand = [0] * n       # total demand in subtree\n    has_crit = [False] * n     # subtree contains a critical node\n    dp = [None] * n            # dp[v][L] = min cost inside subtree(v), v retained, LOAD(v) = L\n\n    for v in order:\n        sd = demand[v]\n        hc = bool(critical[v])\n        for c in children[v]:\n            sd += sub_demand[c]\n            hc = hc or has_crit[c]\n        sub_demand[v] = sd\n        has_crit[v] = hc\n\n        limit = root_cap if v == 0 else cap[v]\n        d = demand[v]\n        if d > limit:\n            dp[v] = []          # cannot be retained at all\n            continue\n\n        arr = [INF] * (d + 1)\n        arr[d] = 0\n        for c in children[v]:\n            dpc = dp[c]\n            cut_allowed = not has_crit[c]\n            cut_val = cut_cost[c] + penalty * sub_demand[c]\n            new_len = min(limit + 1, len(arr) + (len(dpc) - 1 if dpc else 0))\n            new = [INF] * new_len\n            for i, a in enumerate(arr):\n                if a == INF or i >= new_len:\n                    continue\n                if cut_allowed:\n                    if a + cut_val < new[i]:\n                        new[i] = a + cut_val\n                if dpc:\n                    jmax = min(len(dpc), new_len - i)\n                    for j in range(jmax):\n                        b = dpc[j]\n                        if b != INF:\n                            val = a + b\n                            if val < new[i + j]:\n                                new[i + j] = val\n            # trim trailing INFs to keep arrays small\n            k = len(new)\n            while k > 0 and new[k - 1] == INF:\n                k -= 1\n            arr = new[:k]\n            if not arr:\n                break\n        dp[v] = arr\n\n    root = dp[0]\n    if not root:\n        return None\n    best = min(root)\n    if best == INF:\n        return None\n    return int(best)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest feeder pruning under line capacities with critical loads",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 23.85,
+   "tokens_in": 1327,
+   "tokens_out": 1954,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Earliest timetable arrival with change times and a boarding limit",
+  "category": "algorithms",
+  "entry_point": "earliest_arrival",
+  "code": "import heapq\n\ndef earliest_arrival(connections, transfer, source, target, start_time, max_boardings):\n    \"\"\"\n    Connection Scan with a 'minimum boardings' label per trip and per-station\n    min-heaps of pending (ready_time, boardings) labels.\n\n    Scanning connections in order of departure time means that for a station the\n    query 'minimum boardings among labels with ready_time <= dep' is asked for\n    non-decreasing dep, so pending labels can be released from a heap lazily and\n    folded into a single running minimum per station.  A trip only needs one\n    label: the minimum number of boardings with which the traveler can be seated\n    on it (once seated you stay seated for free).  Total work is O(n log n).\n    \"\"\"\n    if source == target:\n        return start_time\n    if max_boardings <= 0 or not connections:\n        return None\n\n    INF = float('inf')\n    n_stations = len(transfer)\n\n    conns = sorted(connections, key=lambda c: c[3])\n\n    # best[s]: min boardings with which the traveler is known to be ready at s\n    # at or before the current scanning time.\n    best = [INF] * n_stations\n    # pending labels (ready_time, boardings) per station, released lazily\n    heaps = [[] for _ in range(n_stations)]\n    heaps[source].append((start_time, 0))\n\n    trip_b = {}  # trip_id -> min boardings to be seated on it\n    ans = INF\n    heappop = heapq.heappop\n    heappush = heapq.heappush\n\n    for trip, fr, to, dep, arr in conns:\n        if dep < start_time:\n            continue\n        if dep >= ans:\n            break  # arr > dep >= ans: nothing can improve any more\n\n        # release station labels that have become ready\n        b = best[fr]\n        h = heaps[fr]\n        if h:\n            while h and h[0][0] <= dep:\n                _, bb = heappop(h)\n                if bb < b:\n                    b = bb\n            best[fr] = b\n\n        tb = trip_b.get(trip, INF)\n        if b + 1 < tb:\n            tb = b + 1\n            trip_b[trip] = tb\n\n        if tb > max_boardings:\n            continue  # cannot be on this trip within the boarding budget\n\n        if to == target:\n            if arr < ans:\n                ans = arr\n        else:\n            heappush(heaps[to], (arr + transfer[to], tb))\n\n    return ans if ans != INF else None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Earliest timetable arrival with change times and a boarding limit",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 51.53,
+   "tokens_in": 1298,
+   "tokens_out": 3946,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+  "category": "state_machines",
+  "entry_point": "run_kiosk",
+  "code": "from collections import deque\n\n\ndef run_kiosk(levels, threshold, patience, arrivals):\n    # Validate ordering before doing anything.\n    for i in range(1, len(arrivals)):\n        if arrivals[i][0] < arrivals[i - 1][0]:\n            raise ValueError(\"arrival times must be non-decreasing\")\n\n    n = len(levels)\n    base = list(levels)   # charge of battery when placed in slot\n    t0 = [0] * n          # time battery was placed in slot\n    results = []\n    queue = deque()\n    idx = 0\n    m = len(arrivals)\n\n    def best_slot(t):\n        \"\"\"Slot with highest charge >= threshold at time t (lowest index on ties), or -1.\"\"\"\n        best = -1\n        bestc = -1\n        for k in range(n):\n            c = base[k] + (t - t0[k])\n            if c > 100:\n                c = 100\n            if c >= threshold and c > bestc:\n                bestc = c\n                best = k\n        return best\n\n    if m == 0:\n        return results\n\n    now = arrivals[0][0]\n    while True:\n        # Step 1: serve the queue while a slot is ready.\n        while queue:\n            k = best_slot(now)\n            if k < 0:\n                break\n            ta, d, ch = queue.popleft()\n            base[k] = ch\n            t0[k] = now\n            results.append((d, \"SWAP\", now, k))\n\n        # Step 2: handle arrivals at this time.\n        while idx < m and arrivals[idx][0] == now:\n            ta, d, ch = arrivals[idx]\n            idx += 1\n            if not queue:\n                k = best_slot(now)\n                if k >= 0:\n                    base[k] = ch\n                    t0[k] = now\n                    results.append((d, \"SWAP\", now, k))\n                    continue\n            queue.append((ta, d, ch))\n\n        # Step 3: give up.\n        while queue and queue[0][0] + patience <= now:\n            ta, d, ch = queue.popleft()\n            results.append((d, \"LEFT\", now))\n\n        # Determine next event time.\n        if not queue:\n            if idx >= m:\n                break\n            now = arrivals[idx][0]\n        else:\n            nxt = queue[0][0] + patience\n            if idx < m and arrivals[idx][0] < nxt:\n                nxt = arrivals[idx][0]\n            for k in range(n):\n                need = threshold - base[k]\n                ready = t0[k] + (need if need > 0 else 0)\n                if ready < nxt:\n                    nxt = ready\n            now = nxt\n\n    return results",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 100.89,
+   "tokens_in": 1406,
+   "tokens_out": 3273,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+  "category": "state_machines",
+  "entry_point": "run_lock_manager",
+  "code": "def run_lock_manager(ops):\n    log = []\n    holders = {}    # res -> {tx: mode}\n    xholder = {}    # res -> tx holding X (or None)\n    queues = {}     # res -> list of (tx, mode)\n    held = {}       # tx -> {res: mode}\n    waiting = {}    # tx -> (res, mode)\n    finished = set()\n\n    def grant(tx, r, mode):\n        held.setdefault(tx, {})[r] = mode\n        holders.setdefault(r, {})[tx] = mode\n        if mode == 'X':\n            xholder[r] = tx\n\n    def grantable(r, tx, mode):\n        h = holders.get(r, {})\n        if mode == 'X':\n            for k in h:\n                if k != tx:\n                    return False\n            return True\n        xh = xholder.get(r)\n        return xh is None or xh == tx\n\n    def process_queue(r, i):\n        q = queues.get(r)\n        if not q:\n            return\n        while q:\n            tx, mode = q[0]\n            if not grantable(r, tx, mode):\n                break\n            q.pop(0)\n            grant(tx, r, mode)\n            waiting.pop(tx, None)\n            log.append((\"GRANT\", i, tx, r, mode))\n\n    def release(T, i):\n        affected = set(held.get(T, {}).keys())\n        if T in waiting:\n            r, m = waiting.pop(T)\n            q = queues[r]\n            for k in range(len(q)):\n                if q[k][0] == T:\n                    del q[k]\n                    break\n            affected.add(r)\n        for r in held.get(T, {}):\n            del holders[r][T]\n            if xholder.get(r) == T:\n                xholder[r] = None\n        held.pop(T, None)\n        for r in sorted(affected):\n            process_queue(r, i)\n        finished.add(T)\n\n    def detect(W, i):\n        while W in waiting:\n            pos_cache = {}\n\n            def positions(r):\n                d = pos_cache.get(r)\n                if d is None:\n                    d = {e[0]: k for k, e in enumerate(queues[r])}\n                    pos_cache[r] = d\n                return d\n\n            # forward reachability from W\n            F = {W}\n            stack = [W]\n            fprefix = {}\n            fholders_done = set()\n            while stack:\n                u = stack.pop()\n                wr = waiting.get(u)\n                if wr is None:\n                    continue\n                r, m = wr\n                q = queues[r]\n                p = positions(r)[u]\n                start = fprefix.get(r, 0)\n                if p > start:\n                    for k in range(start, p):\n                        t = q[k][0]\n                        if t not in F:\n                            F.add(t)\n                            stack.append(t)\n                    fprefix[r] = p\n                if m == 'X':\n                    if r not in fholders_done:\n                        fholders_done.add(r)\n                        for t in holders.get(r, ()):\n                            if t != u and t not in F:\n                                F.add(t)\n                                stack.append(t)\n                else:\n                    xh = xholder.get(r)\n                    if xh is not None and xh != u and xh not in F:\n                        F.add(xh)\n                        stack.append(xh)\n\n            # backward reachability to W, restricted to F\n            B = {W}\n            stack = [W]\n            bsuffix = {}\n            bdone_all = set()\n            bdone_x = set()\n            while stack:\n                v = stack.pop()\n                wr = waiting.get(v)\n                if wr is not None:\n                    r, m = wr\n                    q = queues[r]\n                    p = positions(r)[v]\n                    end = bsuffix.get(r, len(q))\n                    if p + 1 < end:\n                        for k in range(p + 1, end):\n                            t = q[k][0]\n                            if t in F and t not in B:\n                                B.add(t)\n                                stack.append(t)\n                        bsuffix[r] = p + 1\n                for r, m in held.get(v, {}).items():\n                    if r in bdone_all:\n                        continue\n                    q = queues.get(r)\n                    if not q:\n                        continue\n                    if m == 'X':\n                        bdone_all.add(r)\n                        for t, tm in q:\n                            if t != v and t in F and t not in B:\n                                B.add(t)\n                                stack.append(t)\n                    else:\n                        if r in bdone_x:\n                            continue\n                        bdone_x.add(r)\n                        for t, tm in q:\n                            if tm == 'X' and t != v and t in F and t not in B:\n                                B.add(t)\n                                stack.append(t)\n\n            if len(B) <= 1:\n                break\n            victim = max(B)\n            log.append((\"ABORT\", i, victim))\n            release(victim, i)\n\n    for i, op in enumerate(ops):\n        kind = op[0]\n        T = op[1]\n        if T in waiting or T in finished:\n            log.append((\"IGNORED\", i, T))\n            continue\n        if kind == \"COMMIT\":\n            log.append((\"COMMIT\", i, T))\n            release(T, i)\n            continue\n        M = kind\n        R = op[2]\n        h = held.get(T, {})\n        cur = h.get(R)\n        if cur == 'X' or (cur == 'S' and M == 'S'):\n            log.append((\"HELD\", i, T, R))\n        elif cur == 'S':\n            hr = holders[R]\n            if len(hr) == 1:\n                hr[T] = 'X'\n                h[R] = 'X'\n                xholder[R] = T\n                log.append((\"GRANT\", i, T, R, 'X'))\n            else:\n                q = queues.setdefault(R, [])\n                idx = 0\n                while idx < len(q) and q[idx][1] == 'X' and q[idx][0] in hr:\n                    idx += 1\n                q.insert(idx, (T, 'X'))\n                waiting[T] = (R, 'X')\n                log.append((\"WAIT\", i, T, R, 'X'))\n                detect(T, i)\n        else:\n            q = queues.setdefault(R, [])\n            hr = holders.get(R, {})\n            if M == 'S':\n                compatible = xholder.get(R) is None\n            else:\n                compatible = not hr\n            if not q and compatible:\n                grant(T, R, M)\n                log.append((\"GRANT\", i, T, R, M))\n            else:\n                q.append((T, M))\n                waiting[T] = (R, M)\n                log.append((\"WAIT\", i, T, R, M))\n                detect(T, i)\n\n    return log",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 186.79,
+   "tokens_in": 2106,
+   "tokens_out": 12908,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+  "category": "state_machines",
+  "entry_point": "admit_requests",
+  "code": "from collections import deque\n\n\ndef admit_requests(requests, config):\n    cap = config[\"cap\"]\n    period = config[\"period\"]\n    gcap = config[\"gcap\"]\n    gperiod = config[\"gperiod\"]\n    reserve = config[\"reserve\"]\n    strikes_needed = config[\"strikes\"]\n    window = config[\"window\"]\n    ban_len = config[\"ban\"]\n\n    # Validate time ordering before producing anything.\n    prev_t = None\n    for req in requests:\n        t = req[0]\n        if prev_t is not None and t < prev_t:\n            raise ValueError(\"requests must be sorted by time (non-decreasing)\")\n        prev_t = t\n\n    tokens = {}        # client -> current tokens (as of last[c])\n    last = {}          # client -> last time at which tokens were brought up to date\n    strike_hist = {}   # client -> deque of strike times (non-decreasing)\n    ban_until = {}     # client -> time at which ban ends (exclusive)\n\n    gtokens = gcap\n    glast = 0\n\n    out = []\n    for t, c, cost, vip in requests:\n        # Lazy global refill: positive multiples of gperiod in (glast, t].\n        if t > glast:\n            n = t // gperiod - glast // gperiod\n            if n > 0:\n                gtokens = min(gcap, gtokens + n)\n            glast = t\n\n        # Lazy client refill (or creation).\n        if c not in tokens:\n            tokens[c] = cap\n            last[c] = t\n        else:\n            lt = last[c]\n            if t > lt:\n                n = t // period - lt // period\n                if n > 0:\n                    tokens[c] = min(cap, tokens[c] + n)\n                last[c] = t\n\n        # Rule 1: banned?\n        if ban_until.get(c, 0) > t:\n            out.append(\"BANNED\")\n            continue\n\n        # Rule 2: insufficient client tokens -> strike.\n        if tokens[c] < cost:\n            dq = strike_hist.get(c)\n            if dq is None:\n                dq = deque()\n                strike_hist[c] = dq\n            dq.append(t)\n            cutoff = t - window\n            while dq and dq[0] <= cutoff:\n                dq.popleft()\n            if len(dq) >= strikes_needed:\n                ban_until[c] = t + ban_len\n                dq.clear()\n                out.append(\"BAN\")\n            else:\n                out.append(\"DENY\")\n            continue\n\n        # Rule 3: global bucket check.\n        if vip:\n            ok = gtokens >= cost\n        else:\n            ok = gtokens - cost >= reserve\n        if not ok:\n            out.append(\"BUSY\")\n            continue\n\n        # Rule 4: admit.\n        tokens[c] -= cost\n        gtokens -= cost\n        out.append(\"OK\")\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 24.85,
+   "tokens_in": 1677,
+   "tokens_out": 1955,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Vending machine with escrow, greedy change and inactivity return",
+  "category": "state_machines",
+  "entry_point": "simulate_vending",
+  "code": "def simulate_vending(prices, stock, bank, events, timeout):\n    ACCEPTED = (5, 10, 25, 100)\n\n    # Validate time ordering before producing anything.\n    prev_t = None\n    for ev in events:\n        t = ev[0]\n        if prev_t is not None and t < prev_t:\n            raise ValueError(\"events are not in non-decreasing time order\")\n        prev_t = t\n\n    # Copy state so inputs are not mutated.\n    bank_state = {d: 0 for d in ACCEPTED}\n    for d, c in bank.items():\n        if d in bank_state:\n            bank_state[d] += c\n    stock_state = dict(stock)\n    escrow = []          # ordered list of coin values\n    last = None          # time of most recent activity\n    log = []\n\n    def escrow_tuple():\n        return tuple(sorted(escrow, reverse=True))\n\n    def maybe_timeout(current_t):\n        # Return escrow automatically if its deadline has passed before current_t.\n        nonlocal escrow\n        if escrow and last is not None:\n            deadline = last + timeout\n            if current_t is None or current_t >= deadline:\n                log.append((\"TIMEOUT\", deadline, escrow_tuple()))\n                escrow = []\n\n    for t, kind, arg in events:\n        maybe_timeout(t)\n\n        if kind == \"coin\":\n            v = arg\n            if v not in ACCEPTED or len(escrow) >= 10:\n                log.append((\"REJECT\", t, v))\n            else:\n                escrow.append(v)\n                last = t\n\n        elif kind == \"select\":\n            last = t\n            s = arg\n            if s not in prices:\n                log.append((\"UNKNOWN\", t, s))\n            elif stock_state.get(s, 0) == 0:\n                log.append((\"SOLD_OUT\", t, s))\n            else:\n                price = prices[s]\n                total = sum(escrow)\n                if total < price:\n                    log.append((\"NEED\", t, price - total))\n                else:\n                    # Attempt sale: move escrow into bank, make change greedily.\n                    saved_bank = dict(bank_state)\n                    for c in escrow:\n                        bank_state[c] += 1\n                    remaining = total - price\n                    change = []\n                    for d in (100, 25, 10, 5):\n                        k = min(bank_state[d], remaining // d)\n                        if k > 0:\n                            bank_state[d] -= k\n                            change.extend([d] * k)\n                            remaining -= k * d\n                    if remaining == 0:\n                        stock_state[s] -= 1\n                        escrow = []\n                        log.append((\"VEND\", t, s, tuple(change)))\n                    else:\n                        bank_state = saved_bank\n                        log.append((\"EXACT_ONLY\", t, s))\n\n        elif kind == \"cancel\":\n            last = t\n            if escrow:\n                log.append((\"RETURN\", t, escrow_tuple()))\n                escrow = []\n\n    # Pending automatic return after the last event.\n    maybe_timeout(None)\n\n    final_bank = (bank_state[5], bank_state[10], bank_state[25], bank_state[100])\n    return log, final_bank",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Vending machine with escrow, greedy change and inactivity return",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 24.9,
+   "tokens_in": 2053,
+   "tokens_out": 1902,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Path-pattern access policy with specificity and deny precedence",
+  "category": "spec_compliance",
+  "entry_point": "evaluate_access",
+  "code": "import re\n\n_NAME_RE = re.compile(r\"[a-z0-9_]+\")\n_WORD_RE = re.compile(r\"[a-z]+\")\n_ACTION_LIST_RE = re.compile(r\"[a-z]+(,[a-z]+)*\")\n_RES_SEG_RE = re.compile(r\"\\*\\*|\\*|[a-z0-9._-]+\")\n_PATH_SEG_RE = re.compile(r\"[a-z0-9._-]+\")\n\n\ndef _is_name(s):\n    return isinstance(s, str) and _NAME_RE.fullmatch(s) is not None\n\n\ndef _is_word(s):\n    return isinstance(s, str) and _WORD_RE.fullmatch(s) is not None\n\n\ndef _split_slash_path(s, seg_re):\n    \"\"\"Return list of segments if s is a valid path/resource, else None.\"\"\"\n    if not isinstance(s, str) or not s.startswith(\"/\"):\n        return None\n    if s == \"/\":\n        return []\n    segs = s[1:].split(\"/\")\n    for seg in segs:\n        if not seg or seg_re.fullmatch(seg) is None:\n            return None\n    return segs\n\n\ndef _match_resource(pattern, has_dstar, path):\n    \"\"\"pattern: list of resource segments; path: list of path segments.\"\"\"\n    m = len(pattern)\n    n = len(path)\n    if not has_dstar:\n        if m != n:\n            return False\n        for p, s in zip(pattern, path):\n            if p != \"*\" and p != s:\n                return False\n        return True\n\n    # NFA-style simulation: set of pattern positions reachable.\n    def closure(states):\n        stack = list(states)\n        out = set(states)\n        while stack:\n            i = stack.pop()\n            if i < m and pattern[i] == \"**\" and (i + 1) not in out:\n                out.add(i + 1)\n                stack.append(i + 1)\n        return out\n\n    states = closure({0})\n    for seg in path:\n        nxt = set()\n        for i in states:\n            if i >= m:\n                continue\n            p = pattern[i]\n            if p == \"**\":\n                nxt.add(i)\n            elif p == \"*\" or p == seg:\n                nxt.add(i + 1)\n        if not nxt:\n            return False\n        states = closure(nxt)\n    return m in states\n\n\ndef evaluate_access(rules, requests) -> list[str]:\n    if not isinstance(rules, list):\n        raise TypeError(\"rules must be a list\")\n    if not isinstance(requests, list):\n        raise TypeError(\"requests must be a list\")\n\n    parsed_rules = []\n    for i, rule in enumerate(rules):\n        if not isinstance(rule, str):\n            raise TypeError(f\"rule {i}: not a str\")\n        fields = rule.split()\n        if len(fields) != 4:\n            raise ValueError(f\"rule {i}: expected 4 fields, got {len(fields)}\")\n        effect, principal, action, resource = fields\n        if effect not in (\"ALLOW\", \"DENY\"):\n            raise ValueError(f\"rule {i}: bad effect {effect!r}\")\n        # principal\n        if principal == \"*\":\n            p_kind, p_name, p_spec = \"*\", None, 0\n        elif principal.startswith(\"user:\") and _is_name(principal[5:]):\n            p_kind, p_name, p_spec = \"user\", principal[5:], 2\n        elif principal.startswith(\"group:\") and _is_name(principal[6:]):\n            p_kind, p_name, p_spec = \"group\", principal[6:], 1\n        else:\n            raise ValueError(f\"rule {i}: bad principal {principal!r}\")\n        # action\n        if action == \"*\":\n            actions, a_spec = None, 0\n        elif _ACTION_LIST_RE.fullmatch(action) is not None:\n            actions, a_spec = set(action.split(\",\")), 1\n        else:\n            raise ValueError(f\"rule {i}: bad action {action!r}\")\n        # resource\n        segs = _split_slash_path(resource, _RES_SEG_RE)\n        if segs is None:\n            raise ValueError(f\"rule {i}: bad resource {resource!r}\")\n        has_dstar = \"**\" in segs\n        L = sum(1 for s in segs if s != \"*\" and s != \"**\")\n        parsed_rules.append(\n            (effect, p_kind, p_name, actions, segs, has_dstar, (L, p_spec, a_spec))\n        )\n\n    parsed_requests = []\n    for j, req in enumerate(requests):\n        if not isinstance(req, tuple) or len(req) != 4:\n            raise TypeError(f\"request {j}: expected 4-tuple\")\n        user, groups, action, path = req\n        if not _is_name(user):\n            raise ValueError(f\"request {j}: bad user {user!r}\")\n        if not isinstance(groups, list) or not all(_is_name(g) for g in groups):\n            raise ValueError(f\"request {j}: bad groups\")\n        if not _is_word(action):\n            raise ValueError(f\"request {j}: bad action {action!r}\")\n        psegs = _split_slash_path(path, _PATH_SEG_RE)\n        if psegs is None:\n            raise ValueError(f\"request {j}: bad path {path!r}\")\n        parsed_requests.append((user, set(groups), action, psegs))\n\n    results = []\n    for user, groups, action, psegs in parsed_requests:\n        best = None\n        best_idx = []\n        for i, (effect, p_kind, p_name, actions, segs, has_dstar, spec) in enumerate(parsed_rules):\n            if p_kind == \"user\":\n                if p_name != user:\n                    continue\n            elif p_kind == \"group\":\n                if p_name not in groups:\n                    continue\n            if actions is not None and action not in actions:\n                continue\n            if best is not None and spec < best:\n                continue  # cannot improve or tie\n            if not _match_resource(segs, has_dstar, psegs):\n                continue\n            if best is None or spec > best:\n                best = spec\n                best_idx = [i]\n            else:\n                best_idx.append(i)\n        if best is None:\n            results.append(\"DENY by default\")\n            continue\n        deny = [i for i in best_idx if parsed_rules[i][0] == \"DENY\"]\n        if deny:\n            results.append(f\"DENY by rule {deny[0]}\")\n        else:\n            results.append(f\"ALLOW by rule {best_idx[0]}\")\n    return results",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Path-pattern access policy with specificity and deny precedence",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 36.96,
+   "tokens_in": 2097,
+   "tokens_out": 3152,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Layered config merge with delete/append directives and JSON paths",
+  "category": "spec_compliance",
+  "entry_point": "merge_layers",
+  "code": "import json\nimport re\n\n_IDENT_RE = re.compile(r\"[A-Za-z_][A-Za-z0-9_]*\")\n\n\ndef _type_name(v) -> str:\n    if v is None:\n        return \"null\"\n    if isinstance(v, bool):\n        return \"bool\"\n    if isinstance(v, int):\n        return \"int\"\n    if isinstance(v, float):\n        return \"float\"\n    if isinstance(v, str):\n        return \"str\"\n    if isinstance(v, list):\n        return \"list\"\n    if isinstance(v, dict):\n        return \"dict\"\n    return type(v).__name__\n\n\ndef _copy(v):\n    \"\"\"Deep copy of a JSON-like value (dicts/lists copied, scalars shared).\"\"\"\n    if isinstance(v, dict):\n        return {k: _copy(x) for k, x in v.items()}\n    if isinstance(v, list):\n        return [_copy(x) for x in v]\n    return v\n\n\ndef _child_path(parent: str, name: str) -> str:\n    if _IDENT_RE.fullmatch(name) and name.isascii():\n        return parent + \".\" + name\n    return parent + \"[\" + json.dumps(name, ensure_ascii=False) + \"]\"\n\n\ndef _merge(target: dict, overlay: dict, path: str, layer: int, warnings: list) -> None:\n    for key, value in overlay.items():\n        if not isinstance(key, str):\n            raise TypeError(f\"layer {layer}: non-string key at {path}\")\n\n        if key.startswith(\"-\"):\n            kind = \"delete\"\n            name = key[1:]\n        elif key.endswith(\"+\"):\n            kind = \"append\"\n            name = key[:-1]\n        else:\n            kind = \"set\"\n            name = key\n\n        if name == \"\":\n            raise ValueError(f\"layer {layer}: empty key name at {path}\")\n\n        qpath = _child_path(path, name)\n\n        if kind == \"delete\":\n            if value is not None:\n                raise ValueError(f\"layer {layer}: delete directive needs null at {qpath}\")\n            if name in target:\n                del target[name]\n            else:\n                warnings.append(f\"layer {layer}: delete of missing key at {qpath}\")\n\n        elif kind == \"append\":\n            if not isinstance(value, list):\n                raise ValueError(f\"layer {layer}: append directive needs a list at {qpath}\")\n            if name not in target:\n                target[name] = _copy(value)\n            elif isinstance(target[name], list):\n                target[name].extend(_copy(x) for x in value)\n            else:\n                raise ValueError(\n                    f\"layer {layer}: cannot append to {_type_name(target[name])} at {qpath}\"\n                )\n\n        else:  # set\n            if name in target:\n                old_t = _type_name(target[name])\n                new_t = _type_name(value)\n                if old_t != new_t:\n                    warnings.append(\n                        f\"layer {layer}: type change at {qpath}: {old_t} -> {new_t}\"\n                    )\n            if isinstance(value, dict):\n                if name in target and isinstance(target[name], dict):\n                    _merge(target[name], value, qpath, layer, warnings)\n                else:\n                    target[name] = {}\n                    _merge(target[name], value, qpath, layer, warnings)\n            else:\n                target[name] = _copy(value)\n\n\ndef merge_layers(layers) -> tuple[dict, list[str]]:\n    if not isinstance(layers, list):\n        raise TypeError(\"layers must be a list\")\n\n    result: dict = {}\n    warnings: list[str] = []\n\n    for idx, layer in enumerate(layers):\n        if not isinstance(layer, dict):\n            raise TypeError(f\"layer {idx} is not a dict\")\n        _merge(result, layer, \"$\", idx, warnings)\n\n    return result, warnings",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Layered config merge with delete/append directives and JSON paths",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 21.29,
+   "tokens_in": 1733,
+   "tokens_out": 1750,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Account statement renderer with automatic overdraft fees",
+  "category": "spec_compliance",
+  "entry_point": "render_statement",
+  "code": "import re\nfrom datetime import date as _date\n\n_OPENING_RE = re.compile(r\"-?(0|[1-9][0-9]{0,8})\\.[0-9]{2}\")\n_AMOUNT_RE = re.compile(r\"(0|[1-9][0-9]{0,8})(\\.[0-9]{1,2})?\")\n_DATE_RE = re.compile(r\"[0-9]{4}-[0-9]{2}-[0-9]{2}\")\n_KINDS = (\"credit\", \"debit\", \"fee\")\n\n\ndef _to_cents(s: str) -> int:\n    \"\"\"Convert a validated decimal string (optional sign, up to 2 decimals) to integer cents.\"\"\"\n    neg = s.startswith(\"-\")\n    if neg:\n        s = s[1:]\n    if \".\" in s:\n        ip, fp = s.split(\".\", 1)\n    else:\n        ip, fp = s, \"\"\n    fp = (fp + \"00\")[:2]\n    cents = int(ip) * 100 + int(fp)\n    return -cents if neg else cents\n\n\ndef _money(cents: int) -> str:\n    sign = \"-\" if cents < 0 else \"\"\n    a = abs(cents)\n    return f\"{sign}{a // 100:,}.{a % 100:02d}\"\n\n\ndef _valid_date(s) -> bool:\n    if not isinstance(s, str) or not _DATE_RE.fullmatch(s):\n        return False\n    y, m, d = int(s[0:4]), int(s[5:7]), int(s[8:10])\n    if not (1900 <= y <= 2999):\n        return False\n    try:\n        _date(y, m, d)\n    except ValueError:\n        return False\n    return True\n\n\ndef _valid_memo(memo) -> bool:\n    if not isinstance(memo, str):\n        return False\n    if not memo.split():\n        return False\n    for ch in memo:\n        o = ord(ch)\n        if o < 32 or o == 127:\n            return False\n    return True\n\n\ndef render_statement(opening, entries) -> list[str]:\n    # --- validation ---\n    if not isinstance(opening, str):\n        raise TypeError(\"opening must be a str\")\n    if not _OPENING_RE.fullmatch(opening):\n        raise ValueError(\"opening: bad amount \" + repr(opening))\n    if not isinstance(entries, list):\n        raise TypeError(\"entries must be a list\")\n\n    prev_date = None\n    for i, e in enumerate(entries):\n        if not isinstance(e, tuple) or len(e) != 4:\n            raise TypeError(f\"entry {i}: expected 4-tuple\")\n        date, kind, amount, memo = e\n        if not _valid_date(date):\n            raise ValueError(f\"entry {i}: bad date {date!r}\")\n        if prev_date is not None and date < prev_date:\n            raise ValueError(f\"entry {i}: date out of order\")\n        prev_date = date\n        if not (isinstance(kind, str) and kind in _KINDS):\n            raise ValueError(f\"entry {i}: bad kind {kind!r}\")\n        if (not isinstance(amount, str) or not _AMOUNT_RE.fullmatch(amount)\n                or _to_cents(amount) == 0):\n            raise ValueError(f\"entry {i}: bad amount {amount!r}\")\n        if not _valid_memo(memo):\n            raise ValueError(f\"entry {i}: bad memo\")\n\n    # --- processing ---\n    balance = _to_cents(opening)\n    lines = [\"Opening balance: \" + _money(balance)]\n    counts = {\"credit\": 0, \"debit\": 0, \"fee\": 0}\n    fee_dates = set()\n\n    def render(date, kind, cents, memo):\n        nonlocal balance\n        if kind == \"credit\":\n            balance += cents\n            sign = \"+\"\n        else:\n            balance -= cents\n            sign = \"-\"\n        counts[kind] += 1\n        m = \" \".join(memo.split())\n        if len(m) > 20:\n            m = m[:19] + \"~\"\n        amt = sign + _money(cents)\n        flag = \" OD\" if balance < 0 else \"\"\n        lines.append(f\"{date}  {m:<20}  {amt:>14}  {_money(balance):>15}{flag}\")\n\n    for date, kind, amount, memo in entries:\n        cents = _to_cents(amount)\n        render(date, kind, cents, memo)\n        if kind == \"debit\" and balance < 0 and date not in fee_dates:\n            fee_dates.add(date)\n            render(date, \"fee\", 2500, \"OVERDRAFT FEE\")\n\n    lines.append(\"Closing balance: \" + _money(balance))\n    lines.append(\n        f\"Credits: {counts['credit']}  Debits: {counts['debit']}  Fees: {counts['fee']}\"\n    )\n    return lines",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Account statement renderer with automatic overdraft fees",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 89.93,
+   "tokens_in": 2035,
+   "tokens_out": 2493,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Version picker for a custom constraint language with release candidates",
+  "category": "spec_compliance",
+  "entry_point": "pick_version",
+  "code": "import re\n\n_PART = r\"(?:0|[1-9][0-9]*)\"\n_VERSION_RE = re.compile(\n    rf\"({_PART})\\.({_PART})\\.({_PART})(?:~rc([1-9][0-9]*))?\"\n)\n_MAJOR_STAR_RE = re.compile(rf\"({_PART})\\.\\*\")\n_MAJOR_MINOR_STAR_RE = re.compile(rf\"({_PART})\\.({_PART})\\.\\*\")\n_AT_RE = re.compile(rf\"@({_PART})\\.({_PART})\")\n\n\ndef _parse_version(text):\n    \"\"\"Return a sortable key (X, Y, Z, is_release, N) or None if invalid.\"\"\"\n    if not isinstance(text, str):\n        return None\n    m = _VERSION_RE.fullmatch(text)\n    if m is None:\n        return None\n    x, y, z, n = m.groups()\n    if n is None:\n        return (int(x), int(y), int(z), 1, 0)\n    return (int(x), int(y), int(z), 0, int(n))\n\n\ndef _parse_clause(clause):\n    \"\"\"Return a predicate over version keys, or None if the clause is invalid.\"\"\"\n    if clause == \"*\":\n        return lambda k: True\n\n    # Comparison operators (check two-char operators before one-char ones).\n    for op in (\"!=\", \">=\", \"<=\", \"=\", \">\", \"<\"):\n        if clause.startswith(op):\n            v = _parse_version(clause[len(op):])\n            if v is None:\n                return None\n            if op == \"!=\":\n                return lambda k, v=v: k != v\n            if op == \">=\":\n                return lambda k, v=v: k >= v\n            if op == \"<=\":\n                return lambda k, v=v: k <= v\n            if op == \"=\":\n                return lambda k, v=v: k == v\n            if op == \">\":\n                return lambda k, v=v: k > v\n            return lambda k, v=v: k < v\n\n    m = _AT_RE.fullmatch(clause)\n    if m:\n        x, y = int(m.group(1)), int(m.group(2))\n        return lambda k, x=x, y=y: k[0] == x and k[1] >= y\n\n    m = _MAJOR_MINOR_STAR_RE.fullmatch(clause)\n    if m:\n        x, y = int(m.group(1)), int(m.group(2))\n        return lambda k, x=x, y=y: k[0] == x and k[1] == y\n\n    m = _MAJOR_STAR_RE.fullmatch(clause)\n    if m:\n        x = int(m.group(1))\n        return lambda k, x=x: k[0] == x\n\n    v = _parse_version(clause)\n    if v is not None:\n        return lambda k, v=v: k == v\n\n    return None\n\n\ndef pick_version(available, constraint) -> str | None:\n    # 1. available must be a list\n    if not isinstance(available, list):\n        raise TypeError(\"available must be a list\")\n\n    # 2. each element must be a valid version string\n    keys = []\n    for i, element in enumerate(available):\n        key = _parse_version(element)\n        if key is None:\n            raise ValueError(f\"invalid version at index {i}: {element!r}\")\n        keys.append(key)\n\n    # 3. constraint must be a str\n    if not isinstance(constraint, str):\n        raise TypeError(\"constraint must be a str\")\n\n    # 4. constraint must not be empty / spaces only\n    if constraint.strip(\" \") == \"\":\n        raise ValueError(\"empty constraint\")\n\n    # 5. parse alternatives and clauses\n    alternatives = []  # list of (allow_rc, [predicates])\n    for a, alt_text in enumerate(constraint.split(\"|\"), start=1):\n        alt = alt_text.strip(\" \")\n        allow_rc = False\n        if alt.startswith(\"?\"):\n            allow_rc = True\n            alt = alt[1:].strip(\" \")\n        if alt == \"\":\n            raise ValueError(f\"alternative {a} is empty\")\n        predicates = []\n        for c, clause_text in enumerate(alt.split(\",\"), start=1):\n            clause = clause_text.strip(\" \")\n            pred = _parse_clause(clause)\n            if pred is None:\n                raise ValueError(\n                    f\"alternative {a}, clause {c}: invalid clause {clause!r}\"\n                )\n            predicates.append(pred)\n        alternatives.append((allow_rc, predicates))\n\n    # Matching\n    best = None\n    best_key = None\n    for element, key in zip(available, keys):\n        is_rc = key[3] == 0\n        matched = False\n        for allow_rc, predicates in alternatives:\n            if is_rc and not allow_rc:\n                continue\n            if all(pred(key) for pred in predicates):\n                matched = True\n                break\n        if matched and (best_key is None or key > best_key):\n            best = element\n            best_key = key\n\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Version picker for a custom constraint language with release candidates",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 26.86,
+   "tokens_in": 1370,
+   "tokens_out": 2394,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Indentation outline config parser with line-exact errors",
+  "category": "parsing",
+  "entry_point": "parse_outline",
+  "code": "import re\n\n_KEY_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_-]*')\n_INT_RE = re.compile(r'-?(0|[1-9][0-9]*)')\n_ESCAPES = {'\\\\': '\\\\', '\"': '\"', 'n': '\\n', 't': '\\t'}\n\n\ndef _convert(txt):\n    \"\"\"Return (ok, value) or (False, error_message).\"\"\"\n    if txt[0] == '\"':\n        out = []\n        i = 1\n        n = len(txt)\n        while i < n:\n            c = txt[i]\n            if c == '\\\\':\n                if i + 1 >= n or txt[i + 1] not in _ESCAPES:\n                    return False, \"bad escape\"\n                out.append(_ESCAPES[txt[i + 1]])\n                i += 2\n                continue\n            if c == '\"':\n                if i != n - 1:\n                    return False, \"bad string\"\n                return True, ''.join(out)\n            out.append(c)\n            i += 1\n        return False, \"bad string\"\n    if txt == \"true\":\n        return True, True\n    if txt == \"false\":\n        return True, False\n    if txt == \"null\":\n        return True, None\n    if _INT_RE.fullmatch(txt):\n        return True, int(txt)\n    return True, txt\n\n\ndef parse_outline(text: str) -> tuple:\n    lines = text.split('\\n')\n    stack = []          # entries: (indent, kind, container)\n    pending = None      # (indent, container, key) of previous opener, or None\n    root = None\n\n    for ln, line in enumerate(lines, 1):\n        rest = line.lstrip(' \\t')\n        if not rest:\n            continue                      # blank\n        if rest[0] == '#':\n            continue                      # comment\n        indent = len(line) - len(rest)\n        if '\\t' in line[:indent]:\n            return (\"error\", ln, \"tab in indentation\")\n\n        # --- entry syntax ---\n        key = None\n        if rest == '-' or rest.startswith('- '):\n            kind = 'list'\n            txt = rest[2:].strip(' ')\n        else:\n            colon = rest.find(':')\n            if colon < 0:\n                return (\"error\", ln, \"invalid entry\")\n            key = rest[:colon]\n            if not _KEY_RE.fullmatch(key):\n                return (\"error\", ln, \"invalid entry\")\n            after = rest[colon + 1:]\n            if after.strip(' ') == '':\n                txt = ''\n            elif after[0] != ' ':\n                return (\"error\", ln, \"invalid entry\")\n            else:\n                txt = after.strip(' ')\n            kind = 'map'\n\n        opener = (txt == '')\n        value = None\n        if not opener:\n            ok, value = _convert(txt)\n            if not ok:\n                return (\"error\", ln, value)\n\n        # --- structure ---\n        if not stack:\n            if indent != 0:\n                return (\"error\", ln, \"unexpected indent\")\n            container = {} if kind == 'map' else []\n            root = container\n            stack.append((0, kind, container))\n        elif pending is not None and indent > pending[0]:\n            container = {} if kind == 'map' else []\n            p_cont, p_key = pending[1], pending[2]\n            if p_key is None:\n                p_cont[-1] = container\n            else:\n                p_cont[p_key] = container\n            stack.append((indent, kind, container))\n        else:\n            if indent > stack[-1][0]:\n                return (\"error\", ln, \"unexpected indent\")\n            while stack[-1][0] > indent:\n                stack.pop()\n            if stack[-1][0] != indent:\n                return (\"error\", ln, \"inconsistent dedent\")\n            if stack[-1][1] != kind:\n                return (\"error\", ln, \"mixed block\")\n            container = stack[-1][2]\n            if kind == 'map' and key in container:\n                return (\"error\", ln, \"duplicate key '%s'\" % key)\n\n        if kind == 'map':\n            container[key] = value\n        else:\n            container.append(value)\n\n        pending = (indent, container, key) if opener else None\n\n    return (\"ok\", root)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Indentation outline config parser with line-exact errors",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 39.94,
+   "tokens_in": 2022,
+   "tokens_out": 3572,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Pile stack-language interpreter with quotations and step limit",
+  "category": "parsing",
+  "entry_point": "run_pile",
+  "code": "import re\n\n_TOK = re.compile(r'[\\[\\]]|[^ \\t\\n\\r\\[\\]]+')\n_INT = re.compile(r'-?[0-9]+')\n_BUILTINS = {'dup': 0, 'drop': 1, 'swap': 2, 'over': 3, 'rot': 4, '+': 5, '-': 6,\n             '*': 7, '/': 8, '%': 9, '<': 10, '=': 11, 'if': 12, 'times': 13,\n             'while': 14, 'call': 15, 'dip': 16}\n\n\ndef run_pile(src: str, max_steps: int) -> tuple:\n    toks = _TOK.findall(src)\n    n = len(toks)\n\n    # ---------- structure check ----------\n    opens = []\n    i = 0\n    while i < n:\n        t = toks[i]\n        if t == '[':\n            opens.append(('[', i))\n        elif t == ']':\n            if not opens or opens[-1][0] != '[':\n                return ('error', i, 'unmatched ]')\n            opens.pop()\n        elif t == ':':\n            if opens:\n                return ('error', i, 'misplaced :')\n            if i == n - 1:\n                return ('error', i, 'unclosed :')\n            name = toks[i + 1]\n            if name in ('[', ']', ':', ';') or name in _BUILTINS or _INT.fullmatch(name):\n                return ('error', i + 1, 'bad name')\n            opens.append((':', i))\n            i += 1\n        elif t == ';':\n            if not opens or opens[-1][0] != ':':\n                return ('error', i, 'unmatched ;')\n            opens.pop()\n        i += 1\n    if opens:\n        c, idx = opens[0]\n        return ('error', idx, 'unclosed [' if c == '[' else 'unclosed :')\n\n    # ---------- parse into elements (iterative) ----------\n    # element: (kind, payload, idx); kinds: 0 int, 1 quot, 2 def, 3 builtin, 4 word\n    top = []\n    seq_stack = [top]\n    disp_stack = [None]\n    start_stack = []\n    def_name = None\n    def_idx = -1\n    i = 0\n    while i < n:\n        t = toks[i]\n        if t == '[':\n            seq_stack.append([])\n            disp_stack.append([])\n            start_stack.append(i)\n        elif t == ']':\n            body = seq_stack.pop()\n            disp = disp_stack.pop()\n            si = start_stack.pop()\n            seq_stack[-1].append((1, (body, disp), si))\n            pd = disp_stack[-1]\n            if pd is not None:\n                pd.append(disp)\n        elif t == ':':\n            def_name = toks[i + 1]\n            def_idx = i\n            seq_stack.append([])\n            disp_stack.append(None)\n            i += 1\n        elif t == ';':\n            body = seq_stack.pop()\n            disp_stack.pop()\n            seq_stack[-1].append((2, (def_name, body), def_idx))\n        else:\n            if _INT.fullmatch(t):\n                el = (0, int(t), i)\n            else:\n                b = _BUILTINS.get(t)\n                el = (3, b, i) if b is not None else (4, t, i)\n            seq_stack[-1].append(el)\n            pd = disp_stack[-1]\n            if pd is not None:\n                pd.append(t)\n        i += 1\n\n    # ---------- execute ----------\n    st = []\n    defs = {}\n    frames = [[top, 0, 0, None]]\n    steps = 0\n    while frames:\n        fr = frames[-1]\n        seq = fr[0]\n        pc = fr[1]\n        if pc >= len(seq):\n            k = fr[2]\n            if k == 0:\n                frames.pop()\n            elif k == 1:\n                st.append(fr[3])\n                frames.pop()\n            elif k == 2:\n                fr[3] -= 1\n                if fr[3] > 0:\n                    fr[1] = 0\n                else:\n                    frames.pop()\n            else:\n                d = fr[3]\n                if d[0] == 0:\n                    if not st:\n                        return ('error', d[3], 'stack underflow')\n                    v = st.pop()\n                    if type(v) is not int:\n                        return ('error', d[3], 'type error')\n                    if v != 0:\n                        fr[0] = d[2]\n                        fr[1] = 0\n                        d[0] = 1\n                    else:\n                        frames.pop()\n                else:\n                    fr[0] = d[1]\n                    fr[1] = 0\n                    d[0] = 0\n            continue\n        el = seq[pc]\n        fr[1] = pc + 1\n        steps += 1\n        if steps > max_steps:\n            return ('error', el[2], 'step limit exceeded')\n        k = el[0]\n        if k <= 1:\n            st.append(el[1])\n        elif k == 4:\n            body = defs.get(el[1])\n            if body is None:\n                return ('error', el[2], \"unknown word '%s'\" % el[1])\n            frames.append([body, 0, 0, None])\n        elif k == 2:\n            defs[el[1][0]] = el[1][1]\n        else:\n            b = el[1]\n            idx = el[2]\n            L = len(st)\n            if b == 0:\n                if L < 1: return ('error', idx, 'stack underflow')\n                st.append(st[-1])\n            elif b == 1:\n                if L < 1: return ('error', idx, 'stack underflow')\n                st.pop()\n            elif b == 2:\n                if L < 2: return ('error', idx, 'stack underflow')\n                st[-1], st[-2] = st[-2], st[-1]\n            elif b == 3:\n                if L < 2: return ('error', idx, 'stack underflow')\n                st.append(st[-2])\n            elif b == 4:\n                if L < 3: return ('error', idx, 'stack underflow')\n                st[-3], st[-2], st[-1] = st[-2], st[-1], st[-3]\n            elif b <= 11:\n                if L < 2: return ('error', idx, 'stack underflow')\n                y = st[-1]; x = st[-2]\n                if type(x) is not int or type(y) is not int:\n                    return ('error', idx, 'type error')\n                st.pop()\n                if b == 5: st[-1] = x + y\n                elif b == 6: st[-1] = x - y\n                elif b == 7: st[-1] = x * y\n                elif b == 8:\n                    if y == 0: return ('error', idx, 'division by zero')\n                    st[-1] = x // y\n                elif b == 9:\n                    if y == 0: return ('error', idx, 'division by zero')\n                    st[-1] = x % y\n                elif b == 10: st[-1] = 1 if x < y else 0\n                else: st[-1] = 1 if x == y else 0\n            elif b == 12:\n                if L < 3: return ('error', idx, 'stack underflow')\n                c = st[-3]; t = st[-2]; f = st[-1]\n                if type(c) is not int or type(t) is not tuple or type(f) is not tuple:\n                    return ('error', idx, 'type error')\n                del st[-3:]\n                frames.append([t[0] if c != 0 else f[0], 0, 0, None])\n            elif b == 13:\n                if L < 2: return ('error', idx, 'stack underflow')\n                q = st[-2]; cnt = st[-1]\n                if type(q) is not tuple or type(cnt) is not int:\n                    return ('error', idx, 'type error')\n                if cnt < 0: return ('error', idx, 'negative count')\n                del st[-2:]\n                if cnt > 0 and q[0]:\n                    frames.append([q[0], 0, 2, cnt])\n            elif b == 14:\n                if L < 2: return ('error', idx, 'stack underflow')\n                c = st[-2]; bd = st[-1]\n                if type(c) is not tuple or type(bd) is not tuple:\n                    return ('error', idx, 'type error')\n                del st[-2:]\n                frames.append([c[0], 0, 3, [0, c[0], bd[0], idx]])\n            elif b == 15:\n                if L < 1: return ('error', idx, 'stack underflow')\n                q = st[-1]\n                if type(q) is not tuple: return ('error', idx, 'type error')\n                st.pop()\n                frames.append([q[0], 0, 0, None])\n            else:\n                if L < 2: return ('error', idx, 'stack underflow')\n                a = st[-2]; q = st[-1]\n                if type(q) is not tuple: return ('error', idx, 'type error')\n                del st[-2:]\n                frames.append([q[0], 0, 1, a])\n\n    return ('ok', [v if type(v) is int else v[1] for v in st])",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Pile stack-language interpreter with quotations and step limit",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 115.19,
+   "tokens_in": 2376,
+   "tokens_out": 8912,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Sieve record query language with three-valued logic",
+  "category": "parsing",
+  "entry_point": "filter_records",
+  "code": "import operator\n\n\ndef filter_records(query: str, records: list[dict]) -> tuple:\n    try:\n        return _filter_records(query, records)\n    except Exception:  # safety net: the function must never raise\n        return (\"error\", 0, \"unexpected end of input\")\n\n\n_MISSING = object()\n\n\ndef _is_letter(c):\n    return ('a' <= c <= 'z') or ('A' <= c <= 'Z') or c == '_'\n\n\ndef _is_digit(c):\n    return '0' <= c <= '9'\n\n\ndef _lex(q):\n    tokens = []\n    i, n = 0, len(q)\n    keywords = {'and', 'or', 'not', 'in', 'has'}\n    while i < n:\n        c = q[i]\n        if c in ' \\t\\n':\n            i += 1\n            continue\n        if c in '()[],':\n            tokens.append((c, c, i, None))\n            i += 1\n            continue\n        two = q[i:i + 2]\n        if two in ('!=', '<=', '>='):\n            tokens.append(('CMP', two, i, None))\n            i += 2\n            continue\n        if c in '=<>':\n            tokens.append(('CMP', c, i, None))\n            i += 1\n            continue\n        if _is_digit(c) or (c == '-' and i + 1 < n and _is_digit(q[i + 1])):\n            j = i + 1\n            while j < n and _is_digit(q[j]):\n                j += 1\n            text = q[i:j]\n            tokens.append(('INT', text, i, int(text)))\n            i = j\n            continue\n        if c == '\"':\n            j = i + 1\n            buf = []\n            while True:\n                if j >= n:\n                    return None, (\"error\", i, \"unterminated string\")\n                d = q[j]\n                if d == '\"':\n                    j += 1\n                    break\n                if d == '\\\\':\n                    if j + 1 >= n or q[j + 1] not in '\"\\\\':\n                        return None, (\"error\", j, \"bad escape\")\n                    buf.append(q[j + 1])\n                    j += 2\n                else:\n                    buf.append(d)\n                    j += 1\n            tokens.append(('STRING', q[i:j], i, ''.join(buf)))\n            i = j\n            continue\n        if _is_letter(c):\n            j = i + 1\n            while j < n and (_is_letter(q[j]) or _is_digit(q[j]) or q[j] == '.'):\n                j += 1\n            text = q[i:j]\n            if text in keywords:\n                tokens.append((text, text, i, None))\n            else:\n                tokens.append(('FIELD', text, i, text))\n            i = j\n            continue\n        return None, (\"error\", i, \"unexpected character '%s'\" % c)\n    tokens.append(('END', '', n, None))\n    return tokens, None\n\n\ndef _parse(tokens):\n    nodes = []\n    ops = []\n    vals = []\n    state = 'operand'\n    cur_field = None\n    cur_op = None\n    lits = None\n\n    def err(tok):\n        kind, text, pos, _ = tok\n        if kind == 'END':\n            return (\"error\", pos, \"unexpected end of input\")\n        return (\"error\", pos, \"unexpected token '%s'\" % text)\n\n    def complete_operand():\n        while ops and ops[-1] == 'not':\n            ops.pop()\n            child = vals.pop()\n            nodes.append(('not', child))\n            vals.append(len(nodes) - 1)\n\n    def reduce_binary(allowed):\n        while ops and ops[-1] in allowed:\n            op = ops.pop()\n            b = vals.pop()\n            a = vals.pop()\n            nodes.append((op, a, b))\n            vals.append(len(nodes) - 1)\n\n    for tok in tokens:\n        kind, text, pos, value = tok\n        if state == 'operand':\n            if kind == 'not':\n                ops.append('not')\n            elif kind == '(':\n                ops.append('(')\n            elif kind == 'has':\n                state = 'has_field'\n            elif kind == 'FIELD':\n                cur_field = text\n                state = 'after_field'\n            else:\n                return None, err(tok)\n        elif state == 'has_field':\n            if kind == 'FIELD':\n                nodes.append(('has', text))\n                vals.append(len(nodes) - 1)\n                complete_operand()\n                state = 'operator'\n            else:\n                return None, err(tok)\n        elif state == 'after_field':\n            if kind == 'CMP':\n                cur_op = text\n                state = 'literal'\n            elif kind == 'in':\n                state = 'lbracket'\n            else:\n                return None, err(tok)\n        elif state == 'literal':\n            if kind in ('INT', 'STRING'):\n                nodes.append(('cmp', cur_field, cur_op, value))\n                vals.append(len(nodes) - 1)\n                complete_operand()\n                state = 'operator'\n            else:\n                return None, err(tok)\n        elif state == 'lbracket':\n            if kind == '[':\n                lits = []\n                state = 'list_item'\n            else:\n                return None, err(tok)\n        elif state == 'list_item':\n            if kind in ('INT', 'STRING'):\n                lits.append(value)\n                state = 'list_sep'\n            else:\n                return None, err(tok)\n        elif state == 'list_sep':\n            if kind == ',':\n                state = 'list_item'\n            elif kind == ']':\n                nodes.append(('in', cur_field, lits))\n                vals.append(len(nodes) - 1)\n                complete_operand()\n                state = 'operator'\n            else:\n                return None, err(tok)\n        elif state == 'operator':\n            if kind == 'and':\n                reduce_binary(('and',))\n                ops.append('and')\n                state = 'operand'\n            elif kind == 'or':\n                reduce_binary(('and', 'or'))\n                ops.append('or')\n                state = 'operand'\n            elif kind == ')':\n                reduce_binary(('and', 'or'))\n                if ops and ops[-1] == '(':\n                    ops.pop()\n                    complete_operand()\n                else:\n                    return None, err(tok)\n            elif kind == 'END':\n                reduce_binary(('and', 'or'))\n                if ops:\n                    return None, err(tok)\n                return (nodes, vals[0]), None\n            else:\n                return None, err(tok)\n    # Should not reach here since END always terminates.\n    return None, (\"error\", tokens[-1][2], \"unexpected end of input\")\n\n\ndef _evaluate(nodes, root, records):\n    cols = {}\n\n    def col(f):\n        c = cols.get(f)\n        if c is None:\n            c = [r.get(f, _MISSING) for r in records]\n            cols[f] = c\n        return c\n\n    M = _MISSING\n    cmp_funcs = {'<': operator.lt, '<=': operator.le,\n                 '>': operator.gt, '>=': operator.ge}\n    results = [None] * len(nodes)\n    for idx, node in enumerate(nodes):\n        t = node[0]\n        if t == 'cmp':\n            _, f, op, lit = node\n            c = col(f)\n            if op == '=':\n                res = [1 if v is M else (2 if v == lit else 0) for v in c]\n            elif op == '!=':\n                res = [1 if v is M else (0 if v == lit else 2) for v in c]\n            else:\n                fn = cmp_funcs[op]\n                is_str = isinstance(lit, str)\n                res = [1 if (v is M or isinstance(v, str) != is_str)\n                       else (2 if fn(v, lit) else 0) for v in c]\n        elif t == 'in':\n            _, f, lits = node\n            s = set(lits)\n            c = col(f)\n            res = [1 if v is M else (2 if v in s else 0) for v in c]\n        elif t == 'has':\n            c = col(node[1])\n            res = [0 if v is M else 2 for v in c]\n        elif t == 'not':\n            res = [2 - x for x in results[node[1]]]\n        elif t == 'and':\n            res = list(map(min, results[node[1]], results[node[2]]))\n        else:  # 'or'\n            res = list(map(max, results[node[1]], results[node[2]]))\n        results[idx] = res\n    final = results[root]\n    return [i for i, x in enumerate(final) if x == 2]\n\n\ndef _filter_records(query, records):\n    tokens, error = _lex(query)\n    if error is not None:\n        return error\n    parsed, error = _parse(tokens)\n    if error is not None:\n        return error\n    nodes, root = parsed\n    return (\"ok\", _evaluate(nodes, root, records))",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Sieve record query language with three-valued logic",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 100.04,
+   "tokens_in": 1988,
+   "tokens_out": 7721,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tally expression evaluator with exact error positions",
+  "category": "parsing",
+  "entry_point": "evaluate",
+  "code": "import re\n\n_TOKEN_RE = re.compile(r'[0-9]+|[a-z_][a-z0-9_]*|<=|>=|==|!=|[-+*/%^()?:<>]| |.', re.DOTALL)\n_OPS = {'<=', '>=', '==', '!=', '+', '-', '*', '/', '%', '^', '(', ')', '?', ':', '<', '>'}\n_BIN_PREC = {'<': 2, '<=': 2, '>': 2, '>=': 2, '==': 2, '!=': 2,\n             '+': 3, '-': 3, '*': 4, '/': 4, '%': 4, '^': 6}\n_INT, _NAME, _OP, _BAD, _END = 0, 1, 2, 3, 4\n\n\ndef _to_int(text):\n    # avoid Python's int<->str digit limit for huge literals\n    if len(text) <= 4000:\n        return int(text)\n    v = 0\n    for i in range(0, len(text), 4000):\n        chunk = text[i:i + 4000]\n        v = v * 10 ** len(chunk) + int(chunk)\n    return v\n\n\ndef _err(tok):\n    kind, text, pos = tok\n    if kind == _END:\n        return (\"error\", pos, \"unexpected end of input\")\n    if kind == _BAD:\n        return (\"error\", pos, \"unexpected character '%s'\" % text)\n    return (\"error\", pos, \"unexpected token '%s'\" % text)\n\n\ndef evaluate(src: str, env: dict) -> tuple:\n    # ---------------- tokenize ----------------\n    tokens = []\n    for m in _TOKEN_RE.finditer(src):\n        t = m.group()\n        if t == ' ':\n            continue\n        c = t[0]\n        if '0' <= c <= '9':\n            kind = _INT\n        elif c == '_' or 'a' <= c <= 'z':\n            kind = _NAME\n        elif t in _OPS:\n            kind = _OP\n        else:\n            kind = _BAD\n        tokens.append((kind, t, m.start()))\n    tokens.append((_END, '', len(src)))\n\n    # ---------------- parse (shunting-yard -> code with jumps) ----------------\n    code = []\n    ops = []          # entries: (kind, prec, pos, aux)\n    expect_operand = True\n\n    def reduce(entry):\n        k = entry[0]\n        if k == 'bin':\n            code.append(('bin', entry[3], entry[2]))\n        elif k == 'neg':\n            code.append(('neg',))\n        elif k == '?:':\n            code[entry[3]] = ('jmp', len(code))\n\n    for tok in tokens:\n        kind, text, pos = tok\n        if expect_operand:\n            if kind == _INT:\n                code.append(('push', _to_int(text)))\n                expect_operand = False\n            elif kind == _NAME:\n                code.append(('load', pos, text))\n                expect_operand = False\n            elif kind == _OP and text == '(':\n                ops.append(('(', 0, pos, None))\n            elif kind == _OP and text == '-':\n                ops.append(('neg', 5, pos, None))\n            else:\n                return _err(tok)\n        else:\n            if kind != _OP:\n                return _err(tok)\n            p = _BIN_PREC.get(text)\n            if p is not None:\n                if p == 6:\n                    pass  # right-assoc, nothing has higher precedence\n                elif p == 2:\n                    while ops and ops[-1][1] > 2:\n                        reduce(ops.pop())\n                    if ops and ops[-1][1] == 2:\n                        return _err(tok)  # non-associative comparison\n                else:\n                    while ops and ops[-1][1] >= p:\n                        reduce(ops.pop())\n                ops.append(('bin', p, pos, text))\n                expect_operand = True\n            elif text == '?':\n                while ops and ops[-1][1] > 1:\n                    reduce(ops.pop())\n                ops.append(('?', 1, pos, len(code)))\n                code.append(None)  # jz placeholder\n                expect_operand = True\n            elif text == ':':\n                while ops and ops[-1][0] != '(' and ops[-1][0] != '?':\n                    reduce(ops.pop())\n                if not ops or ops[-1][0] == '(':\n                    return _err(tok)\n                q = ops.pop()\n                jmp_idx = len(code)\n                code.append(None)  # jmp placeholder\n                code[q[3]] = ('jz', len(code))\n                ops.append(('?:', 1, q[2], jmp_idx))\n                expect_operand = True\n            elif text == ')':\n                while ops and ops[-1][0] != '(' and ops[-1][0] != '?':\n                    reduce(ops.pop())\n                if not ops or ops[-1][0] == '?':\n                    return _err(tok)\n                ops.pop()\n            else:\n                return _err(tok)\n    # END token\n    while ops and ops[-1][0] != '(' and ops[-1][0] != '?':\n        reduce(ops.pop())\n    if ops:\n        return _err(tokens[-1])\n\n    # ---------------- evaluate ----------------\n    stack = []\n    pc = 0\n    n = len(code)\n    while pc < n:\n        ins = code[pc]\n        k = ins[0]\n        if k == 'push':\n            stack.append(ins[1])\n        elif k == 'load':\n            name = ins[2]\n            if name in env:\n                stack.append(env[name])\n            else:\n                return (\"error\", ins[1], \"unknown name '%s'\" % name)\n        elif k == 'bin':\n            op = ins[1]\n            b = stack.pop()\n            a = stack[-1]\n            if op == '+':\n                r = a + b\n            elif op == '-':\n                r = a - b\n            elif op == '*':\n                r = a * b\n            elif op == '/':\n                if b == 0:\n                    return (\"error\", ins[2], \"division by zero\")\n                r = a // b\n            elif op == '%':\n                if b == 0:\n                    return (\"error\", ins[2], \"division by zero\")\n                r = a % b\n            elif op == '^':\n                if b < 0:\n                    return (\"error\", ins[2], \"negative exponent\")\n                if b > 256:\n                    return (\"error\", ins[2], \"exponent too large\")\n                r = a ** b\n            elif op == '<':\n                r = 1 if a < b else 0\n            elif op == '<=':\n                r = 1 if a <= b else 0\n            elif op == '>':\n                r = 1 if a > b else 0\n            elif op == '>=':\n                r = 1 if a >= b else 0\n            elif op == '==':\n                r = 1 if a == b else 0\n            else:  # '!='\n                r = 1 if a != b else 0\n            stack[-1] = r\n        elif k == 'neg':\n            stack[-1] = -stack[-1]\n        elif k == 'jz':\n            if stack.pop() == 0:\n                pc = ins[1]\n                continue\n        else:  # 'jmp'\n            pc = ins[1]\n            continue\n        pc += 1\n    return (\"ok\", stack[-1])",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.1667,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Tally expression evaluator with exact error positions",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 208.98,
+   "tokens_in": 1896,
+   "tokens_out": 15454,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "example_1: expected {\"value\": [\"ok\", 508]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 12, \"unexpected end of input\"]}",
+   "example_2: expected {\"value\": [\"ok\", 6]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 14, \"unexpected end of input\"]}",
+   "example_3: expected {\"value\": [\"ok\", 0]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 24, \"unexpected end of input\"]}",
+   "example_7: expected {\"value\": [\"error\", 2, \"division by zero\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 11, \"unexpected end of input\"]}",
+   "example_8: expected {\"value\": [\"error\", 1, \"negative exponent\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 4, \"unexpected end of input\"]}",
+   "ternary_laziness: expected {\"value\": [[\"ok\", 5], [\"ok\", 3], [\"ok\", 6], [\"ok\", 2], [\"ok\", 3], [\"ok\", -9]]} got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 12, \"unexpected end of input\"], [\"error\", 19, \"unexpected end of input\"], [\"error\", 17, \"unexpected end of inpu",
+   "comparison_chains: expected {\"value\": [[\"error\", 6, \"unexpected token '=='\"], [\"ok\", 1], [\"ok\", 0], [\"error\", 4, \"unexpected token '>='\"], [\"ok\", 1] got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 6, \"unexpected token '=='\"], [\"error\", 12, \"unexpected end of input\"], [\"error\", 12, \"unexpected end of input\"]",
+   "unary_vs_power: expected {\"value\": [[\"ok\", 9], [\"ok\", -9], [\"ok\", 9], [\"ok\", 1], [\"ok\", 1], [\"ok\", 2], [\"error\", 2, \"negative exponent\"], [\"ok\",  got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 5, \"unexpected end of input\"], [\"error\", 4, \"unexpected end of input\"], [\"error\", 6, \"unexpected end of input\"]",
+   "floor_semantics: expected {\"value\": [[\"ok\", -1], [\"ok\", 3], [\"ok\", -4], [\"ok\", 4], [\"ok\", -1], [\"ok\", -1], [\"ok\", 10], [\"ok\", -10]]} got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 4, \"unexpected end of input\"], [\"error\", 5, \"unexpected end of input\"], [\"error\", 4, \"unexpected end of input\"]",
+   "lexing_edges: expected {\"value\": [[\"error\", 2, \"unexpected token 'ab'\"], [\"ok\", 9], [\"ok\", 6], [\"error\", 2, \"unexpected character '!'\"], [\"erro got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 2, \"unexpected token 'ab'\"], [\"error\", 5, \"unexpected end of input\"], [\"error\", 6, \"unexpected end of input\"], ",
+   "error_order: expected {\"value\": [[\"error\", 0, \"unknown name 'q'\"], [\"error\", 1, \"division by zero\"], [\"error\", 1, \"division by zero\"], [\"error got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 7, \"unexpected end of input\"], [\"error\", 7, \"unexpected end of input\"], [\"error\", 10, \"unexpected end of input\"",
+   "exponent_boundary: expected {\"value\": [\"ok\", 368811676, [\"ok\", 115792089237316195423570985008687907853269984665640564039457584007913129639936], [\"ok got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 21, [\"error\", 7, \"unexpected end of input\"], [\"error\", 21, \"unexpected end of input\"]]}",
+   "big_ints: expected {\"value\": [\"ok\", 10000000000333333333133333333333333333335]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 51, \"unexpected end of input\"]}",
+   "random_batch_1: expected {\"value\": [[\"error\", 0, \"unknown name 'x_1'\"], [\"ok\", 7], [\"error\", 8, \"unknown name 'a'\"], [\"ok\", 0], [\"error\", 3, \"div got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 3, \"unexpected end of input\"], [\"error\", 12, \"unexpected end of input\"], [\"error\", 15, \"unexpected end of input",
+   "random_batch_2: expected {\"value\": [[\"error\", 6, \"unexpected token '<'\"], [\"error\", 36, \"unknown name 't'\"], [\"ok\", 12], [\"error\", 6, \"unexpected got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 6, \"unexpected token '<'\"], [\"error\", 38, \"unexpected end of input\"], [\"error\", 2, \"unexpected end of input\"], ",
+   "random_batch_3: expected {\"value\": [[\"error\", 0, \"unknown name 'z'\"], [\"error\", 4, \"unexpected token '*'\"], [\"ok\", 0], [\"ok\", 0], [\"ok\", 2], [\"ok got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 6, \"unexpected end of input\"], [\"error\", 4, \"unexpected token '*'\"], [\"error\", 9, \"unexpected end of input\"], [",
+   "stress_deep_parens: expected {\"value\": [\"ok\", 15]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", 80011, \"unexpected end of input\"]}",
+   "stress_long_chain: expected {\"value\": [\"ok\", 999866377]} got {\"ok\": true, \"loaded\": true, \"value\": [\"error\", [\"error\", 400001, \"unexpected end of input\"]]}",
+   "stress_power_tower_error: expected {\"value\": [[\"error\", 59993, \"exponent too large\"], [\"error\", 399999, \"unexpected end of input\"], [\"error\", 60000, \"unexp got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 60001, \"unexpected end of input\"], [\"error\", 399999, \"unexpected end of input\"], [\"error\", 60000, \"unexpected e",
+   "stress_unary_ternary_nest: expected {\"value\": [[\"ok\", 7], [\"error\", 25000, \"unknown name 'q'\"]]} got {\"ok\": true, \"loaded\": true, \"value\": [[\"error\", 190009, \"unexpected end of input\"], [\"error\", 50001, \"unexpected end of input\"]]}"
+  ]
+ },
+ {
+  "title": "Fence repainting with run-structure reports",
+  "category": "performance",
+  "entry_point": "fence_report",
+  "code": "import sys\n\ndef fence_report(colors: list[int], operations: list[tuple]) -> list[tuple[int, int]]:\n    n = len(colors)\n    if n == 0 or not operations:\n        return []\n    sys.setrecursionlimit(10000)\n\n    size = 4 * n\n    lc = [0] * size   # leftmost color\n    rc = [0] * size   # rightmost color\n    pre = [0] * size  # length of prefix run\n    suf = [0] * size  # length of suffix run\n    mx = [0] * size   # longest run\n    cnt = [0] * size  # number of runs\n    lazy = [None] * size\n\n    def pull(node, lo, hi):\n        a = 2 * node\n        b = a + 1\n        mid = (lo + hi) >> 1\n        la = mid - lo + 1\n        lb = hi - mid\n        lc[node] = lc[a]\n        rc[node] = rc[b]\n        if rc[a] == lc[b]:\n            cnt[node] = cnt[a] + cnt[b] - 1\n            m = mx[a]\n            if mx[b] > m:\n                m = mx[b]\n            s = suf[a] + pre[b]\n            if s > m:\n                m = s\n            mx[node] = m\n            pre[node] = la + pre[b] if pre[a] == la else pre[a]\n            suf[node] = lb + suf[a] if suf[b] == lb else suf[b]\n        else:\n            cnt[node] = cnt[a] + cnt[b]\n            mx[node] = mx[a] if mx[a] >= mx[b] else mx[b]\n            pre[node] = pre[a]\n            suf[node] = suf[b]\n\n    def apply(node, lo, hi, c):\n        ln = hi - lo + 1\n        lc[node] = c\n        rc[node] = c\n        pre[node] = ln\n        suf[node] = ln\n        mx[node] = ln\n        cnt[node] = 1\n        lazy[node] = c\n\n    def build(node, lo, hi):\n        if lo == hi:\n            c = colors[lo]\n            lc[node] = c\n            rc[node] = c\n            pre[node] = suf[node] = mx[node] = cnt[node] = 1\n            return\n        mid = (lo + hi) >> 1\n        build(2 * node, lo, mid)\n        build(2 * node + 1, mid + 1, hi)\n        pull(node, lo, hi)\n\n    def update(node, lo, hi, l, r, c):\n        if l <= lo and hi <= r:\n            apply(node, lo, hi, c)\n            return\n        mid = (lo + hi) >> 1\n        lz = lazy[node]\n        if lz is not None:\n            apply(2 * node, lo, mid, lz)\n            apply(2 * node + 1, mid + 1, hi, lz)\n            lazy[node] = None\n        if l <= mid:\n            update(2 * node, lo, mid, l, r, c)\n        if r > mid:\n            update(2 * node + 1, mid + 1, hi, l, r, c)\n        pull(node, lo, hi)\n\n    def query(node, lo, hi, l, r):\n        # returns (lc, rc, pre, suf, mx, cnt, length)\n        if l <= lo and hi <= r:\n            return (lc[node], rc[node], pre[node], suf[node], mx[node], cnt[node], hi - lo + 1)\n        mid = (lo + hi) >> 1\n        lz = lazy[node]\n        if lz is not None:\n            apply(2 * node, lo, mid, lz)\n            apply(2 * node + 1, mid + 1, hi, lz)\n            lazy[node] = None\n        if r <= mid:\n            return query(2 * node, lo, mid, l, r)\n        if l > mid:\n            return query(2 * node + 1, mid + 1, hi, l, r)\n        A = query(2 * node, lo, mid, l, r)\n        B = query(2 * node + 1, mid + 1, hi, l, r)\n        la = A[6]\n        lb = B[6]\n        if A[1] == B[0]:\n            m = A[4] if A[4] >= B[4] else B[4]\n            s = A[3] + B[2]\n            if s > m:\n                m = s\n            p = la + B[2] if A[2] == la else A[2]\n            sf = lb + A[3] if B[3] == lb else B[3]\n            return (A[0], B[1], p, sf, m, A[5] + B[5] - 1, la + lb)\n        else:\n            m = A[4] if A[4] >= B[4] else B[4]\n            return (A[0], B[1], A[2], B[3], m, A[5] + B[5], la + lb)\n\n    build(1, 0, n - 1)\n\n    out = []\n    for op in operations:\n        if op[0] == \"paint\":\n            update(1, 0, n - 1, op[1], op[2], op[3])\n        else:\n            res = query(1, 0, n - 1, op[1], op[2])\n            out.append((res[5], res[4]))\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Fence repainting with run-structure reports",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 27.29,
+   "tokens_in": 864,
+   "tokens_out": 2521,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard rank after every submission",
+  "category": "performance",
+  "entry_point": "leaderboard_ranks",
+  "code": "def leaderboard_ranks(submissions: list[tuple[str, int]]) -> list[int]:\n    n = len(submissions)\n    if n == 0:\n        return []\n\n    # Pass 1: determine which submissions establish a new BEST for their player.\n    # Only those submissions ever create a leaderboard key (score, index).\n    best_score = {}\n    new_best = [False] * n\n    for i, (p, s) in enumerate(submissions):\n        b = best_score.get(p)\n        if b is None or s > b:\n            best_score[p] = s\n            new_best[i] = True\n\n    # Offline coordinate compression of all possible keys.\n    # Order: BEST descending, then BEST TIME (index) ascending.\n    keys = [i for i in range(n) if new_best[i]]\n    keys.sort(key=lambda i: (-submissions[i][1], i))\n    m = len(keys)\n    pos = [0] * n            # pos[i] = 1-based Fenwick index of key created at submission i\n    for r, i in enumerate(keys):\n        pos[i] = r + 1\n\n    # Fenwick tree over compressed keys: counts how many players currently hold each key.\n    tree = [0] * (m + 1)\n    cur = {}                 # player -> current Fenwick position\n    res = [0] * n\n\n    for i, (p, s) in enumerate(submissions):\n        if new_best[i]:\n            old = cur.get(p)\n            if old is not None:\n                # remove old key\n                j = old\n                while j <= m:\n                    tree[j] -= 1\n                    j += j & -j\n            q = pos[i]\n            cur[p] = q\n            j = q\n            while j <= m:\n                tree[j] += 1\n                j += j & -j\n        else:\n            q = cur[p]\n        # rank = number of players with key <= q (includes the player themself)\n        total = 0\n        j = q\n        while j > 0:\n            total += tree[j]\n            j -= j & -j\n        res[i] = total\n\n    return res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Leaderboard rank after every submission",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 20.15,
+   "tokens_in": 822,
+   "tokens_out": 1614,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Budget shopping sprees over shelf ranges",
+  "category": "performance",
+  "entry_point": "budget_purchases",
+  "code": "def budget_purchases(prices, queries):\n    if not queries:\n        return []\n    n = len(prices)\n    if n == 0:\n        return []\n\n    # Coordinate compression of prices\n    vals = sorted(set(prices))\n    m = len(vals)\n    idx = {v: i for i, v in enumerate(vals)}\n\n    # Depth of the value-segment tree\n    depth = 0\n    while (1 << depth) < m:\n        depth += 1\n    per_insert = depth + 1\n    total_nodes = n * per_insert + 1\n\n    # Node 0 is the null/empty node (self-referencing).\n    L = [0] * total_nodes\n    R = [0] * total_nodes\n    C = [0] * total_nodes\n    S = [0] * total_nodes\n    nxt = 1  # next free node id\n\n    roots = [0] * (n + 1)  # roots[i] = tree containing prices[0..i-1]\n\n    for i in range(n):\n        v = prices[i]\n        p = idx[v]\n        old = roots[i]\n        # new root\n        new = nxt\n        nxt += 1\n        L[new] = L[old]\n        R[new] = R[old]\n        C[new] = C[old] + 1\n        S[new] = S[old] + v\n        roots[i + 1] = new\n        lo, hi = 0, m\n        cur_new = new\n        cur_old = old\n        while hi - lo > 1:\n            mid = (lo + hi) >> 1\n            if p < mid:\n                child_old = L[cur_old]\n                child_new = nxt\n                nxt += 1\n                L[child_new] = L[child_old]\n                R[child_new] = R[child_old]\n                C[child_new] = C[child_old] + 1\n                S[child_new] = S[child_old] + v\n                L[cur_new] = child_new\n                cur_new = child_new\n                cur_old = child_old\n                hi = mid\n            else:\n                child_old = R[cur_old]\n                child_new = nxt\n                nxt += 1\n                L[child_new] = L[child_old]\n                R[child_new] = R[child_old]\n                C[child_new] = C[child_old] + 1\n                S[child_new] = S[child_old] + v\n                R[cur_new] = child_new\n                cur_new = child_new\n                cur_old = child_old\n                lo = mid\n\n    out = []\n    for (l, r, budget) in queries:\n        a = roots[l]\n        b = roots[r + 1]\n        lo, hi = 0, m\n        rem = budget\n        count = 0\n        spent = 0\n        while hi - lo > 1:\n            mid = (lo + hi) >> 1\n            la = L[a]\n            lb = L[b]\n            ls = S[lb] - S[la]\n            if ls <= rem:\n                count += C[lb] - C[la]\n                spent += ls\n                rem -= ls\n                a = R[a]\n                b = R[b]\n                lo = mid\n            else:\n                a = la\n                b = lb\n                hi = mid\n        c = C[b] - C[a]\n        if c > 0:\n            v = vals[lo]\n            take = rem // v\n            if take > c:\n                take = c\n            count += take\n            spent += take * v\n        out.append((count, spent))\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Budget shopping sprees over shelf ranges",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 23.83,
+   "tokens_in": 780,
+   "tokens_out": 2078,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tide-gauge records with a minimum margin over many windows",
+  "category": "performance",
+  "entry_point": "count_records",
+  "code": "from bisect import bisect_right\n\n\ndef count_records(levels: list[int], margin: int, queries: list[tuple[int, int]]) -> list[int]:\n    if not queries:\n        return []\n    n = len(levels)\n\n    # nxt[i] = smallest j > i with levels[j] >= levels[i] + margin, or n if none.\n    # Process right to left with a monotonic stack of candidate positions.\n    # Stack (as a list) holds indices with strictly decreasing values from\n    # bottom to top; top is the smallest index. Binary search on negated values.\n    nxt = [n] * (n + 1)\n    stack_idx = []\n    stack_negval = []  # increasing list of -levels[idx]\n    for i in range(n - 1, -1, -1):\n        v = levels[i]\n        t = v + margin\n        # find last position in stack with value >= t  <=>  negval <= -t\n        k = bisect_right(stack_negval, -t) - 1\n        if k >= 0:\n            nxt[i] = stack_idx[k]\n        # pop dominated elements (value <= v), i.e. negval >= -v\n        cut = bisect_right(stack_negval, -v - 1) if False else None  # placeholder (not used)\n        # since negvals are increasing, elements with negval >= -v are a suffix\n        while stack_idx and stack_negval[-1] >= -v:\n            stack_idx.pop()\n            stack_negval.pop()\n        stack_idx.append(i)\n        stack_negval.append(-v)\n\n    # Binary lifting tables.\n    LOG = 1\n    while (1 << LOG) <= n:\n        LOG += 1\n    up = [nxt]\n    for k in range(1, LOG):\n        prev = up[k - 1]\n        up.append([prev[prev[i]] for i in range(n + 1)])\n\n    res = []\n    for l, r in queries:\n        pos = l\n        cnt = 1\n        for k in range(LOG - 1, -1, -1):\n            p = up[k][pos]\n            if p <= r:\n                pos = p\n                cnt += 1 << k\n        res.append(cnt)\n    return res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Tide-gauge records with a minimum margin over many windows",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 25.94,
+   "tokens_in": 797,
+   "tokens_out": 2018,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact-cent loan amortization schedule",
+  "category": "numeric",
+  "entry_point": "amortize",
+  "code": "import re\nfrom fractions import Fraction\n\n_PRINCIPAL_RE = re.compile(r\"[0-9]+(\\.[0-9]{1,2})?\")\n_RATE_RE = re.compile(r\"[0-9]+(\\.[0-9]{1,6})?\")\n\n\ndef _round_half_even(f: Fraction) -> int:\n    \"\"\"Round a non-negative Fraction to nearest integer, ties to even.\"\"\"\n    num, den = f.numerator, f.denominator\n    q, r = divmod(num, den)\n    twice = 2 * r\n    if twice > den or (twice == den and (q & 1)):\n        q += 1\n    return q\n\n\ndef _ceil(f: Fraction) -> int:\n    return -((-f.numerator) // f.denominator)\n\n\ndef _fmt(cents: int) -> str:\n    return f\"{cents // 100}.{cents % 100:02d}\"\n\n\ndef amortize(principal: str, annual_rate_pct: str, months: int) -> list[tuple[str, str, str]]:\n    # ---- validation ----\n    if not isinstance(principal, str) or _PRINCIPAL_RE.fullmatch(principal) is None:\n        raise ValueError(\"invalid principal\")\n    if not isinstance(annual_rate_pct, str) or _RATE_RE.fullmatch(annual_rate_pct) is None:\n        raise ValueError(\"invalid annual_rate_pct\")\n    if not isinstance(months, int) or isinstance(months, bool) or not (1 <= months <= 1200):\n        raise ValueError(\"invalid months\")\n\n    # principal in whole cents\n    if \".\" in principal:\n        ip, fp = principal.split(\".\")\n    else:\n        ip, fp = principal, \"\"\n    fp = (fp + \"00\")[:2]\n    p_cents = int(ip) * 100 + int(fp)\n    if p_cents <= 0:\n        raise ValueError(\"principal must be > 0\")\n\n    rate = Fraction(annual_rate_pct)  # exact decimal parsing\n    if rate > 100:\n        raise ValueError(\"annual_rate_pct must be <= 100\")\n\n    n = months\n    m = rate / 1200  # monthly rate, exact\n    P = Fraction(p_cents, 100)\n\n    # ---- level payment ----\n    if m == 0:\n        A = P / n\n    else:\n        g = (1 + m) ** n\n        A = P * m * g / (g - 1)\n    pay = _ceil(A * 100)  # cents, rounded up\n\n    # ---- schedule ----\n    rows: list[tuple[str, str, str]] = []\n    bal = p_cents\n    for t in range(1, n + 1):\n        interest = _round_half_even(bal * m)\n        if t == n or bal + interest <= pay:\n            rows.append((_fmt(bal + interest), _fmt(interest), _fmt(0)))\n            break\n        bal = bal - (pay - interest)\n        rows.append((_fmt(pay), _fmt(interest), _fmt(bal)))\n    return rows",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Exact-cent loan amortization schedule",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 29.72,
+   "tokens_in": 1134,
+   "tokens_out": 2532,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fraction to base-b string with half-even rounding at k digits",
+  "category": "numeric",
+  "entry_point": "format_base",
+  "code": "def format_base(p: int, q: int, base: int, k: int) -> str:\n    if q == 0:\n        raise ValueError(\"q must be non-zero\")\n    if not (2 <= base <= 36):\n        raise ValueError(\"base must be in 2..36\")\n    if k < 0:\n        raise ValueError(\"k must be non-negative\")\n\n    DIGITS = \"0123456789abcdefghijklmnopqrstuvwxyz\"\n    digs = DIGITS[:base]\n    maxchar = digs[-1]\n\n    a, b = abs(p), abs(q)\n    neg = (p < 0) != (q < 0)\n\n    # Integer part and the remainder that generates the fractional digits.\n    I, r = divmod(a, b)\n\n    # Final remainder and parity of N = floor(a * base**k / b), computed cheaply\n    # via modular exponentiation (no big numbers involved).\n    twob = 2 * b\n    M = (a * pow(base, k, twob)) % twob       # a*base**k mod 2b\n    rem = M % b                               # a*base**k mod b\n    parity = (M - rem) // b                   # N mod 2\n    round_up = (2 * rem > b) or (2 * rem == b and parity == 1)\n\n    # Lookup table: all E-digit strings, E = largest with base**E <= 65536.\n    table = list(digs)\n    E = 1\n    while base ** (E + 1) <= 65536:\n        table = [s + d for s in table for d in digs]\n        E += 1\n    pwE = base ** E\n\n    pw_cache = {E: pwE}\n\n    def pw(n):\n        v = pw_cache.get(n)\n        if v is None:\n            v = base ** n\n            pw_cache[n] = v\n        return v\n\n    def conv(t, n):\n        \"\"\"n-digit (left-padded) base-`base` string of t, 0 <= t < base**n.\"\"\"\n        if n <= E:\n            return table[t][E - n:]\n        if n <= 2 * E:\n            hi, lo = divmod(t, pwE)\n            return table[hi][2 * E - n:] + table[lo]\n        h = n >> 1\n        hi, lo = divmod(t, pw(h))\n        return conv(hi, n - h) + conv(lo, h)\n\n    # Fractional digits in chunks: each chunk is a small long division step.\n    C = 2048\n    parts = []\n    remaining = k\n    pw_chunk = None\n    while remaining > 0:\n        c = C if remaining >= C else remaining\n        if c == C:\n            if pw_chunk is None:\n                pw_chunk = base ** C\n            pc = pw_chunk\n        else:\n            pc = base ** c\n        t, r = divmod(r * pc, b)\n        parts.append(conv(t, c))\n        remaining -= c\n    F = \"\".join(parts)\n\n    # Apply rounding (carry propagation on the digit string / integer part).\n    if round_up:\n        stripped = F.rstrip(maxchar)\n        n_tail = k - len(stripped)\n        if stripped:\n            last = DIGITS.index(stripped[-1]) + 1\n            F = stripped[:-1] + DIGITS[last] + \"0\" * n_tail\n        else:\n            F = \"0\" * k\n            I += 1\n\n    # Zero check.\n    if I == 0 and not F.strip(\"0\"):\n        return \"0\"\n\n    # Integer part to string (it is small: at most ~2000 bits).\n    if I == 0:\n        istr = \"0\"\n    else:\n        iparts = []\n        while I:\n            I, lo = divmod(I, pwE)\n            iparts.append(table[lo])\n        istr = \"\".join(reversed(iparts)).lstrip(\"0\") or \"0\"\n\n    F = F.rstrip(\"0\")\n    out = istr + (\".\" + F if F else \"\")\n    return \"-\" + out if neg else out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Fraction to base-b string with half-even rounding at k digits",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 114.91,
+   "tokens_in": 950,
+   "tokens_out": 7572,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Closest fraction under numerator and denominator bounds",
+  "category": "numeric",
+  "entry_point": "closest_fraction",
+  "code": "import re\nfrom fractions import Fraction\nfrom math import gcd\n\n_LIT = re.compile(r'[+-]?(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?')\n\n\ndef _parse(x: str) -> Fraction:\n    if not isinstance(x, str) or _LIT.fullmatch(x) is None:\n        raise ValueError(\"invalid decimal literal\")\n    s = x\n    neg = False\n    if s[0] in '+-':\n        neg = s[0] == '-'\n        s = s[1:]\n    exp = 0\n    m = re.search(r'[eE]', s)\n    if m:\n        exp = int(s[m.start() + 1:])\n        s = s[:m.start()]\n    if '.' in s:\n        ip, fp = s.split('.')\n    else:\n        ip, fp = s, ''\n    digits = int((ip + fp) or '0')\n    e = exp - len(fp)\n    if e >= 0:\n        val = Fraction(digits * 10 ** e)\n    else:\n        val = Fraction(digits, 10 ** (-e))\n    return -val if neg else val\n\n\ndef closest_fraction(x: str, max_num: int, max_den: int) -> str:\n    v = _parse(x)\n    if max_num < 0 or max_den < 1:\n        raise ValueError(\"bad bounds\")\n    N, D = max_num, max_den\n    neg = v < 0\n    if neg:\n        v = -v\n\n    # Stern-Brocot walk with l < v < u, l and u adjacent.\n    p0, q0 = 0, 1      # lower bound (always a valid candidate)\n    p1, q1 = 1, 0      # upper bound (1/0 = infinity initially)\n    INF = float('inf')\n\n    while True:\n        if Fraction(p0, q0) == v:\n            a, b = p0, q0\n            break\n        if q1 > 0 and Fraction(p1, q1) == v:\n            a, b = p1, q1\n            break\n        mp, mq = p0 + p1, q0 + q1\n        if mp > N or mq > D:\n            # best lower is l, best upper is u (if finite)\n            dl = v - Fraction(p0, q0)\n            if q1 == 0:\n                a, b = p0, q0\n            else:\n                du = Fraction(p1, q1) - v\n                if dl < du:\n                    a, b = p0, q0\n                elif du < dl:\n                    a, b = p1, q1\n                else:\n                    if q0 <= q1:   # smaller denominator, or equal -> closer to zero (l)\n                        a, b = p0, q0\n                    else:\n                        a, b = p1, q1\n            break\n        m = Fraction(mp, mq)\n        if v < m:\n            # move u toward l: terms (k*p0+p1)/(k*q0+q1)\n            r = (p1 - v * q1) / (v * q0 - p0)\n            kx = r.numerator // r.denominator\n            kc = (D - q1) // q0\n            if p0 > 0:\n                kc = min(kc, (N - p1) // p0)\n            k = min(kx, kc)\n            p1, q1 = k * p0 + p1, k * q0 + q1\n        else:\n            # move l toward u: terms (p0+k*p1)/(q0+k*q1)\n            r = (v * q0 - p0) / (p1 - v * q1)\n            kx = r.numerator // r.denominator\n            kc = INF\n            if q1 > 0:\n                kc = (D - q0) // q1\n            if p1 > 0:\n                kc = min(kc, (N - p0) // p1)\n            k = kx if kc == INF else min(kx, kc)\n            p0, q0 = p0 + k * p1, q0 + k * q1\n\n    g = gcd(a, b)\n    a //= g\n    b //= g\n    if a == 0:\n        return \"0/1\"\n    if neg:\n        a = -a\n    return f\"{a}/{b}\"",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Closest fraction under numerator and denominator bounds",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 82.44,
+   "tokens_in": 937,
+   "tokens_out": 5771,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Correctly rounded decimal string to binary16 bits",
+  "category": "numeric",
+  "entry_point": "decimal_to_half_bits",
+  "code": "import re\n\n_LITERAL_RE = re.compile(\n    r'([+-])?'                                   # sign\n    r'((?:[0-9]+(?:\\.[0-9]*)?)|(?:\\.[0-9]+))'    # mantissa\n    r'(?:[eE]([+-])?([0-9]+))?'                  # exponent\n)\n\n_CHUNK = 3000  # stay below Python's default str->int digit limit\n\n\ndef _digits_to_int(d: str) -> int:\n    \"\"\"Convert an ASCII digit string of arbitrary length to int (divide & conquer).\"\"\"\n    n = len(d)\n    if n <= _CHUNK:\n        return int(d) if d else 0\n    half = n // 2\n    hi = _digits_to_int(d[:half])\n    lo = _digits_to_int(d[half:])\n    return hi * 10 ** (n - half) + lo\n\n\ndef decimal_to_half_bits(s: str) -> int:\n    if not isinstance(s, str):\n        raise ValueError(\"argument must be a str\")\n    m = _LITERAL_RE.fullmatch(s)\n    if m is None:\n        raise ValueError(\"invalid decimal literal: %r\" % (s,))\n\n    sign, mant, exp_sign, exp_digits = m.groups()\n    sign_bit = 0x8000 if sign == '-' else 0\n\n    # Split mantissa into integer / fraction digit strings.\n    if '.' in mant:\n        ip, fp = mant.split('.', 1)\n    else:\n        ip, fp = mant, ''\n    digits = ip + fp\n    e10 = -len(fp)\n\n    # Exponent (may be enormous; clamp since the mantissa is at most 200k digits).\n    if exp_digits is not None:\n        ed = exp_digits.lstrip('0')\n        if len(ed) > 15:\n            ev = 10 ** 15\n        else:\n            ev = int(ed) if ed else 0\n        if exp_sign == '-':\n            ev = -ev\n        e10 += ev\n\n    # Normalise digit string.\n    digits = digits.lstrip('0')\n    if not digits:\n        return sign_bit                      # exact zero (keeps sign)\n    stripped = digits.rstrip('0')\n    e10 += len(digits) - len(stripped)\n    digits = stripped\n\n    # value v satisfies 10**(P-1) <= v < 10**P\n    P = len(digits) + e10\n    if P >= 6:                               # v >= 100000 > 65536\n        return sign_bit | 0x7C00\n    if P <= -8:                              # v < 1e-8 < 2**-25\n        return sign_bit\n\n    # Exact rational value num/den.\n    N = _digits_to_int(digits)\n    if e10 >= 0:\n        num, den = N * 10 ** e10, 1\n    else:\n        num, den = N, 10 ** (-e10)\n\n    # Binary exponent e with 2**e <= v < 2**(e+1).\n    e = num.bit_length() - den.bit_length()\n    if e >= 0:\n        if num < (den << e):\n            e -= 1\n    else:\n        if (num << (-e)) < den:\n            e -= 1\n\n    if e >= 16:                              # v >= 65536\n        return sign_bit | 0x7C00\n\n    # Unit in the last place exponent (subnormals use 2**-24).\n    u = max(e - 10, -24)\n    if u >= 0:\n        a, b = num, den << u\n    else:\n        a, b = num << (-u), den\n\n    q, r = divmod(a, b)\n    r2 = r << 1\n    if r2 > b or (r2 == b and (q & 1)):\n        q += 1\n\n    # For normals: q in [1024, 2048]; bits = (E << 10) | F with E = u + 25, F = q - 1024.\n    # For subnormals (u == -24): bits = q.  Both are given by the same formula, and\n    # q == 2048 carries naturally into the next exponent (up to 0x7C00 = infinity).\n    bits = ((u + 24) << 10) + q\n    if bits > 0x7C00:\n        bits = 0x7C00\n    return sign_bit | bits",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Correctly rounded decimal string to binary16 bits",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 74.78,
+   "tokens_in": 1208,
+   "tokens_out": 5452,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Branching version store with range and rank queries",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "import random\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    rnd = random.random\n    # node layout: [key, value, prio, left, right, size, sum]\n    EMPTY = [0, 0, -1.0, None, None, 0, 0]\n    EMPTY[3] = EMPTY\n    EMPTY[4] = EMPTY\n    versions = [EMPTY]\n    out = []\n    append = out.append\n\n    def merge(a, b):\n        if a is EMPTY:\n            return b\n        if b is EMPTY:\n            return a\n        if a[2] > b[2]:\n            r = merge(a[4], b)\n            l = a[3]\n            return [a[0], a[1], a[2], l, r, l[5] + r[5] + 1, l[6] + r[6] + a[1]]\n        else:\n            l = merge(a, b[3])\n            r = b[4]\n            return [b[0], b[1], b[2], l, r, l[5] + r[5] + 1, l[6] + r[6] + b[1]]\n\n    def count_le(t, x):\n        res = 0\n        while t is not EMPTY:\n            if t[0] <= x:\n                res += t[3][5] + 1\n                t = t[4]\n            else:\n                t = t[3]\n        return res\n\n    def sum_le(t, x):\n        res = 0\n        while t is not EMPTY:\n            if t[0] <= x:\n                res += t[3][6] + t[1]\n                t = t[4]\n            else:\n                t = t[3]\n        return res\n\n    for op in ops:\n        name = op[0]\n        v = op[1]\n        if v < 0 or v >= len(versions):\n            append(\"BADVER\")\n            continue\n        root = versions[v]\n\n        if name == \"get\":\n            k = op[2]\n            t = root\n            res = None\n            while t is not EMPTY:\n                tk = t[0]\n                if k == tk:\n                    res = t[1]\n                    break\n                t = t[3] if k < tk else t[4]\n            append(res)\n\n        elif name == \"set\":\n            k = op[2]\n            val = op[3]\n            path = []  # (node, went_left)\n            t = root\n            found = None\n            while t is not EMPTY:\n                tk = t[0]\n                if k == tk:\n                    found = t\n                    break\n                if k < tk:\n                    path.append((t, True))\n                    t = t[3]\n                else:\n                    path.append((t, False))\n                    t = t[4]\n            if found is not None:\n                new = [k, val, found[2], found[3], found[4], found[5],\n                       found[6] - found[1] + val]\n                for anc, left in reversed(path):\n                    if left:\n                        l = new\n                        r = anc[4]\n                    else:\n                        l = anc[3]\n                        r = new\n                    new = [anc[0], anc[1], anc[2], l, r,\n                           l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n            else:\n                new = [k, val, rnd(), EMPTY, EMPTY, 1, val]\n                i = len(path) - 1\n                while i >= 0:\n                    anc, left = path[i]\n                    i -= 1\n                    if new[2] > anc[2]:\n                        # rotate so that new becomes parent of anc\n                        if left:\n                            l = new[4]\n                            r = anc[4]\n                            nt = [anc[0], anc[1], anc[2], l, r,\n                                  l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n                            nl = new[3]\n                            new = [new[0], new[1], new[2], nl, nt,\n                                   nl[5] + nt[5] + 1, nl[6] + nt[6] + new[1]]\n                        else:\n                            l = anc[3]\n                            r = new[3]\n                            nt = [anc[0], anc[1], anc[2], l, r,\n                                  l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n                            nr = new[4]\n                            new = [new[0], new[1], new[2], nt, nr,\n                                   nt[5] + nr[5] + 1, nt[6] + nr[6] + new[1]]\n                    else:\n                        if left:\n                            l = new\n                            r = anc[4]\n                        else:\n                            l = anc[3]\n                            r = new\n                        new = [anc[0], anc[1], anc[2], l, r,\n                               l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n                        # no more rotations possible above; plain copies\n                        while i >= 0:\n                            anc, left = path[i]\n                            i -= 1\n                            if left:\n                                l = new\n                                r = anc[4]\n                            else:\n                                l = anc[3]\n                                r = new\n                            new = [anc[0], anc[1], anc[2], l, r,\n                                   l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n            versions.append(new)\n            append(len(versions) - 1)\n\n        elif name == \"del\":\n            k = op[2]\n            path = []\n            t = root\n            found = None\n            while t is not EMPTY:\n                tk = t[0]\n                if k == tk:\n                    found = t\n                    break\n                if k < tk:\n                    path.append((t, True))\n                    t = t[3]\n                else:\n                    path.append((t, False))\n                    t = t[4]\n            if found is None:\n                append(\"NOKEY\")\n                continue\n            new = merge(found[3], found[4])\n            for anc, left in reversed(path):\n                if left:\n                    l = new\n                    r = anc[4]\n                else:\n                    l = anc[3]\n                    r = new\n                new = [anc[0], anc[1], anc[2], l, r,\n                       l[5] + r[5] + 1, l[6] + r[6] + anc[1]]\n            versions.append(new)\n            append(len(versions) - 1)\n\n        elif name == \"count\":\n            lo = op[2]\n            hi = op[3]\n            if lo > hi:\n                append(0)\n            else:\n                append(count_le(root, hi) - count_le(root, lo - 1))\n\n        elif name == \"sum\":\n            lo = op[2]\n            hi = op[3]\n            if lo > hi:\n                append(0)\n            else:\n                append(sum_le(root, hi) - sum_le(root, lo - 1))\n\n        elif name == \"kth\":\n            k = op[2]\n            if k < 1 or k > root[5]:\n                append(None)\n            else:\n                t = root\n                while True:\n                    ls = t[3][5]\n                    if k <= ls:\n                        t = t[3]\n                    elif k == ls + 1:\n                        append(t[0])\n                        break\n                    else:\n                        k -= ls + 1\n                        t = t[4]\n        else:\n            # unknown op (should not happen per spec)\n            append(None)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Branching version store with range and rank queries",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 56.74,
+   "tokens_in": 1106,
+   "tokens_out": 4839,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Checkpoint and rollback multiset with order statistics",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from bisect import bisect_left\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    # ---- coordinate compression of every value that can appear ----\n    vals = set()\n    for op in ops:\n        name = op[0]\n        if name == \"add\" or name == \"remove\" or name == \"count_less\":\n            vals.add(op[1])\n    vals = sorted(vals)\n    pos = {v: i for i, v in enumerate(vals)}\n    m = len(vals)\n\n    tree = [0] * (m + 1)          # Fenwick tree, 1-based internally\n    cnt = [0] * m                 # multiplicity per compressed value\n    size = 0\n    distinct = 0\n\n    # highest power of two <= m (for k-th descent)\n    top = 1 << (m.bit_length() - 1) if m > 0 else 0\n\n    # undo log: list of (idx, delta) where delta=+1 for add, -1 for remove\n    undo = []\n    cp_stack = []                 # list of checkpoint ids (increasing)\n    cp_pos = {}                   # id -> length of undo log at checkpoint\n    next_id = 0\n\n    out = []\n    append = out.append\n\n    for op in ops:\n        name = op[0]\n\n        if name == \"add\":\n            i = pos[op[1]]\n            if cnt[i] == 0:\n                distinct += 1\n            cnt[i] += 1\n            j = i + 1\n            while j <= m:\n                tree[j] += 1\n                j += j & -j\n            size += 1\n            undo.append((i, 1))\n            append(size)\n\n        elif name == \"remove\":\n            i = pos.get(op[1])\n            if i is None or cnt[i] == 0:\n                append(False)\n            else:\n                cnt[i] -= 1\n                if cnt[i] == 0:\n                    distinct -= 1\n                j = i + 1\n                while j <= m:\n                    tree[j] -= 1\n                    j += j & -j\n                size -= 1\n                undo.append((i, -1))\n                append(True)\n\n        elif name == \"checkpoint\":\n            next_id += 1\n            cp_stack.append(next_id)\n            cp_pos[next_id] = len(undo)\n            append(next_id)\n\n        elif name == \"rollback\":\n            c = op[1]\n            target = cp_pos.get(c)\n            if target is None:\n                append(\"BADCP\")\n                continue\n            # undo mutations back to the checkpoint\n            while len(undo) > target:\n                i, d = undo.pop()\n                if d == 1:\n                    cnt[i] -= 1\n                    if cnt[i] == 0:\n                        distinct -= 1\n                    j = i + 1\n                    while j <= m:\n                        tree[j] -= 1\n                        j += j & -j\n                    size -= 1\n                else:\n                    if cnt[i] == 0:\n                        distinct += 1\n                    cnt[i] += 1\n                    j = i + 1\n                    while j <= m:\n                        tree[j] += 1\n                        j += j & -j\n                    size += 1\n            # invalidate all checkpoints with id > c\n            while cp_stack and cp_stack[-1] > c:\n                del cp_pos[cp_stack.pop()]\n            append(size)\n\n        elif name == \"median\":\n            if size == 0:\n                append(None)\n            else:\n                k = (size + 1) // 2\n                p = 0\n                step = top\n                while step:\n                    nxt = p + step\n                    if nxt <= m and tree[nxt] < k:\n                        p = nxt\n                        k -= tree[nxt]\n                    step >>= 1\n                append(vals[p])\n\n        elif name == \"count_less\":\n            i = pos[op[1]]\n            s = 0\n            j = i\n            while j > 0:\n                s += tree[j]\n                j -= j & -j\n            append(s)\n\n        elif name == \"distinct\":\n            append(distinct)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Checkpoint and rollback multiset with order statistics",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 44.62,
+   "tokens_in": 1089,
+   "tokens_out": 3554,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking calendar with first-fit gap search",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from bisect import bisect_left, bisect_right\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    INF = 1 << 62\n\n    # Offline coordinate set: every start that can ever be booked.\n    coords = sorted({op[1] for op in ops if op[0] == \"book\"})\n    n = len(coords)\n    N = 1\n    while N < max(n, 1):\n        N <<= 1\n    size = 2 * N\n\n    # Segment tree over leaf indices (sorted starts).\n    mn = [INF] * size    # min start of present bookings in node (INF if none)\n    mxe = [-1] * size    # max end of present bookings in node (-1 if none)\n    gp = [-1] * size     # max gap between consecutive present bookings inside node\n    sm = [0] * size      # total occupied length inside node\n\n    def update(i):\n        node = (i + N) >> 1\n        while node >= 1:\n            L = node << 1\n            R = L | 1\n            ml = mn[L]\n            mr = mn[R]\n            el = mxe[L]\n            er = mxe[R]\n            mn[node] = ml if ml < mr else mr\n            mxe[node] = el if el > er else er\n            sm[node] = sm[L] + sm[R]\n            g = gp[L] if gp[L] > gp[R] else gp[R]\n            if ml != INF and mr != INF:\n                c = mr - el\n                if c > g:\n                    g = c\n            gp[node] = g\n            node >>= 1\n\n    def first_from(k):\n        # leftmost present leaf index >= k, or None\n        if k >= n:\n            return None\n        node = k + N\n        while True:\n            if mn[node] != INF:\n                while node < N:\n                    node <<= 1\n                    if mn[node] == INF:\n                        node |= 1\n                return node - N\n            while node & 1:\n                node >>= 1\n            if node == 0:\n                return None\n            node += 1\n\n    def last_before(k):\n        # rightmost present leaf index < k, or None\n        if k <= 0:\n            return None\n        node = k - 1 + N\n        while True:\n            if mn[node] != INF:\n                while node < N:\n                    node = (node << 1) | 1\n                    if mn[node] == INF:\n                        node ^= 1\n                return node - N\n            while not (node & 1):\n                node >>= 1\n            if node == 1:\n                return None\n            node -= 1\n\n    def range_sum(l, r):\n        res = 0\n        l += N\n        r += N\n        while l < r:\n            if l & 1:\n                res += sm[l]\n                l += 1\n            if r & 1:\n                r -= 1\n                res += sm[r]\n            l >>= 1\n            r >>= 1\n        return res\n\n    def find_from(k, d):\n        # end of the first present booking at index >= k whose following gap >= d\n        # (the last booking's following gap is infinite). Assumes one exists.\n        l = k + N\n        r = 2 * N\n        left_nodes = []\n        right_nodes = []\n        while l < r:\n            if l & 1:\n                left_nodes.append(l)\n                l += 1\n            if r & 1:\n                r -= 1\n                right_nodes.append(r)\n            l >>= 1\n            r >>= 1\n        canon = left_nodes + right_nodes[::-1]\n        nxts = [INF] * len(canon)\n        running = INF\n        for idx in range(len(canon) - 1, -1, -1):\n            nxts[idx] = running\n            m = mn[canon[idx]]\n            if m < running:\n                running = m\n        for idx, node in enumerate(canon):\n            if mn[node] == INF:\n                continue\n            nxt = nxts[idx]\n            if gp[node] >= d or nxt - mxe[node] >= d:\n                while node < N:\n                    L = node << 1\n                    R = L | 1\n                    nl = mn[R] if mn[R] != INF else nxt\n                    if mn[L] != INF and (gp[L] >= d or nl - mxe[L] >= d):\n                        node = L\n                        nxt = nl\n                    else:\n                        node = R\n                return mxe[node]\n        return None  # should not happen\n\n    out = []\n    for op in ops:\n        kind = op[0]\n        if kind == \"book\":\n            s, e = op[1], op[2]\n            if s >= e:\n                out.append(\"INVALID\")\n                continue\n            j = last_before(bisect_left(coords, e))\n            if j is not None and mxe[j + N] > s:\n                out.append(\"CONFLICT\")\n                continue\n            i = bisect_left(coords, s)\n            leaf = i + N\n            mn[leaf] = s\n            mxe[leaf] = e\n            sm[leaf] = e - s\n            update(i)\n            out.append(True)\n        elif kind == \"cancel\":\n            s = op[1]\n            i = bisect_left(coords, s)\n            if i < n and coords[i] == s and mn[i + N] != INF:\n                leaf = i + N\n                length = mxe[leaf] - s\n                mn[leaf] = INF\n                mxe[leaf] = -1\n                sm[leaf] = 0\n                update(i)\n                out.append(length)\n            else:\n                out.append(0)\n        elif kind == \"first_fit\":\n            t, d = op[1], op[2]\n            k = bisect_right(coords, t)\n            j = last_before(k)\n            if j is not None and mxe[j + N] > t:\n                out.append(find_from(j, d))\n                continue\n            s = first_from(k)\n            if s is None or coords[s] - t >= d:\n                out.append(t)\n            else:\n                out.append(find_from(s, d))\n        else:  # free_between\n            a, b = op[1], op[2]\n            if a >= b:\n                out.append(0)\n                continue\n            ka = bisect_left(coords, a)\n            kb = bisect_left(coords, b)\n            occ = range_sum(ka, kb)\n            j = last_before(kb)\n            if j is not None and coords[j] >= a and mxe[j + N] > b:\n                occ -= mxe[j + N] - b\n            p = last_before(ka)\n            if p is not None and mxe[p + N] > a:\n                occ += min(mxe[p + N], b) - a\n            out.append((b - a) - occ)\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Room booking calendar with first-fit gap search",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 170.79,
+   "tokens_in": 943,
+   "tokens_out": 12317,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Segment painter with run merging and change counts",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from bisect import bisect_left, bisect_right\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    # Disjoint, coalesced intervals [s, e) with a label.\n    # `starts` is a sorted list of interval starts; `ends`/`labs` map start -> end/label.\n    starts: list[int] = []\n    ends: dict[int, int] = {}\n    labs: dict[int, str] = {}\n    totals: dict[str, int] = {}\n    out = []\n\n    def overlapping_range(l, r):\n        \"\"\"Return (i, j) such that intervals with indices i..j (inclusive) overlap [l, r).\n        If none overlap, i > j.\"\"\"\n        i = bisect_right(starts, l) - 1\n        if i < 0 or ends[starts[i]] <= l:\n            i += 1\n        j = bisect_left(starts, r) - 1\n        return i, j\n\n    for op in ops:\n        kind = op[0]\n\n        if kind == \"paint\":\n            _, l, r, label = op\n            if l >= r:\n                out.append(0)\n                continue\n            i, j = overlapping_range(l, r)\n            same = 0\n            left = None\n            right = None\n            if i <= j:\n                s0 = starts[i]\n                if s0 < l:\n                    left = (s0, l, labs[s0])\n                sj = starts[j]\n                ej = ends[sj]\n                if ej > r:\n                    right = (r, ej, labs[sj])\n                for k in range(i, j + 1):\n                    s = starts[k]\n                    e = ends[s]\n                    lb = labs[s]\n                    ov = min(e, r) - max(s, l)\n                    totals[lb] -= ov\n                    if lb == label:\n                        same += ov\n                    del ends[s]\n                    del labs[s]\n                del starts[i:j + 1]\n            totals[label] = totals.get(label, 0) + (r - l)\n            ns, ne = l, r\n            if left is not None and left[2] == label:\n                ns = left[0]\n                left = None\n            if right is not None and right[2] == label:\n                ne = right[1]\n                right = None\n            # Coalesce with untouched neighbours.\n            if left is None and i > 0:\n                ps = starts[i - 1]\n                if ends[ps] == ns and labs[ps] == label:\n                    ns = ps\n                    del ends[ps]\n                    del labs[ps]\n                    del starts[i - 1]\n                    i -= 1\n            if right is None and i < len(starts):\n                qs = starts[i]\n                if qs == ne and labs[qs] == label:\n                    ne = ends[qs]\n                    del ends[qs]\n                    del labs[qs]\n                    del starts[i]\n            pieces = []\n            if left is not None:\n                pieces.append(left)\n            pieces.append((ns, ne, label))\n            if right is not None:\n                pieces.append(right)\n            starts[i:i] = [p[0] for p in pieces]\n            for s, e, lb in pieces:\n                ends[s] = e\n                labs[s] = lb\n            out.append((r - l) - same)\n\n        elif kind == \"erase\":\n            _, l, r = op\n            if l >= r:\n                out.append(0)\n                continue\n            i, j = overlapping_range(l, r)\n            covered = 0\n            if i <= j:\n                pieces = []\n                s0 = starts[i]\n                if s0 < l:\n                    pieces.append((s0, l, labs[s0]))\n                sj = starts[j]\n                ej = ends[sj]\n                if ej > r:\n                    pieces.append((r, ej, labs[sj]))\n                for k in range(i, j + 1):\n                    s = starts[k]\n                    e = ends[s]\n                    lb = labs[s]\n                    ov = min(e, r) - max(s, l)\n                    covered += ov\n                    totals[lb] -= ov\n                    del ends[s]\n                    del labs[s]\n                del starts[i:j + 1]\n                starts[i:i] = [p[0] for p in pieces]\n                for s, e, lb in pieces:\n                    ends[s] = e\n                    labs[s] = lb\n            out.append(covered)\n\n        elif kind == \"at\":\n            p = op[1]\n            i = bisect_right(starts, p) - 1\n            if i >= 0 and ends[starts[i]] > p:\n                out.append(labs[starts[i]])\n            else:\n                out.append(None)\n\n        elif kind == \"runs\":\n            out.append(len(starts))\n\n        elif kind == \"total\":\n            out.append(totals.get(op[1], 0))\n\n        elif kind == \"next_change\":\n            p = op[1]\n            i = bisect_right(starts, p) - 1\n            if i >= 0 and ends[starts[i]] > p:\n                out.append(ends[starts[i]])\n            else:\n                nxt = i + 1\n                if nxt < len(starts):\n                    out.append(starts[nxt])\n                else:\n                    out.append(None)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Segment painter with run merging and change counts",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 43.95,
+   "tokens_in": 1066,
+   "tokens_out": 3715,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the LRU cache with per-entry TTL replay",
+  "category": "bug_fixing",
+  "entry_point": "run_cache",
+  "code": "from collections import OrderedDict\nimport heapq\n\n\ndef run_cache(capacity, ops):\n    if not isinstance(capacity, int) or capacity < 1:\n        raise ValueError(\"capacity must be a positive int\")\n\n    # key -> [value, expires_at or None, version]; least recently used first.\n    # Invariant: after purge(t), every entry in `store` is unexpired at time t.\n    store = OrderedDict()\n    expiry_heap = []  # (expires_at, key, version) ; stale entries filtered by version\n    version_counter = 0\n    out = []\n    last_t = None\n\n    def purge(t):\n        # Remove every entry whose expires_at <= t.\n        while expiry_heap and expiry_heap[0][0] <= t:\n            exp, key, ver = heapq.heappop(expiry_heap)\n            entry = store.get(key)\n            if entry is not None and entry[2] == ver:\n                del store[key]\n\n    for op in ops:\n        kind, t = op[0], op[1]\n        if last_t is not None and t < last_t:\n            raise ValueError(\"operations must have non-decreasing timestamps\")\n        last_t = t\n\n        purge(t)\n\n        if kind == \"put\":\n            _, _, key, value, ttl = op\n            if ttl is not None and (not isinstance(ttl, int) or ttl < 1):\n                raise ValueError(\"ttl must be None or a positive int\")\n            expires_at = None if ttl is None else t + ttl\n            version_counter += 1\n            ver = version_counter\n\n            entry = store.get(key)\n            if entry is not None:\n                # Existing live key: replace value and expiry, counts as a USE.\n                entry[0] = value\n                entry[1] = expires_at\n                entry[2] = ver\n                store.move_to_end(key)\n            else:\n                if len(store) >= capacity:\n                    store.popitem(last=False)  # evict LRU live entry\n                store[key] = [value, expires_at, ver]\n\n            if expires_at is not None:\n                heapq.heappush(expiry_heap, (expires_at, key, ver))\n\n        elif kind == \"get\":\n            key = op[2]\n            entry = store.get(key)\n            if entry is None:\n                out.append(None)\n            else:\n                store.move_to_end(key)\n                out.append(entry[0])\n\n        elif kind == \"size\":\n            out.append(len(store))\n\n        else:\n            raise ValueError(\"unknown operation %r\" % (kind,))\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the LRU cache with per-entry TTL replay",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 30.69,
+   "tokens_in": 1747,
+   "tokens_out": 2324,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the priority job scheduler with release times and deadlines",
+  "category": "bug_fixing",
+  "entry_point": "schedule",
+  "code": "import heapq\n\n\ndef schedule(jobs):\n    \"\"\"Single-machine, non-preemptive priority scheduler with optional deadlines.\"\"\"\n    seen = set()\n    for job in jobs:\n        if not isinstance(job, tuple) or len(job) != 5:\n            raise ValueError(\"each job must be a 5-tuple\")\n        job_id, release, duration, priority, deadline = job\n        if job_id in seen:\n            raise ValueError(\"duplicate job id %r\" % (job_id,))\n        seen.add(job_id)\n        if release < 0:\n            raise ValueError(\"job %r has a negative release time\" % (job_id,))\n        if duration < 1:\n            raise ValueError(\"job %r has a non-positive duration\" % (job_id,))\n\n    # Do not touch the caller's list: work on a sorted copy.\n    order = sorted(jobs, key=lambda j: j[1])  # by release time\n\n    runs = []\n    dropped = []\n    ready = []  # heap of (-priority, release, job_id, duration, deadline)\n    clock = 0\n    nxt = 0\n    n = len(order)\n\n    while nxt < n or ready:\n        # admit everything released at or before now (release == clock is eligible)\n        while nxt < n and order[nxt][1] <= clock:\n            job_id, release, duration, priority, deadline = order[nxt]\n            heapq.heappush(ready, (-priority, release, job_id, duration, deadline))\n            nxt += 1\n\n        if not ready:\n            # machine idles until the next release, then re-run admission so that\n            # every job released at that instant is considered\n            clock = max(clock, order[nxt][1])\n            continue\n\n        neg_priority, release, job_id, duration, deadline = heapq.heappop(ready)\n        if deadline is not None and clock + duration > deadline:\n            dropped.append(job_id)\n            continue\n        runs.append((job_id, clock, clock + duration))\n        clock += duration\n\n    return runs, dropped",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the priority job scheduler with release times and deadlines",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 23.06,
+   "tokens_in": 1743,
+   "tokens_out": 1701,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the sliding-window median with missing readings",
+  "category": "bug_fixing",
+  "entry_point": "window_medians",
+  "code": "import heapq\nfrom collections import defaultdict\n\n\ndef window_medians(readings, k):\n    if isinstance(k, bool) or not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive int\")\n\n    low = []    # max-heap via negation: smaller half, top is the (lower) median\n    high = []   # min-heap: larger half\n    delayed = defaultdict(int)  # value -> pending lazy deletions\n    sizes = {\"low\": 0, \"high\": 0}  # live element counts\n    out = []\n\n    def prune(heap, sign):\n        # keep the invariant \"top of each heap is a live element\"\n        while heap and delayed[sign * heap[0]]:\n            delayed[sign * heap[0]] -= 1\n            heapq.heappop(heap)\n\n    def rebalance():\n        # invariant: sizes[\"low\"] == sizes[\"high\"] or sizes[\"low\"] == sizes[\"high\"] + 1\n        if sizes[\"low\"] > sizes[\"high\"] + 1:\n            heapq.heappush(high, -heapq.heappop(low))  # low top is live\n            sizes[\"low\"] -= 1\n            sizes[\"high\"] += 1\n            prune(low, -1)\n        elif sizes[\"low\"] < sizes[\"high\"]:\n            heapq.heappush(low, -heapq.heappop(high))  # high top is live\n            sizes[\"high\"] -= 1\n            sizes[\"low\"] += 1\n            prune(high, 1)\n\n    def add(x):\n        if not low or x <= -low[0]:\n            heapq.heappush(low, -x)\n            sizes[\"low\"] += 1\n        else:\n            heapq.heappush(high, x)\n            sizes[\"high\"] += 1\n        rebalance()\n\n    def remove(x):\n        # x is guaranteed to be live in the window, so low is non-empty here\n        delayed[x] += 1\n        if x <= -low[0]:\n            sizes[\"low\"] -= 1\n            if x == -low[0]:\n                prune(low, -1)\n        else:\n            sizes[\"high\"] -= 1\n            if high and x == high[0]:\n                prune(high, 1)\n        rebalance()\n\n    for i, x in enumerate(readings):\n        if x is not None:\n            add(x)\n        if i >= k:\n            old = readings[i - k]\n            if old is not None:\n                remove(old)\n        out.append(-low[0] if sizes[\"low\"] else None)\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the sliding-window median with missing readings",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 168.98,
+   "tokens_in": 1363,
+   "tokens_out": 3675,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the expression tokenizer with positions, escapes and exponents",
+  "category": "bug_fixing",
+  "entry_point": "tokenize",
+  "code": "TWO_CHAR_OPS = (\"==\", \"!=\", \"<=\", \">=\", \"->\")\nONE_CHAR_OPS = \"<>=+-*/(),\"\nESCAPES = {'\"': '\"', \"\\\\\": \"\\\\\", \"n\": \"\\n\", \"t\": \"\\t\"}\n\n\ndef _is_digit(ch):\n    return \"0\" <= ch <= \"9\"\n\n\ndef _is_ident_start(ch):\n    return ch == \"_\" or \"a\" <= ch <= \"z\" or \"A\" <= ch <= \"Z\"\n\n\ndef _is_ident_char(ch):\n    return _is_ident_start(ch) or _is_digit(ch)\n\n\ndef tokenize(src):\n    tokens = []\n    n = len(src)\n    i, line, col = 0, 1, 1\n\n    def fail(at_line, at_col, message):\n        raise ValueError(\"line %d col %d: %s\" % (at_line, at_col, message))\n\n    while i < n:\n        ch = src[i]\n\n        if ch == \"\\n\":\n            i += 1\n            line += 1\n            col = 1\n            continue\n        if ch == \" \" or ch == \"\\t\":\n            i += 1\n            col += 1\n            continue\n        if ch == \"#\":\n            end = src.find(\"\\n\", i)\n            # Leave the \"\\n\" for the newline handler so line/col stay correct.\n            i = n if end == -1 else end\n            continue\n\n        if _is_digit(ch):\n            j = i\n            while j < n and _is_digit(src[j]):\n                j += 1\n            is_float = False\n            # FRACTION: \".\" followed by at least one digit\n            if j + 1 < n and src[j] == \".\" and _is_digit(src[j + 1]):\n                j += 1\n                while j < n and _is_digit(src[j]):\n                    j += 1\n                is_float = True\n            # EXPONENT: e/E, optional sign, at least one digit (all or nothing)\n            if j < n and src[j] in \"eE\":\n                k = j + 1\n                if k < n and src[k] in \"+-\":\n                    k += 1\n                if k < n and _is_digit(src[k]):\n                    while k < n and _is_digit(src[k]):\n                        k += 1\n                    j = k\n                    is_float = True\n            text = src[i:j]\n            tokens.append((\"NUMBER\", float(text) if is_float else int(text), line, col))\n            col += j - i\n            i = j\n            continue\n\n        if _is_ident_start(ch):\n            j = i\n            while j < n and _is_ident_char(src[j]):\n                j += 1\n            tokens.append((\"IDENT\", src[i:j], line, col))\n            col += j - i\n            i = j\n            continue\n\n        if ch == '\"':\n            j = i + 1\n            chars = []\n            while True:\n                if j >= n or src[j] == \"\\n\":\n                    fail(line, col, \"unterminated string\")\n                c = src[j]\n                if c == '\"':\n                    j += 1\n                    break\n                if c == \"\\\\\":\n                    if j + 1 >= n or src[j + 1] == \"\\n\":\n                        fail(line, col, \"unterminated string\")\n                    if src[j + 1] not in ESCAPES:\n                        fail(line, col + (j - i), \"bad escape\")\n                    chars.append(ESCAPES[src[j + 1]])\n                    j += 2\n                    continue\n                chars.append(c)\n                j += 1\n            tokens.append((\"STRING\", \"\".join(chars), line, col))\n            col += j - i\n            i = j\n            continue\n\n        if src[i:i + 2] in TWO_CHAR_OPS:\n            tokens.append((\"OP\", src[i:i + 2], line, col))\n            i += 2\n            col += 2\n            continue\n        if ch in ONE_CHAR_OPS:\n            tokens.append((\"OP\", ch, line, col))\n            i += 1\n            col += 1\n            continue\n\n        fail(line, col, \"unexpected character %r\" % ch)\n\n    return tokens",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the expression tokenizer with positions, escapes and exponents",
+   "model": "global.anthropic.claude-fable-5-1",
+   "provider": "bedrock",
+   "latency_s": 26.38,
+   "tokens_in": 2669,
+   "tokens_out": 2166,
+   "cost_usd": null,
+   "stop_reason": "end_turn",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ }
+]

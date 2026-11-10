@@ -1,0 +1,34 @@
+{
+ "slug": "pile-stack-interpreter",
+ "cases": [
+  {
+   "case": "stress_deep_recursion",
+   "seconds": 0.461,
+   "timeout_s": 8,
+   "margin": 17.4,
+   "ok": true
+  },
+  {
+   "case": "stress_step_limit_loop",
+   "seconds": 1.044,
+   "timeout_s": 15,
+   "margin": 14.4,
+   "ok": true
+  },
+  {
+   "case": "stress_deep_nesting",
+   "seconds": 0.072,
+   "timeout_s": 8,
+   "margin": 111.9,
+   "ok": true
+  },
+  {
+   "case": "stress_many_tokens",
+   "seconds": 0.543,
+   "timeout_s": 8,
+   "margin": 14.7,
+   "ok": true
+  }
+ ],
+ "min_margin": 14.4
+}

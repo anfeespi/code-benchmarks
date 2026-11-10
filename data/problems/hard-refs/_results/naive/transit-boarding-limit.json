@@ -1,0 +1,8 @@
+{
+ "slug": "transit-boarding-limit",
+ "stress_cases": 3,
+ "stress_failed": 1,
+ "nonstress_failed": [],
+ "naive_pass": 0,
+ "status": "ok"
+}

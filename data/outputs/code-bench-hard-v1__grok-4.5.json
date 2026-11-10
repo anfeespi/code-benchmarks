@@ -1,0 +1,896 @@
+[
+ {
+  "title": "Fastest courier route with battery swaps and regenerative roads",
+  "category": "algorithms",
+  "entry_point": "fastest_delivery",
+  "code": "import heapq\nfrom typing import List, Tuple, Optional\n\ndef fastest_delivery(\n    n: int,\n    roads: List[Tuple[int, int, int, int]],\n    stations: List[int],\n    capacity: int,\n    swap_time: int,\n    max_swaps: int,\n    s: int,\n    t: int\n) -> Optional[Tuple[int, int]]:\n    if s == t:\n        return (0, 0)\n\n    adj: List[List[Tuple[int, int, int]]] = [[] for _ in range(n)]\n    for u, v, minutes, energy in roads:\n        adj[u].append((v, minutes, energy))\n\n    station_set = set(stations)\n    INF = float('inf')\n    # dist[u][c][k] = minimum time to reach u with charge c using exactly k swaps\n    dist = [[[INF] * (max_swaps + 1) for _ in range(capacity + 1)] for _ in range(n)]\n\n    pq: List[Tuple[int, int, int, int]] = []  # (time, k, u, c)\n    dist[s][capacity][0] = 0\n    heapq.heappush(pq, (0, 0, s, capacity))\n\n    while pq:\n        time, k, u, c = heapq.heappop(pq)\n        if time > dist[u][c][k]:\n            continue\n        if u == t:\n            return (time, k)\n\n        # Option 1: swap at current junction (if allowed)\n        if u in station_set and k < max_swaps:\n            new_time = time + swap_time\n            new_k = k + 1\n            new_c = capacity\n            if new_time < dist[u][new_c][new_k]:\n                dist[u][new_c][new_k] = new_time\n                heapq.heappush(pq, (new_time, new_k, u, new_c))\n\n        # Option 2: drive outgoing roads\n        for v, minutes, energy in adj[u]:\n            if energy > 0 and c < energy:\n                continue\n            new_c = min(capacity, c - energy)\n            new_time = time + minutes\n            if new_time < dist[v][new_c][k]:\n                dist[v][new_c][k] = new_time\n                heapq.heappush(pq, (new_time, k, v, new_c))\n\n    return None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Fastest courier route with battery swaps and regenerative roads",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 92.42,
+   "tokens_in": 1260,
+   "tokens_out": 4632,
+   "cost_usd": 0.029793456,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Context window pruning with gap limit, pins and adjacency bonus",
+  "category": "algorithms",
+  "entry_point": "best_context",
+  "code": "def best_context(messages, budget, max_gap, bonus):\n    if budget < 0 or max_gap < 0:\n        raise ValueError(\"budget and max_gap must be non-negative\")\n\n    n = len(messages)\n    if n == 0:\n        return 0\n\n    INF = float('-inf')\n    # prev[g][p][b] = max score after processing messages,\n    # with g trailing drops, p=1 if last message kept, b = length used\n    prev = [[[INF] * (budget + 1) for _ in range(2)] for _ in range(max_gap + 1)]\n    prev[0][0][0] = 0\n\n    for i in range(n):\n        length, value, pinned = messages[i]\n        curr = [[[INF] * (budget + 1) for _ in range(2)] for _ in range(max_gap + 1)]\n        for g in range(max_gap + 1):\n            for p in range(2):\n                for b in range(budget + 1):\n                    sc = prev[g][p][b]\n                    if sc == INF:\n                        continue\n                    # drop (only if not pinned)\n                    if not pinned:\n                        ng = g + 1\n                        if ng <= max_gap:\n                            if sc > curr[ng][0][b]:\n                                curr[ng][0][b] = sc\n                    # keep\n                    nb = b + length\n                    if nb <= budget:\n                        nsc = sc + value\n                        if p == 1:\n                            nsc += bonus\n                        if nsc > curr[0][1][nb]:\n                            curr[0][1][nb] = nsc\n        prev = curr\n\n    max_sc = INF\n    for g in range(max_gap + 1):\n        for p in range(2):\n            for b in range(budget + 1):\n                if prev[g][p][b] > max_sc:\n                    max_sc = prev[g][p][b]\n\n    return None if max_sc == INF else int(max_sc)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Context window pruning with gap limit, pins and adjacency bonus",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 73.71,
+   "tokens_in": 880,
+   "tokens_out": 3637,
+   "cost_usd": 0.023130756,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Cheapest feeder pruning under line capacities with critical loads",
+  "category": "algorithms",
+  "entry_point": "min_pruning_cost",
+  "code": "from typing import List, Optional\n\ndef min_pruning_cost(\n    parent: List[int],\n    demand: List[int],\n    cap: List[int],\n    cut_cost: List[int],\n    critical: List[bool],\n    root_cap: int,\n    penalty: int,\n) -> Optional[int]:\n    n = len(parent)\n    if n == 0:\n        return 0\n    children = [[] for _ in range(n)]\n    for v in range(1, n):\n        children[parent[v]].append(v)\n\n    INF = 10**18\n\n    def dfs(v: int):\n        has_crit = critical[v]\n        child_info = []\n        tot_dem = demand[v]\n        for c in children[v]:\n            ch_has, ch_tot, ch_dp = dfs(c)\n            child_info.append((c, ch_has, ch_tot, ch_dp))\n            has_crit = has_crit or ch_has\n            tot_dem += ch_tot\n\n        max_child_l = tot_dem - demand[v]\n        dp = [INF] * (max_child_l + 1)\n        dp[0] = 0\n\n        for c, ch_has, ch_tot, ch_dp in child_info:\n            new_dp = [INF] * (max_child_l + 1)\n            # cut option\n            if not ch_has:\n                ccut = cut_cost[c] + penalty * ch_tot\n                for l in range(max_child_l + 1):\n                    if dp[l] < INF:\n                        cand = dp[l] + ccut\n                        if cand < new_dp[l]:\n                            new_dp[l] = cand\n            # keep options (min-plus)\n            ch_max = len(ch_dp) - 1\n            for l in range(max_child_l + 1):\n                if dp[l] >= INF:\n                    continue\n                base = dp[l]\n                upper = min(ch_max, max_child_l - l)\n                for lc in range(upper + 1):\n                    if ch_dp[lc] < INF:\n                        cand = base + ch_dp[lc]\n                        nl = l + lc\n                        if cand < new_dp[nl]:\n                            new_dp[nl] = cand\n            dp = new_dp\n\n        # own load and capacity check\n        my_dp = [INF] * (tot_dem + 1)\n        own_cap = root_cap if v == 0 else cap[v]\n        dm = demand[v]\n        for l in range(max_child_l + 1):\n            if dp[l] < INF:\n                ml = l + dm\n                if ml <= own_cap and ml <= tot_dem:\n                    my_dp[ml] = dp[l]\n        return has_crit, tot_dem, my_dp\n\n    _, _, root_dp = dfs(0)\n    res = min(root_dp)\n    return res if res < INF else None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest feeder pruning under line capacities with critical loads",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 290.36,
+   "tokens_in": 1223,
+   "tokens_out": 13111,
+   "cost_usd": 0.080085456,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Earliest timetable arrival with change times and a boarding limit",
+  "category": "algorithms",
+  "entry_point": "earliest_arrival",
+  "code": "from collections import defaultdict\n\ndef earliest_arrival(connections, transfer, source, target, start_time, max_boardings):\n    n = len(transfer)\n    if source == target:\n        return start_time\n    if max_boardings <= 0:\n        return None\n\n    INF = 10**18\n    # Group connections by trip_id\n    trip_conns = defaultdict(list)\n    for c in connections:\n        trip_conns[c[0]].append(c)\n\n    trips = []  # each: (stops, arrs, deps)\n    stop_to_trippos = [[] for _ in range(n)]\n\n    for tid, conns in trip_conns.items():\n        if not conns:\n            continue\n        conns.sort(key=lambda c: c[3])  # sort by dep\n        stops = [conns[0][1]]\n        arrs = [-INF]\n        deps = []\n        valid = True\n        prev_arr = -INF\n        for c in conns:\n            fr, to, dep, arr = c[1], c[2], c[3], c[4]\n            if fr != stops[-1] or dep < prev_arr or dep >= arr or fr == to:\n                # Guarantees say it should be a chain, but be robust\n                valid = False\n                break\n            deps.append(dep)\n            stops.append(to)\n            arrs.append(arr)\n            prev_arr = arr\n        if not valid or len(deps) == 0:\n            continue\n        t_idx = len(trips)\n        trips.append((stops, arrs, deps))\n        for pos in range(len(deps)):\n            s = stops[pos]\n            stop_to_trippos[s].append((t_idx, pos))\n\n    num_trips = len(trips)\n    if num_trips == 0:\n        return None\n\n    # Search structures\n    ea = [INF] * n  # earliest alight time\n    current_ready = [INF] * n\n    current_ready[source] = start_time\n    reached_this_round = [INF] * n\n    best_target = INF\n\n    improved_stops = [source]\n    is_marked = [False] * num_trips\n    min_pos_search = [0] * num_trips\n    marked_list = []\n\n    max_rounds = min(max_boardings, len(connections) + 1)\n    for _ in range(max_rounds):\n        if not improved_stops:\n            break\n\n        # Mark trips from improved stops, track min pos\n        for s in improved_stops:\n            for t_idx, pos in stop_to_trippos[s]:\n                if not is_marked[t_idx]:\n                    is_marked[t_idx] = True\n                    marked_list.append(t_idx)\n                    min_pos_search[t_idx] = pos\n                elif pos < min_pos_search[t_idx]:\n                    min_pos_search[t_idx] = pos\n\n        # Scan marked trips\n        candidates = []\n        for t_idx in marked_list:\n            stops, arrs, deps = trips[t_idx]\n            start_from = min_pos_search[t_idx]\n            boarded_i = None\n            for i in range(start_from, len(deps)):\n                if current_ready[stops[i]] <= deps[i]:\n                    boarded_i = i\n                    break\n            if boarded_i is not None:\n                for j in range(boarded_i + 1, len(stops)):\n                    s_arr = stops[j]\n                    a = arrs[j]\n                    if a < reached_this_round[s_arr]:\n                        if reached_this_round[s_arr] == INF:\n                            candidates.append(s_arr)\n                        reached_this_round[s_arr] = a\n\n        # Reset marks\n        for t_idx in marked_list:\n            is_marked[t_idx] = False\n        marked_list.clear()\n\n        # Apply improvements\n        next_improved = []\n        for s in candidates:\n            a = reached_this_round[s]\n            if a < ea[s]:\n                ea[s] = a\n                if s == target and a < best_target:\n                    best_target = a\n                rdy = a + transfer[s]\n                if rdy < current_ready[s]:\n                    current_ready[s] = rdy\n                    next_improved.append(s)\n            reached_this_round[s] = INF\n\n        improved_stops = next_improved\n\n    return best_target if best_target < INF else None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Earliest timetable arrival with change times and a boarding limit",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 319.37,
+   "tokens_in": 1198,
+   "tokens_out": 15522,
+   "cost_usd": 0.094357296,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+  "category": "state_machines",
+  "entry_point": "run_kiosk",
+  "code": "def run_kiosk(levels, threshold, patience, arrivals):\n    if not arrivals:\n        return []\n    prev_t = -1\n    for t, _, _ in arrivals:\n        if t < prev_t:\n            raise ValueError(\"arrivals not sorted by time\")\n        prev_t = t\n\n    from collections import deque\n    S = len(levels)\n    slots = [(0, c) for c in levels]\n    queue = deque()\n    records = []\n    arr_idx = 0\n    N = len(arrivals)\n    current_time = 0\n\n    def best_slot(t):\n        best_i = -1\n        best_c = -1\n        for i in range(S):\n            pt, pc = slots[i]\n            c = min(100, pc + (t - pt))\n            if c >= threshold and c > best_c:\n                best_c = c\n                best_i = i\n        return best_i\n\n    while True:\n        # 1. Serve the queue while possible\n        while queue:\n            bs = best_slot(current_time)\n            if bs < 0:\n                break\n            _, name, ch = queue.popleft()\n            records.append((name, \"SWAP\", current_time, bs))\n            slots[bs] = (current_time, ch)\n\n        # 2. Handle arrivals at current_time\n        while arr_idx < N and arrivals[arr_idx][0] == current_time:\n            t, name, ch = arrivals[arr_idx]\n            arr_idx += 1\n            if not queue:\n                bs = best_slot(current_time)\n                if bs >= 0:\n                    records.append((name, \"SWAP\", current_time, bs))\n                    slots[bs] = (current_time, ch)\n                    continue\n            queue.append((t, name, ch))\n\n        # 3. Give up expired drones\n        while queue and queue[0][0] + patience <= current_time:\n            _, name, _ = queue.popleft()\n            records.append((name, \"LEFT\", current_time))\n\n        if arr_idx >= N and not queue:\n            break\n\n        # Determine next time to jump to\n        next_time = None\n        if arr_idx < N:\n            next_time = arrivals[arr_idx][0]\n        if queue:\n            exp = queue[0][0] + patience\n            if next_time is None or exp < next_time:\n                next_time = exp\n            for i in range(S):\n                pt, pc = slots[i]\n                if pc >= threshold:\n                    ra = pt\n                else:\n                    ra = pt + (threshold - pc)\n                if ra > current_time and (next_time is None or ra < next_time):\n                    next_time = ra\n\n        if next_time is None:\n            break\n        current_time = next_time\n\n    return records",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 197.38,
+   "tokens_in": 1228,
+   "tokens_out": 10417,
+   "cost_usd": 0.064092996,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+  "category": "state_machines",
+  "entry_point": "run_lock_manager",
+  "code": "def run_lock_manager(ops):\n    from collections import defaultdict, deque\n    logs = []\n    tx_state = {}\n    tx_locks = defaultdict(dict)\n    tx_wait = {}\n    resources = defaultdict(lambda: {'holders': {}, 'queue': [], 'num_upg': 0})\n    adj = {}\n    rev = defaultdict(set)\n\n    def compatible(m1, m2):\n        return m1 == 'S' and m2 == 'S'\n\n    def clear_wait(tx):\n        if tx in adj:\n            for t in adj[tx]:\n                rev[t].discard(tx)\n                if not rev[t]:\n                    del rev[t]\n            del adj[tx]\n        if tx in tx_wait:\n            del tx_wait[tx]\n\n    def recompute_res(rname):\n        r = resources[rname]\n        if not r['queue']:\n            return\n        prev = []\n        holders = r['holders']\n        for w, m in r['queue']:\n            if w in adj:\n                for t in adj[w]:\n                    rev[t].discard(w)\n                    if not rev[t]:\n                        del rev[t]\n                del adj[w]\n            outs = set()\n            for h, hm in holders.items():\n                if h != w and not compatible(m, hm):\n                    outs.add(h)\n            outs.update(prev)\n            adj[w] = outs\n            for t in outs:\n                rev[t].add(w)\n            prev.append(w)\n\n    def is_grantable(rname, tx, mode):\n        holders = resources[rname]['holders']\n        for h, hm in holders.items():\n            if h != tx and not compatible(mode, hm):\n                return False\n        return True\n\n    def process_queue(rname, i):\n        r = resources[rname]\n        while r['queue']:\n            tx, mode = r['queue'][0]\n            if not is_grantable(rname, tx, mode):\n                break\n            was_upg = r['num_upg'] > 0\n            del r['queue'][0]\n            if was_upg:\n                r['num_upg'] -= 1\n            clear_wait(tx)\n            tx_state[tx] = 'ACTIVE'\n            r['holders'][tx] = mode\n            tx_locks[tx][rname] = mode\n            logs.append((\"GRANT\", i, tx, rname, mode))\n        recompute_res(rname)\n\n    def release(tx, i):\n        affected = set()\n        if tx in tx_wait:\n            resn, _ = tx_wait[tx]\n            r = resources[resn]\n            idx = next(j for j, (t, _) in enumerate(r['queue']) if t == tx)\n            if idx < r['num_upg']:\n                r['num_upg'] -= 1\n            del r['queue'][idx]\n            clear_wait(tx)\n            affected.add(resn)\n        if tx in tx_locks:\n            for resn in list(tx_locks[tx]):\n                del resources[resn]['holders'][tx]\n                affected.add(resn)\n            tx_locks[tx].clear()\n        for resn in sorted(affected):\n            process_queue(resn, i)\n\n    def get_reachable(source, adjac):\n        seen = set()\n        stk = [source]\n        seen.add(source)\n        while stk:\n            u = stk.pop()\n            for v in adjac.get(u, ()):\n                if v not in seen:\n                    seen.add(v)\n                    stk.append(v)\n        return seen\n\n    def get_nodes_on_cycles(start):\n        if start not in adj:\n            return set()\n        F = get_reachable(start, adj)\n        B = get_reachable(start, rev)\n        inter = F & B\n        if len(inter) > 1:\n            return inter\n        return set()\n\n    def check_deadlocks(i, new_w):\n        while True:\n            nodes = get_nodes_on_cycles(new_w)\n            if not nodes:\n                break\n            victim = max(nodes)\n            logs.append((\"ABORT\", i, victim))\n            release(victim, i)\n            tx_state[victim] = 'FINISHED'\n\n    for i, op in enumerate(ops):\n        typ = op[0]\n        if typ == 'COMMIT':\n            tx = op[1]\n        else:\n            mode = typ\n            tx = op[1]\n            res = op[2]\n\n        state = tx_state.get(tx)\n        if state in ('WAITING', 'FINISHED'):\n            logs.append((\"IGNORED\", i, tx))\n            continue\n        if state is None:\n            tx_state[tx] = 'ACTIVE'\n\n        if typ == 'COMMIT':\n            logs.append((\"COMMIT\", i, tx))\n            release(tx, i)\n            tx_state[tx] = 'FINISHED'\n            continue\n\n        r = resources[res]\n        heldmode = tx_locks[tx].get(res)\n        if heldmode == 'X' or (heldmode == 'S' and mode == 'S'):\n            logs.append((\"HELD\", i, tx, res))\n            continue\n\n        if heldmode == 'S' and mode == 'X':\n            if len(r['holders']) == 1:\n                r['holders'][tx] = 'X'\n                tx_locks[tx][res] = 'X'\n                logs.append((\"GRANT\", i, tx, res, \"X\"))\n                recompute_res(res)\n                continue\n            else:\n                pos = r['num_upg']\n                r['queue'].insert(pos, (tx, 'X'))\n                r['num_upg'] += 1\n                tx_wait[tx] = (res, 'X')\n                tx_state[tx] = 'WAITING'\n                logs.append((\"WAIT\", i, tx, res, \"X\"))\n                recompute_res(res)\n                check_deadlocks(i, tx)\n                continue\n\n        if not r['queue'] and all(compatible(mode, hm) for hm in r['holders'].values()):\n            r['holders'][tx] = mode\n            tx_locks[tx][res] = mode\n            logs.append((\"GRANT\", i, tx, res, mode))\n            recompute_res(res)\n            continue\n        else:\n            r['queue'].append((tx, mode))\n            tx_wait[tx] = (res, mode)\n            tx_state[tx] = 'WAITING'\n            logs.append((\"WAIT\", i, tx, res, mode))\n            recompute_res(res)\n            check_deadlocks(i, tx)\n            continue\n\n    return logs",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 616.05,
+   "tokens_in": 1699,
+   "tokens_out": 26174,
+   "cost_usd": 0.158622156,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+  "category": "state_machines",
+  "entry_point": "admit_requests",
+  "code": "from collections import deque\n\ndef admit_requests(requests, config):\n    cap = config[\"cap\"]\n    period = config[\"period\"]\n    gcap = config[\"gcap\"]\n    gperiod = config[\"gperiod\"]\n    reserve = config[\"reserve\"]\n    strikes_needed = config[\"strikes\"]\n    window = config[\"window\"]\n    ban_len = config[\"ban\"]\n\n    def count_refills(last_t, t, p):\n        \"\"\"Number of positive multiples of p in the interval (last_t, t].\"\"\"\n        if t <= last_t:\n            return 0\n        first = (last_t // p + 1) * p\n        if first > t:\n            return 0\n        last = (t // p) * p\n        if last < first:\n            return 0\n        return (last - first) // p + 1\n\n    g_tokens = gcap\n    g_last = 0\n    clients = {}\n    results = []\n    prev_t = None\n\n    for t, client, cost, vip in requests:\n        if prev_t is not None and t < prev_t:\n            raise ValueError(\"request times must be non-decreasing\")\n        prev_t = t\n\n        # Global refills at t (before requests)\n        rc = count_refills(g_last, t, gperiod)\n        if rc:\n            g_tokens = min(gcap, g_tokens + rc)\n        g_last = t\n\n        if client not in clients:\n            cstate = {\n                \"tokens\": cap,\n                \"last\": t,\n                \"ban_until\": 0,\n                \"strikes\": deque(),\n            }\n            clients[client] = cstate\n        else:\n            cstate = clients[client]\n            rc = count_refills(cstate[\"last\"], t, period)\n            if rc:\n                cstate[\"tokens\"] = min(cap, cstate[\"tokens\"] + rc)\n            cstate[\"last\"] = t\n\n        # 1. Banned?\n        if t < cstate[\"ban_until\"]:\n            results.append(\"BANNED\")\n            continue\n\n        # 2. Client bucket?\n        if cstate[\"tokens\"] < cost:\n            strikes = cstate[\"strikes\"]\n            strikes.append(t)\n            cutoff = t - window\n            while strikes and strikes[0] <= cutoff:\n                strikes.popleft()\n            if len(strikes) >= strikes_needed:\n                results.append(\"BAN\")\n                cstate[\"ban_until\"] = t + ban_len\n                strikes.clear()\n            else:\n                results.append(\"DENY\")\n            continue\n\n        # 3. Global bucket / reserve?\n        if vip:\n            can = g_tokens >= cost\n        else:\n            can = g_tokens >= cost + reserve\n        if not can:\n            results.append(\"BUSY\")\n            continue\n\n        # 4. Admit\n        cstate[\"tokens\"] -= cost\n        g_tokens -= cost\n        results.append(\"OK\")\n\n    return results",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 93.34,
+   "tokens_in": 1463,
+   "tokens_out": 4973,
+   "cost_usd": 0.032220936,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Vending machine with escrow, greedy change and inactivity return",
+  "category": "state_machines",
+  "entry_point": "simulate_vending",
+  "code": "def simulate_vending(prices, stock, bank, events, timeout):\n    from collections import defaultdict\n\n    # Validate event times are non-decreasing\n    prev_t = -1\n    for t, kind, arg in events:\n        if t < prev_t:\n            raise ValueError(\"events not in non-decreasing time order\")\n        prev_t = t\n\n    # Copy mutable state (do not mutate inputs)\n    stock = dict(stock)\n    bank_counts = {5: 0, 10: 0, 25: 0, 100: 0}\n    for k, v in bank.items():\n        bank_counts[k] = v\n\n    escrow = []  # ordered list of coin values\n    log = []\n    last_activity = None  # time of most recent activity\n    ACCEPTED = {5, 10, 25, 100}\n\n    def escrow_total():\n        return sum(escrow)\n\n    def sorted_coins(coins):\n        return tuple(sorted(coins, reverse=True))\n\n    def do_timeout_return(at_time):\n        nonlocal escrow, last_activity\n        if escrow:\n            coins = sorted_coins(escrow)\n            log.append((\"TIMEOUT\", at_time, coins))\n            escrow = []\n            # timeout return is not an activity; last_activity stays\n\n    def maybe_auto_return(before_t):\n        \"\"\"If escrow non-empty and last_activity + timeout <= before_t, return it.\"\"\"\n        nonlocal last_activity\n        if escrow and last_activity is not None:\n            ret_t = last_activity + timeout\n            if ret_t <= before_t:\n                do_timeout_return(ret_t)\n                # after return escrow is empty; no further pending timeout\n\n    def try_change(amount):\n        \"\"\"Greedy change from bank_counts. Returns (success, list_of_coins) or\n        (False, None). Does not mutate bank_counts on failure; on success the\n        caller has already moved escrow in, so we mutate bank on success path\n        only after confirming, or we mutate a copy.\n\n        Actually: we need to try without permanently taking if fail.\n        Returns (ok, change_list) and if ok, bank_counts already reduced.\n        \"\"\"\n        taken = []\n        remaining = amount\n        # work on a temporary copy\n        temp = dict(bank_counts)\n        for d in (100, 25, 10, 5):\n            k = min(temp[d], remaining // d)\n            if k:\n                temp[d] -= k\n                taken.extend([d] * k)\n                remaining -= d * k\n        if remaining == 0:\n            # commit\n            bank_counts.update(temp)\n            return True, taken\n        return False, None\n\n    for t, kind, arg in events:\n        # Auto-return before processing this event if due\n        maybe_auto_return(t)\n\n        if kind == \"coin\":\n            v = arg\n            if v not in ACCEPTED or len(escrow) >= 10:\n                log.append((\"REJECT\", t, v))\n                # not an activity\n            else:\n                escrow.append(v)\n                last_activity = t\n\n        elif kind == \"select\":\n            s = arg\n            # select is always an activity (whatever outcome)\n            last_activity = t\n\n            if s not in prices:\n                log.append((\"UNKNOWN\", t, s))\n            elif stock[s] == 0:\n                log.append((\"SOLD_OUT\", t, s))\n            else:\n                price = prices[s]\n                total = escrow_total()\n                if total < price:\n                    log.append((\"NEED\", t, price - total))\n                else:\n                    # Attempt sale: move ALL escrow into bank, then make change\n                    saved_escrow = list(escrow)\n                    saved_bank = dict(bank_counts)\n\n                    for c in escrow:\n                        bank_counts[c] += 1\n                    escrow = []\n\n                    change_needed = total - price\n                    ok, change_coins = try_change(change_needed)\n                    if ok:\n                        stock[s] -= 1\n                        log.append((\"VEND\", t, s, sorted_coins(change_coins)))\n                        # escrow already empty\n                    else:\n                        # full rollback\n                        bank_counts.clear()\n                        bank_counts.update(saved_bank)\n                        escrow = saved_escrow\n                        log.append((\"EXACT_ONLY\", t, s))\n\n        elif kind == \"cancel\":\n            # cancel is always an activity\n            last_activity = t\n            if escrow:\n                coins = sorted_coins(escrow)\n                log.append((\"RETURN\", t, coins))\n                escrow = []\n\n        else:\n            # unknown kind – spec doesn't say; ignore or treat as no-op\n            pass\n\n    # After last event, pending automatic return\n    if escrow and last_activity is not None:\n        do_timeout_return(last_activity + timeout)\n\n    final_bank = (\n        bank_counts[5],\n        bank_counts[10],\n        bank_counts[25],\n        bank_counts[100],\n    )\n    return (log, final_bank)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Vending machine with escrow, greedy change and inactivity return",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 26.25,
+   "tokens_in": 1692,
+   "tokens_out": 1554,
+   "cost_usd": 0.012365496,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Path-pattern access policy with specificity and deny precedence",
+  "category": "spec_compliance",
+  "entry_point": "evaluate_access",
+  "code": "import re\n\ndef evaluate_access(rules, requests) -> list[str]:\n    NAME_RE = re.compile(r'^[a-z0-9_]+$')\n    ACTION_WORD_RE = re.compile(r'^[a-z]+$')\n    SEGMENT_RE = re.compile(r'^[a-z0-9._-]+$')\n    RESOURCE_SEG_RE = re.compile(r'^([a-z0-9._-]+|\\*|\\*\\*)$')\n\n    def is_name(s):\n        return isinstance(s, str) and bool(NAME_RE.match(s))\n\n    def is_action_word(s):\n        return isinstance(s, str) and bool(ACTION_WORD_RE.match(s))\n\n    def parse_action_field(action):\n        if action == '*':\n            return '*'\n        parts = action.split(',')\n        if not parts or any(p == '' or not ACTION_WORD_RE.match(p) for p in parts):\n            return None\n        if '*' in parts:\n            return None\n        return parts\n\n    def parse_resource(resource):\n        if not isinstance(resource, str):\n            return None\n        if resource == '/':\n            return []\n        if not resource.startswith('/') or resource.endswith('/'):\n            return None\n        segs = resource[1:].split('/')\n        if any(s == '' or not RESOURCE_SEG_RE.match(s) for s in segs):\n            return None\n        return segs\n\n    def parse_path(path):\n        if not isinstance(path, str):\n            return None\n        if path == '/':\n            return []\n        if not path.startswith('/') or path.endswith('/'):\n            return None\n        segs = path[1:].split('/')\n        if any(s == '' or not SEGMENT_RE.match(s) for s in segs):\n            return None\n        return segs\n\n    def parse_principal(principal):\n        if principal == '*':\n            return ('*', None)\n        if principal.startswith('user:'):\n            name = principal[5:]\n            if is_name(name):\n                return ('user', name)\n            return None\n        if principal.startswith('group:'):\n            name = principal[6:]\n            if is_name(name):\n                return ('group', name)\n            return None\n        return None\n\n    # --- Validation ---\n    if not isinstance(rules, list):\n        raise TypeError(\"rules must be a list\")\n    if not isinstance(requests, list):\n        raise TypeError(\"requests must be a list\")\n\n    parsed_rules = []\n    for i, rule in enumerate(rules):\n        if not isinstance(rule, str):\n            raise TypeError(f\"rule {i}: not a str\")\n        fields = rule.split()\n        if len(fields) != 4:\n            raise ValueError(f\"rule {i}: expected 4 fields, got {len(fields)}\")\n        effect, principal, action, resource = fields\n        if effect not in ('ALLOW', 'DENY'):\n            raise ValueError(f\"rule {i}: bad effect {effect!r}\")\n        p = parse_principal(principal)\n        if p is None:\n            raise ValueError(f\"rule {i}: bad principal {principal!r}\")\n        a = parse_action_field(action)\n        if a is None:\n            raise ValueError(f\"rule {i}: bad action {action!r}\")\n        r = parse_resource(resource)\n        if r is None:\n            raise ValueError(f\"rule {i}: bad resource {resource!r}\")\n        # specificity components\n        L = sum(1 for s in r if s != '*' and s != '**')\n        P = 2 if p[0] == 'user' else (1 if p[0] == 'group' else 0)\n        A = 0 if a == '*' else 1\n        parsed_rules.append({\n            'index': i,\n            'effect': effect,\n            'principal': p,\n            'action': a,\n            'resource': r,\n            'specificity': (L, P, A),\n        })\n\n    parsed_requests = []\n    for j, req in enumerate(requests):\n        if not isinstance(req, tuple) or len(req) != 4:\n            raise TypeError(f\"request {j}: expected 4-tuple\")\n        user, groups, action, path = req\n        if not is_name(user):\n            raise ValueError(f\"request {j}: bad user {user!r}\")\n        if not isinstance(groups, list) or any(not is_name(g) for g in groups):\n            raise ValueError(f\"request {j}: bad groups\")\n        if not is_action_word(action):\n            raise ValueError(f\"request {j}: bad action {action!r}\")\n        path_segs = parse_path(path)\n        if path_segs is None:\n            raise ValueError(f\"request {j}: bad path {path!r}\")\n        parsed_requests.append((user, groups, action, path_segs))\n\n    # --- Resource matching (non-exponential) ---\n    def resource_matches(pattern_segs, path_segs):\n        \"\"\"Match resource pattern against path using DP to avoid exponential backtracking.\"\"\"\n        m = len(pattern_segs)\n        n = len(path_segs)\n        # dp[i][j] = whether pattern[:i] matches path[:j]\n        # Use two rows or a set of reachable path positions for each pattern position\n        # reachable[j] means pattern prefix matches path[:j]\n        reachable = {0}\n        for i, pat in enumerate(pattern_segs):\n            new_reachable = set()\n            if pat == '**':\n                # ** matches zero or more segments\n                if not reachable:\n                    return False\n                min_j = min(reachable)\n                # from any reachable j, can go to any k >= j\n                for j in range(min_j, n + 1):\n                    # check if some r in reachable with r <= j\n                    # since we take min and go up, once we pass all reachable we need care\n                    pass\n                # Better: for each r in reachable, add all k from r to n\n                for r in reachable:\n                    for k in range(r, n + 1):\n                        new_reachable.add(k)\n            elif pat == '*':\n                for r in reachable:\n                    if r < n:\n                        new_reachable.add(r + 1)\n            else:\n                for r in reachable:\n                    if r < n and path_segs[r] == pat:\n                        new_reachable.add(r + 1)\n            reachable = new_reachable\n            if not reachable:\n                return False\n        return n in reachable\n\n    # --- Evaluation ---\n    decisions = []\n    for user, groups, action, path_segs in parsed_requests:\n        matches = []\n        for rule in parsed_rules:\n            # principal\n            ptype, pname = rule['principal']\n            if ptype == '*':\n                pass\n            elif ptype == 'user':\n                if pname != user:\n                    continue\n            elif ptype == 'group':\n                if pname not in groups:\n                    continue\n            # action\n            ra = rule['action']\n            if ra != '*':\n                if action not in ra:\n                    continue\n            # resource\n            if not resource_matches(rule['resource'], path_segs):\n                continue\n            matches.append(rule)\n\n        if not matches:\n            decisions.append(\"DENY by default\")\n            continue\n\n        max_spec = max(r['specificity'] for r in matches)\n        best = [r for r in matches if r['specificity'] == max_spec]\n        denies = [r for r in best if r['effect'] == 'DENY']\n        if denies:\n            i = min(r['index'] for r in denies)\n            decisions.append(f\"DENY by rule {i}\")\n        else:\n            i = min(r['index'] for r in best)\n            decisions.append(f\"ALLOW by rule {i}\")\n\n    return decisions",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Path-pattern access policy with specificity and deny precedence",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 28.5,
+   "tokens_in": 1644,
+   "tokens_out": 1882,
+   "cost_usd": 0.014218776,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Layered config merge with delete/append directives and JSON paths",
+  "category": "spec_compliance",
+  "entry_point": "merge_layers",
+  "code": "from __future__ import annotations\n\nimport copy\nimport json\nimport re\nfrom typing import Any\n\n_IDENT_RE = re.compile(r\"^[A-Za-z_][A-Za-z0-9_]*$\")\n\n\ndef _type_name(v: Any) -> str:\n    if v is None:\n        return \"null\"\n    if isinstance(v, bool):\n        return \"bool\"\n    if isinstance(v, int):\n        return \"int\"\n    if isinstance(v, float):\n        return \"float\"\n    if isinstance(v, str):\n        return \"str\"\n    if isinstance(v, list):\n        return \"list\"\n    if isinstance(v, dict):\n        return \"dict\"\n    raise TypeError(f\"unsupported value type: {type(v)}\")\n\n\ndef _path_of(parent: str, name: str) -> str:\n    if _IDENT_RE.fullmatch(name):\n        return f\"{parent}.{name}\"\n    return f\"{parent}[{json.dumps(name, ensure_ascii=False)}]\"\n\n\ndef _deep_copy(v: Any) -> Any:\n    \"\"\"Copy value; dicts/lists nested in lists are opaque (copied as-is).\"\"\"\n    return copy.deepcopy(v)\n\n\ndef merge_layers(layers) -> tuple[dict, list[str]]:\n    if not isinstance(layers, list):\n        raise TypeError(\"layers must be a list\")\n\n    result: dict = {}\n    warnings: list[str] = []\n\n    def merge_dict(T: dict, O: dict, P: str, L: int) -> None:\n        for K in O:\n            if not isinstance(K, str):\n                raise TypeError(f\"layer {L}: non-string key at {P}\")\n\n            if K.startswith(\"-\"):\n                kind = \"DELETE\"\n                NAME = K[1:]\n            elif K.endswith(\"+\"):\n                kind = \"APPEND\"\n                NAME = K[:-1]\n            else:\n                kind = \"SET\"\n                NAME = K\n\n            if NAME == \"\":\n                raise ValueError(f\"layer {L}: empty key name at {P}\")\n\n            Q = _path_of(P, NAME)\n            V = O[K]\n\n            if kind == \"DELETE\":\n                if V is not None:\n                    raise ValueError(\n                        f\"layer {L}: delete directive needs null at {Q}\"\n                    )\n                if NAME in T:\n                    del T[NAME]\n                else:\n                    warnings.append(\n                        f\"layer {L}: delete of missing key at {Q}\"\n                    )\n\n            elif kind == \"APPEND\":\n                if not isinstance(V, list):\n                    raise ValueError(\n                        f\"layer {L}: append directive needs a list at {Q}\"\n                    )\n                if NAME not in T:\n                    T[NAME] = _deep_copy(V)\n                elif isinstance(T[NAME], list):\n                    T[NAME].extend(_deep_copy(V))\n                else:\n                    raise ValueError(\n                        f\"layer {L}: cannot append to {_type_name(T[NAME])} at {Q}\"\n                    )\n\n            else:  # SET\n                if NAME in T and _type_name(T[NAME]) != _type_name(V):\n                    warnings.append(\n                        f\"layer {L}: type change at {Q}: \"\n                        f\"{_type_name(T[NAME])} -> {_type_name(V)}\"\n                    )\n\n                if isinstance(V, dict):\n                    if NAME not in T or not isinstance(T[NAME], dict):\n                        T[NAME] = {}\n                    merge_dict(T[NAME], V, Q, L)\n                else:\n                    T[NAME] = _deep_copy(V)\n\n    for L, layer in enumerate(layers):\n        if not isinstance(layer, dict):\n            raise TypeError(f\"layer {L} is not a dict\")\n        merge_dict(result, layer, \"$\", L)\n\n    return result, warnings",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Layered config merge with delete/append directives and JSON paths",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 13.86,
+   "tokens_in": 1443,
+   "tokens_out": 970,
+   "cost_usd": 0.008403516,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Account statement renderer with automatic overdraft fees",
+  "category": "spec_compliance",
+  "entry_point": "render_statement",
+  "code": "import re\nfrom datetime import date\n\n_OPENING_RE = re.compile(r'^-?(0|[1-9][0-9]{0,8})\\.[0-9]{2}$')\n_AMOUNT_RE = re.compile(r'^(0|[1-9][0-9]{0,8})(\\.[0-9]{1,2})?$')\n_DATE_RE = re.compile(r'^([0-9]{4})-([0-9]{2})-([0-9]{2})$')\n_KINDS = frozenset({'credit', 'debit', 'fee'})\n\n\ndef _parse_opening(s: str) -> int:\n    \"\"\"Parse opening amount string to cents (int).\"\"\"\n    neg = s.startswith('-')\n    body = s[1:] if neg else s\n    whole, frac = body.split('.')\n    cents = int(whole) * 100 + int(frac)\n    return -cents if neg else cents\n\n\ndef _parse_amount(s: str) -> int:\n    \"\"\"Parse entry amount string to cents (int). Must be > 0.\"\"\"\n    if '.' in s:\n        whole, frac = s.split('.')\n        if len(frac) == 1:\n            frac = frac + '0'\n        cents = int(whole) * 100 + int(frac)\n    else:\n        cents = int(s) * 100\n    return cents\n\n\ndef _money(cents: int) -> str:\n    \"\"\"Format cents as MONEY string.\"\"\"\n    neg = cents < 0\n    cents = abs(cents)\n    whole = cents // 100\n    frac = cents % 100\n    # thousands separator\n    w = f'{whole:,}'\n    result = f'{w}.{frac:02d}'\n    return f'-{result}' if neg else result\n\n\ndef _valid_date(s: str):\n    \"\"\"Return date object if valid Gregorian YYYY-MM-DD in 1900..2999, else None.\"\"\"\n    m = _DATE_RE.match(s)\n    if not m:\n        return None\n    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))\n    if y < 1900 or y > 2999:\n        return None\n    try:\n        return date(y, mo, d)\n    except ValueError:\n        return None\n\n\ndef _normalize_memo(memo: str) -> str:\n    text = ' '.join(memo.split())\n    if len(text) > 20:\n        text = text[:19] + '~'\n    return text.ljust(20)\n\n\ndef render_statement(opening, entries) -> list[str]:\n    # --- validation ---\n    if not isinstance(opening, str):\n        raise TypeError('opening must be a str')\n    if not _OPENING_RE.match(opening):\n        raise ValueError('opening: bad amount ' + repr(opening))\n    if not isinstance(entries, list):\n        raise TypeError('entries must be a list')\n\n    validated = []  # list of (date_str, date_obj, kind, amount_cents, memo)\n    prev_date = None\n    for i, entry in enumerate(entries):\n        if not isinstance(entry, tuple) or len(entry) != 4:\n            raise TypeError(f'entry {i}: expected 4-tuple')\n        d, kind, amount, memo = entry\n\n        # date\n        if not isinstance(d, str):\n            raise ValueError(f'entry {i}: bad date {d!r}')\n        d_obj = _valid_date(d)\n        if d_obj is None:\n            raise ValueError(f'entry {i}: bad date {d!r}')\n        if prev_date is not None and d_obj < prev_date:\n            raise ValueError(f'entry {i}: date out of order')\n        prev_date = d_obj\n\n        # kind\n        if kind not in _KINDS:\n            raise ValueError(f'entry {i}: bad kind {kind!r}')\n\n        # amount\n        if not isinstance(amount, str) or not _AMOUNT_RE.match(amount):\n            raise ValueError(f'entry {i}: bad amount {amount!r}')\n        amt_cents = _parse_amount(amount)\n        if amt_cents == 0:\n            raise ValueError(f'entry {i}: bad amount {amount!r}')\n\n        # memo\n        if not isinstance(memo, str):\n            raise ValueError(f'entry {i}: bad memo')\n        if not memo.split():\n            raise ValueError(f'entry {i}: bad memo')\n        for ch in memo:\n            cp = ord(ch)\n            if cp < 32 or cp == 127:\n                raise ValueError(f'entry {i}: bad memo')\n\n        validated.append((d, d_obj, kind, amt_cents, memo))\n\n    # --- processing ---\n    balance = _parse_opening(opening)\n    # Treat \"-0.00\" as zero\n    if balance == 0:\n        balance = 0\n\n    applied = []  # (date_str, kind, amount_cents, memo, balance_after)\n    od_fee_dates = set()  # dates that already got an automatic overdraft fee\n\n    for d_str, d_obj, kind, amt, memo in validated:\n        if kind == 'credit':\n            balance += amt\n        else:\n            balance -= amt\n        applied.append((d_str, kind, amt, memo, balance))\n\n        # automatic overdraft fee after a debit that leaves balance strictly negative\n        if kind == 'debit' and balance < 0 and d_str not in od_fee_dates:\n            od_fee_dates.add(d_str)\n            fee_amt = 2500  # 25.00\n            balance -= fee_amt\n            applied.append((d_str, 'fee', fee_amt, 'OVERDRAFT FEE', balance))\n\n    # --- rendering ---\n    lines = []\n    lines.append('Opening balance: ' + _money(_parse_opening(opening) if _parse_opening(opening) != 0 else 0))\n\n    # Re-parse opening for display consistency (already handled -0.00)\n    open_cents = _parse_opening(opening)\n    if open_cents == 0:\n        open_cents = 0\n    lines[0] = 'Opening balance: ' + _money(open_cents)\n\n    n_credit = n_debit = n_fee = 0\n    for d_str, kind, amt, memo, bal in applied:\n        memo_col = _normalize_memo(memo)\n        if kind == 'credit':\n            sign = '+'\n            n_credit += 1\n        else:\n            sign = '-'\n            if kind == 'debit':\n                n_debit += 1\n            else:\n                n_fee += 1\n        amt_col = (sign + _money(amt)).rjust(14)\n        bal_col = _money(bal).rjust(15)\n        flag = ' OD' if bal < 0 else ''\n        lines.append(f'{d_str}  {memo_col}  {amt_col}  {bal_col}{flag}')\n\n    final = applied[-1][4] if applied else open_cents\n    if final == 0:\n        final = 0\n    lines.append('Closing balance: ' + _money(final))\n    lines.append(f'Credits: {n_credit}  Debits: {n_debit}  Fees: {n_fee}')\n    return lines",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Account statement renderer with automatic overdraft fees",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 40.63,
+   "tokens_in": 1683,
+   "tokens_out": 3444,
+   "cost_usd": 0.023574276,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Version picker for a custom constraint language with release candidates",
+  "category": "spec_compliance",
+  "entry_point": "pick_version",
+  "code": "from __future__ import annotations\n\nimport re\nfrom typing import Optional\n\n\ndef pick_version(available, constraint) -> str | None:\n    # --- version parsing / ordering ---\n    _VERSION_RE = re.compile(\n        r\"^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:~rc([1-9]\\d*))?$\"\n    )\n\n    def parse_version(s: str):\n        m = _VERSION_RE.fullmatch(s)\n        if not m:\n            return None\n        x, y, z = int(m.group(1)), int(m.group(2)), int(m.group(3))\n        rc = m.group(4)\n        # plain release sorts above any rc: use rc_num = infinity for plain\n        if rc is None:\n            rc_key = (1, 0)  # (is_release, n)\n        else:\n            rc_key = (0, int(rc))\n        return (x, y, z, rc_key)\n\n    def version_key(s: str):\n        p = parse_version(s)\n        assert p is not None\n        return p\n\n    # --- validation of available ---\n    if not isinstance(available, list):\n        raise TypeError(\"available must be a list\")\n    parsed_available = []\n    for i, element in enumerate(available):\n        if not isinstance(element, str) or parse_version(element) is None:\n            raise ValueError(f\"invalid version at index {i}: {element!r}\")\n        parsed_available.append(element)\n\n    # --- validation of constraint ---\n    if not isinstance(constraint, str):\n        raise TypeError(\"constraint must be a str\")\n    if constraint == \"\" or constraint.strip(\" \") == \"\":\n        # \"consists only of spaces\" — only ASCII space, per spec (\" \" only)\n        # empty or only spaces\n        if constraint == \"\" or all(c == \" \" for c in constraint):\n            raise ValueError(\"empty constraint\")\n        # if other whitespace only, still empty-ish? Spec says \"empty or consists only of spaces\"\n        # So tabs-only would NOT hit this and fall through — treat as non-empty string with alternatives\n        if constraint.strip() == \"\" and all(c == \" \" for c in constraint):\n            raise ValueError(\"empty constraint\")\n    # Re-check strictly: empty or only \" \" characters\n    if len(constraint) == 0 or (constraint.replace(\" \", \"\") == \"\" and all(c == \" \" for c in constraint)):\n        raise ValueError(\"empty constraint\")\n\n    # Actually simpler:\n    if constraint == \"\" or set(constraint) <= {\" \"}:\n        raise ValueError(\"empty constraint\")\n\n    _PART_RE = re.compile(r\"^(0|[1-9]\\d*)$\")\n\n    def is_valid_version_str(s: str) -> bool:\n        return parse_version(s) is not None\n\n    def is_valid_part(s: str) -> bool:\n        return bool(_PART_RE.fullmatch(s))\n\n    def parse_clause(clause: str):\n        \"\"\"Return a matcher callable or None if invalid.\n        Matcher: (version_str, parsed_tuple) -> bool\n        \"\"\"\n        if clause == \"*\":\n            return lambda v, p: True\n\n        # X.Y.* or X.*\n        if clause.endswith(\".*\"):\n            body = clause[:-2]\n            parts = body.split(\".\")\n            if len(parts) == 1:\n                if not is_valid_part(parts[0]):\n                    return None\n                x = int(parts[0])\n                return lambda v, p, x=x: p[0] == x\n            if len(parts) == 2:\n                if not is_valid_part(parts[0]) or not is_valid_part(parts[1]):\n                    return None\n                x, y = int(parts[0]), int(parts[1])\n                return lambda v, p, x=x, y=y: p[0] == x and p[1] == y\n            return None\n\n        # @X.Y\n        if clause.startswith(\"@\"):\n            body = clause[1:]\n            parts = body.split(\".\")\n            if len(parts) != 2:\n                return None\n            if not is_valid_part(parts[0]) or not is_valid_part(parts[1]):\n                return None\n            x, y = int(parts[0]), int(parts[1])\n            return lambda v, p, x=x, y=y: p[0] == x and p[1] >= y\n\n        # operators\n        for op in (\"!=\", \">=\", \"<=\", \">\", \"<\", \"=\"):\n            if clause.startswith(op):\n                ver = clause[len(op) :]\n                if not is_valid_version_str(ver):\n                    return None\n                # no inner spaces etc. — version re already rejects spaces\n                vp = parse_version(ver)\n                if op == \"=\":\n                    return lambda v, p, vp=vp: p == vp\n                if op == \"!=\":\n                    return lambda v, p, vp=vp: p != vp\n                if op == \">\":\n                    return lambda v, p, vp=vp: p > vp\n                if op == \">=\":\n                    return lambda v, p, vp=vp: p >= vp\n                if op == \"<\":\n                    return lambda v, p, vp=vp: p < vp\n                if op == \"<=\":\n                    return lambda v, p, vp=vp: p <= vp\n\n        # bare V\n        if is_valid_version_str(clause):\n            vp = parse_version(clause)\n            return lambda v, p, vp=vp: p == vp\n\n        return None\n\n    # Split alternatives on \"|\"\n    raw_alternatives = constraint.split(\"|\")\n    compiled_alternatives = []  # list of (allow_rc: bool, matchers: list)\n\n    for a_idx, raw_alt in enumerate(raw_alternatives, start=1):\n        alt = raw_alt\n        # remove spaces at both ends (\" \" only)\n        alt = alt.strip(\" \")\n        allow_rc = False\n        if alt.startswith(\"?\"):\n            allow_rc = True\n            alt = alt[1:].strip(\" \")\n        if alt == \"\":\n            raise ValueError(f\"alternative {a_idx} is empty\")\n\n        raw_clauses = alt.split(\",\")\n        matchers = []\n        for c_idx, raw_clause in enumerate(raw_clauses, start=1):\n            clause = raw_clause.strip(\" \")\n            matcher = parse_clause(clause)\n            if matcher is None:\n                raise ValueError(\n                    f\"alternative {a_idx}, clause {c_idx}: invalid clause {clause!r}\"\n                )\n            matchers.append(matcher)\n        compiled_alternatives.append((allow_rc, matchers))\n\n    def is_rc(parsed) -> bool:\n        return parsed[3][0] == 0  # (is_release, n) — is_release==0 means rc\n\n    def satisfies(version_str: str) -> bool:\n        p = parse_version(version_str)\n        for allow_rc, matchers in compiled_alternatives:\n            if is_rc(p) and not allow_rc:\n                continue\n            if all(m(version_str, p) for m in matchers):\n                return True\n        return False\n\n    best = None\n    best_key = None\n    for v in parsed_available:\n        if satisfies(v):\n            k = version_key(v)\n            if best_key is None or k > best_key:\n                best_key = k\n                best = v\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Version picker for a custom constraint language with release candidates",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 45.7,
+   "tokens_in": 1185,
+   "tokens_out": 3285,
+   "cost_usd": 0.021643776,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Indentation outline config parser with line-exact errors",
+  "category": "parsing",
+  "entry_point": "parse_outline",
+  "code": "def parse_outline(text: str) -> tuple:\n    lines = text.split(\"\\n\")\n    n = len(lines)\n\n    # Stack of open blocks: each is\n    #   {\"indent\": int, \"kind\": \"map\"|\"list\", \"value\": dict|list, \"opener\": bool}\n    # opener means the last added entry is waiting for a nested block (or None).\n    stack = []\n    root = None\n    prev_was_opener = False\n    prev_indent = -1\n\n    def convert_scalar(s, line_no):\n        if s.startswith('\"'):\n            i = 1\n            out = []\n            while i < len(s):\n                c = s[i]\n                if c == \"\\\\\":\n                    if i + 1 >= len(s):\n                        return (\"error\", line_no, \"bad escape\")\n                    nxt = s[i + 1]\n                    if nxt == \"\\\\\":\n                        out.append(\"\\\\\")\n                    elif nxt == '\"':\n                        out.append('\"')\n                    elif nxt == \"n\":\n                        out.append(\"\\n\")\n                    elif nxt == \"t\":\n                        out.append(\"\\t\")\n                    else:\n                        return (\"error\", line_no, \"bad escape\")\n                    i += 2\n                elif c == '\"':\n                    if i != len(s) - 1:\n                        return (\"error\", line_no, \"bad string\")\n                    return (\"ok\", \"\".join(out))\n                else:\n                    out.append(c)\n                    i += 1\n            return (\"error\", line_no, \"bad string\")\n        if s == \"true\":\n            return (\"ok\", True)\n        if s == \"false\":\n            return (\"ok\", False)\n        if s == \"null\":\n            return (\"ok\", None)\n        # integer: -?(0|[1-9][0-9]*)\n        if s and (s[0] == \"-\" or s[0].isdigit()):\n            t = s[1:] if s[0] == \"-\" else s\n            if t == \"0\" or (t and t[0] in \"123456789\" and t.isdigit()):\n                # reject leading zeros like 007; \"-0\" -> 0\n                if t == \"0\" or not t.startswith(\"0\"):\n                    val = int(s)\n                    return (\"ok\", val)\n        return (\"ok\", s)\n\n    def is_valid_key(k):\n        if not k:\n            return False\n        c0 = k[0]\n        if not ((\"A\" <= c0 <= \"Z\") or (\"a\" <= c0 <= \"z\") or c0 == \"_\"):\n            return False\n        for c in k[1:]:\n            if not (\n                (\"A\" <= c <= \"Z\")\n                or (\"a\" <= c <= \"z\")\n                or (\"0\" <= c <= \"9\")\n                or c == \"_\"\n                or c == \"-\"\n            ):\n                return False\n        return True\n\n    for line_idx, line in enumerate(lines):\n        line_no = line_idx + 1\n\n        # LEAD / REST\n        i = 0\n        while i < len(line) and line[i] in (\" \", \"\\t\"):\n            i += 1\n        lead = line[:i]\n        rest = line[i:]\n\n        # blank\n        if rest == \"\":\n            continue\n        # comment\n        if rest.startswith(\"#\"):\n            continue\n\n        # CONTENT line\n        # 1. tab in indentation\n        if \"\\t\" in lead:\n            return (\"error\", line_no, \"tab in indentation\")\n\n        indent = len(lead)\n\n        # 2/3. ITEM or KEY\n        kind = None  # \"item\" or \"key\"\n        is_opener = False\n        key = None\n        text = None  # scalar text or None for opener\n\n        if rest == \"-\" or rest.startswith(\"- \"):\n            kind = \"item\"\n            if rest == \"-\":\n                text_raw = \"\"\n            else:\n                text_raw = rest[2:]\n            # strip spaces only from both ends\n            text_raw = text_raw.strip(\" \")\n            if text_raw == \"\":\n                is_opener = True\n                text = None\n            else:\n                is_opener = False\n                text = text_raw\n        else:\n            # KEY line\n            colon = rest.find(\":\")\n            if colon < 0:\n                return (\"error\", line_no, \"invalid entry\")\n            key_part = rest[:colon]\n            if not is_valid_key(key_part):\n                return (\"error\", line_no, \"invalid entry\")\n            after = rest[colon + 1 :]\n            # AFTER only spaces -> KEY OPENER\n            if after.strip(\" \") == \"\" and (after == \"\" or all(c == \" \" for c in after)):\n                # \"consists only of spaces (or is empty)\"\n                is_opener = True\n                text = None\n                kind = \"key\"\n                key = key_part\n            else:\n                if not after.startswith(\" \"):\n                    return (\"error\", line_no, \"invalid entry\")\n                text_raw = after.strip(\" \")\n                is_opener = False\n                text = text_raw\n                kind = \"key\"\n                key = key_part\n\n        # 4. scalar conversion\n        value = None\n        if not is_opener:\n            conv = convert_scalar(text, line_no)\n            if conv[0] == \"error\":\n                return conv\n            value = conv[1]\n\n        # STRUCTURE\n        block_kind = \"map\" if kind == \"key\" else \"list\"\n\n        if root is None:\n            # first content line\n            if indent != 0:\n                return (\"error\", line_no, \"unexpected indent\")\n            if block_kind == \"map\":\n                root = {}\n            else:\n                root = []\n            stack = [{\"indent\": 0, \"kind\": block_kind, \"value\": root}]\n            if is_opener:\n                # add placeholder\n                if block_kind == \"map\":\n                    root[key] = None\n                    stack[-1][\"pending_key\"] = key\n                else:\n                    root.append(None)\n                    stack[-1][\"pending_idx\"] = 0\n                prev_was_opener = True\n                prev_indent = indent\n            else:\n                if block_kind == \"map\":\n                    root[key] = value\n                else:\n                    root.append(value)\n                prev_was_opener = False\n                prev_indent = indent\n            continue\n\n        # Not first line\n        if prev_was_opener and indent > prev_indent:\n            # start NEW nested block as opener's value\n            if block_kind == \"map\":\n                new_val = {}\n            else:\n                new_val = []\n            # attach to opener\n            parent = stack[-1]\n            if parent[\"kind\"] == \"map\":\n                pk = parent[\"pending_key\"]\n                parent[\"value\"][pk] = new_val\n                del parent[\"pending_key\"]\n            else:\n                pi = parent[\"pending_idx\"]\n                parent[\"value\"][pi] = new_val\n                del parent[\"pending_idx\"]\n            stack.append({\"indent\": indent, \"kind\": block_kind, \"value\": new_val})\n            if is_opener:\n                if block_kind == \"map\":\n                    new_val[key] = None\n                    stack[-1][\"pending_key\"] = key\n                else:\n                    new_val.append(None)\n                    stack[-1][\"pending_idx\"] = 0\n                prev_was_opener = True\n                prev_indent = indent\n            else:\n                if block_kind == \"map\":\n                    new_val[key] = value\n                else:\n                    new_val.append(value)\n                prev_was_opener = False\n                prev_indent = indent\n            continue\n\n        # Otherwise: continue an open block (opener keeps None if any)\n        # Clear pending opener without nested block — already None\n        if prev_was_opener:\n            parent = stack[-1]\n            if \"pending_key\" in parent:\n                del parent[\"pending_key\"]\n            if \"pending_idx\" in parent:\n                del parent[\"pending_idx\"]\n            prev_was_opener = False\n\n        # Close deeper blocks if needed\n        if indent > stack[-1][\"indent\"]:\n            return (\"error\", line_no, \"unexpected indent\")\n\n        while stack and stack[-1][\"indent\"] > indent:\n            stack.pop()\n\n        if not stack or stack[-1][\"indent\"] != indent:\n            return (\"error\", line_no, \"inconsistent dedent\")\n\n        cur = stack[-1]\n        if cur[\"kind\"] != block_kind:\n            return (\"error\", line_no, \"mixed block\")\n\n        if block_kind == \"map\":\n            if key in cur[\"value\"]:\n                return (\"error\", line_no, f\"duplicate key '{key}'\")\n            if is_opener:\n                cur[\"value\"][key] = None\n                cur[\"pending_key\"] = key\n                prev_was_opener = True\n                prev_indent = indent\n            else:\n                cur[\"value\"][key] = value\n                prev_was_opener = False\n                prev_indent = indent\n        else:\n            if is_opener:\n                cur[\"value\"].append(None)\n                cur[\"pending_idx\"] = len(cur[\"value\"]) - 1\n                prev_was_opener = True\n                prev_indent = indent\n            else:\n                cur[\"value\"].append(value)\n                prev_was_opener = False\n                prev_indent = indent\n\n    # end of document: openers already have None\n    if root is None:\n        return (\"ok\", None)\n    return (\"ok\", root)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Indentation outline config parser with line-exact errors",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 52.03,
+   "tokens_in": 1638,
+   "tokens_out": 4180,
+   "cost_usd": 0.027857016,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Pile stack-language interpreter with quotations and step limit",
+  "category": "parsing",
+  "entry_point": "run_pile",
+  "code": "from __future__ import annotations\n\nfrom typing import Any, Dict, List, Optional, Tuple\n\ndef run_pile(src: str, max_steps: int) -> tuple:\n    # -------------------- tokenize --------------------\n    tokens: List[str] = []\n    i, n = 0, len(src)\n    WS = \" \\t\\n\\r\"\n    while i < n:\n        c = src[i]\n        if c in WS:\n            i += 1\n            continue\n        if c == \"[\" or c == \"]\":\n            tokens.append(c)\n            i += 1\n            continue\n        j = i + 1\n        while j < n and src[j] not in WS and src[j] != \"[\" and src[j] != \"]\":\n            j += 1\n        tokens.append(src[i:j])\n        i = j\n\n    T = tokens\n    N = len(T)\n\n    def is_int_tok(t: str) -> bool:\n        if not t:\n            return False\n        if t[0] == \"-\":\n            s = t[1:]\n        else:\n            s = t\n        return bool(s) and s.isdigit()  # ASCII digits only via str.isdigit on pure digits\n\n    # str.isdigit() is True for some Unicode digits; restrict to ASCII:\n    def is_int_tok(t: str) -> bool:\n        if not t:\n            return False\n        start = 1 if t[0] == \"-\" else 0\n        if start >= len(t):\n            return False\n        for ch in t[start:]:\n            if ch < \"0\" or ch > \"9\":\n                return False\n        return True\n\n    def parse_int(t: str) -> int:\n        return int(t)\n\n    BUILTINS = frozenset({\n        \"dup\", \"drop\", \"swap\", \"over\", \"rot\",\n        \"+\", \"-\", \"*\", \"/\", \"%\", \"<\", \"=\",\n        \"if\", \"times\", \"while\", \"call\", \"dip\",\n    })\n\n    # -------------------- structure check + build elements --------------------\n    # Element kinds:\n    #   (\"I\", idx, int_value)\n    #   (\"W\", idx, name)\n    #   (\"Q\", idx, body)      body = list of elements\n    #   (\"D\", idx, name, body)\n\n    top: List = []\n    # open frames: [kind, idx, body, name|None]\n    # kind 0 = quote, 1 = def\n    open_st: List = []\n\n    k = 0\n    err: Optional[Tuple[int, str]] = None\n    while k < N:\n        t = T[k]\n        if t == \"[\":\n            open_st.append([0, k, [], None])\n            k += 1\n        elif t == \"]\":\n            if not open_st or open_st[-1][0] != 0:\n                err = (k, \"unmatched ]\")\n                break\n            fr = open_st.pop()\n            elem = (\"Q\", fr[1], fr[2])\n            if open_st:\n                open_st[-1][2].append(elem)\n            else:\n                top.append(elem)\n            k += 1\n        elif t == \":\":\n            if open_st:\n                err = (k, \"misplaced :\")\n                break\n            if k + 1 >= N:\n                err = (k, \"unclosed :\")\n                break\n            name_idx = k + 1\n            name = T[name_idx]\n            if (\n                name in (\"[\", \"]\", \":\", \";\")\n                or is_int_tok(name)\n                or name in BUILTINS\n            ):\n                err = (name_idx, \"bad name\")\n                break\n            open_st.append([1, k, [], name])\n            k = name_idx + 1\n        elif t == \";\":\n            if not open_st or open_st[-1][0] != 1:\n                err = (k, \"unmatched ;\")\n                break\n            fr = open_st.pop()\n            top.append((\"D\", fr[1], fr[3], fr[2]))\n            k += 1\n        else:\n            if is_int_tok(t):\n                elem = (\"I\", k, parse_int(t))\n            else:\n                elem = (\"W\", k, t)\n            if open_st:\n                open_st[-1][2].append(elem)\n            else:\n                top.append(elem)\n            k += 1\n\n    if err is None and open_st:\n        earliest = min(open_st, key=lambda f: f[1])\n        if earliest[0] == 0:\n            err = (earliest[1], \"unclosed [\")\n        else:\n            err = (earliest[1], \"unclosed :\")\n\n    if err is not None:\n        return (\"error\", err[0], err[1])\n\n    # -------------------- execution (iterative) --------------------\n    # Value: int | list (quotation display form is built lazily from body)\n    # We store quotations as (\"Q\", body_elements) on the stack.\n\n    stack: List[Any] = []\n    defs: Dict[str, List] = {}\n\n    # Work item:\n    #   (\"E\", elem)           — execute one element (consumes a step)\n    #   (\"S\", seq, ip)        — continue sequence at index ip (no step by itself)\n    # For times/while we use specialized frames:\n    #   (\"T\", body, left)     — times remaining\n    #   (\"WH\", cbody, bbody, phase)  phase 0 = run cond, 1 = check tos\n    #   (\"DIP\", val)          — push val back after body\n\n    # To avoid huge Python lists of work items for long sequences, we use\n    # sequence frames with instruction pointers.\n\n    work: List[Any] = [(\"S\", top, 0)]\n    steps = 0\n\n    def q_display(body: List) -> List:\n        out: List[Any] = []\n        for e in body:\n            kind = e[0]\n            if kind == \"I\":\n                out.append(T[e[1]])\n            elif kind == \"W\":\n                out.append(e[2])\n            elif kind == \"Q\":\n                out.append(q_display(e[2]))\n            else:\n                # should not appear inside quotes\n                out.append(\"?\")\n        return out\n\n    def underflow(idx: int) -> Tuple:\n        return (\"error\", idx, \"stack underflow\")\n\n    def type_error(idx: int) -> Tuple:\n        return (\"error\", idx, \"type error\")\n\n    while work:\n        item = work.pop()\n        tag = item[0]\n\n        if tag == \"S\":\n            seq = item[1]\n            ip = item[2]\n            if ip >= len(seq):\n                continue\n            # push continuation then element\n            if ip + 1 < len(seq):\n                work.append((\"S\", seq, ip + 1))\n            work.append((\"E\", seq[ip]))\n            continue\n\n        if tag == \"T\":\n            # (\"T\", body, left)\n            body = item[1]\n            left = item[2]\n            if left <= 0:\n                continue\n            if left > 1:\n                work.append((\"T\", body, left - 1))\n            if body:\n                work.append((\"S\", body, 0))\n            # empty body: nothing to run, no steps\n            continue\n\n        if tag == \"WH\":\n            # (\"WH\", cbody, bbody) — after cond ran; check value\n            cbody, bbody = item[1], item[2]\n            idx = item[3]\n            if len(stack) < 1:\n                return underflow(idx)\n            v = stack.pop()\n            if type(v) is not int:\n                return type_error(idx)\n            if v != 0:\n                # run body then cond again then check\n                work.append((\"WH\", cbody, bbody, idx))\n                work.append((\"S\", cbody, 0))\n                if bbody:\n                    work.append((\"S\", bbody, 0))\n            continue\n\n        if tag == \"WHi\":\n            # initiate while: run cond first then WH check\n            cbody, bbody, idx = item[1], item[2], item[3]\n            work.append((\"WH\", cbody, bbody, idx))\n            work.append((\"S\", cbody, 0))\n            continue\n\n        if tag == \"DIP\":\n            stack.append(item[1])\n            continue\n\n        if tag == \"E\":\n            elem = item[1]\n            kind = elem[0]\n            idx = elem[1]\n\n            steps += 1\n            if steps > max_steps:\n                return (\"error\", idx, \"step limit exceeded\")\n\n            if kind == \"I\":\n                stack.append(elem[2])\n                continue\n\n            if kind == \"Q\":\n                stack.append((\"Q\", elem[2]))\n                continue\n\n            if kind == \"D\":\n                defs[elem[2]] = elem[3]\n                continue\n\n            # word\n            name = elem[2]\n\n            # builtins\n            if name == \"dup\":\n                if len(stack) < 1:\n                    return underflow(idx)\n                stack.append(stack[-1])\n            elif name == \"drop\":\n                if len(stack) < 1:\n                    return underflow(idx)\n                stack.pop()\n            elif name == \"swap\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                stack[-1], stack[-2] = stack[-2], stack[-1]\n            elif name == \"over\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                stack.append(stack[-2])\n            elif name == \"rot\":\n                if len(stack) < 3:\n                    return underflow(idx)\n                a = stack[-3]\n                stack[-3] = stack[-2]\n                stack[-2] = stack[-1]\n                stack[-1] = a\n            elif name == \"+\" or name == \"-\" or name == \"*\" or name == \"/\" or name == \"%\" or name == \"<\" or name == \"=\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                b = stack.pop()\n                a = stack.pop()\n                if type(a) is not int or type(b) is not int:\n                    return type_error(idx)\n                if name == \"+\":\n                    stack.append(a + b)\n                elif name == \"-\":\n                    stack.append(a - b)\n                elif name == \"*\":\n                    stack.append(a * b)\n                elif name == \"/\":\n                    if b == 0:\n                        return (\"error\", idx, \"division by zero\")\n                    stack.append(a // b)\n                elif name == \"%\":\n                    if b == 0:\n                        return (\"error\", idx, \"division by zero\")\n                    stack.append(a % b)\n                elif name == \"<\":\n                    stack.append(1 if a < b else 0)\n                else:  # \"=\"\n                    stack.append(1 if a == b else 0)\n            elif name == \"if\":\n                if len(stack) < 3:\n                    return underflow(idx)\n                f = stack.pop()\n                t = stack.pop()\n                c = stack.pop()\n                if type(c) is not int:\n                    return type_error(idx)\n                if not (isinstance(t, tuple) and t[0] == \"Q\"):\n                    return type_error(idx)\n                if not (isinstance(f, tuple) and f[0] == \"Q\"):\n                    return type_error(idx)\n                body = t[1] if c != 0 else f[1]\n                if body:\n                    work.append((\"S\", body, 0))\n            elif name == \"times\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                nval = stack.pop()\n                q = stack.pop()\n                if not (isinstance(q, tuple) and q[0] == \"Q\"):\n                    return type_error(idx)\n                if type(nval) is not int:\n                    return type_error(idx)\n                if nval < 0:\n                    return (\"error\", idx, \"negative count\")\n                body = q[1]\n                if nval > 0 and body:\n                    work.append((\"T\", body, nval))\n                # empty body or nval==0: done, no steps for empty\n            elif name == \"while\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                b = stack.pop()\n                c = stack.pop()\n                if not (isinstance(c, tuple) and c[0] == \"Q\"):\n                    return type_error(idx)\n                if not (isinstance(b, tuple) and b[0] == \"Q\"):\n                    return type_error(idx)\n                work.append((\"WHi\", c[1], b[1], idx))\n            elif name == \"call\":\n                if len(stack) < 1:\n                    return underflow(idx)\n                q = stack.pop()\n                if not (isinstance(q, tuple) and q[0] == \"Q\"):\n                    return type_error(idx)\n                if q[1]:\n                    work.append((\"S\", q[1], 0))\n            elif name == \"dip\":\n                if len(stack) < 2:\n                    return underflow(idx)\n                q = stack.pop()\n                a = stack.pop()\n                if not (isinstance(q, tuple) and q[0] == \"Q\"):\n                    return type_error(idx)\n                work.append((\"DIP\", a))\n                if q[1]:\n                    work.append((\"S\", q[1], 0))\n            elif name in defs:\n                body = defs[name]\n                if body:\n                    work.append((\"S\", body, 0))\n            else:\n                # could be builtin we missed — already handled; unknown\n                if name in BUILTINS:\n                    # should not happen\n                    return (\"error\", idx, f\"unknown word '{name}'\")\n                return (\"error\", idx, f\"unknown word '{name}'\")\n            continue\n\n        # unknown work tag\n        return (\"error\", 0, \"internal\")\n\n    # format stack\n    out_stack: List[Any] = []\n    for v in stack:\n        if type(v) is int:\n            out_stack.append(v)\n        elif isinstance(v, tuple) and v[0] == \"Q\":\n            out_stack.append(q_display(v[1]))\n        else:\n            out_stack.append(v)\n    return (\"ok\", out_stack)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Pile stack-language interpreter with quotations and step limit",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 147.45,
+   "tokens_in": 1895,
+   "tokens_out": 11348,
+   "cost_usd": 0.070943796,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Sieve record query language with three-valued logic",
+  "category": "parsing",
+  "entry_point": "filter_records",
+  "code": "import sys\nfrom typing import Any, Union\n\nsys.setrecursionlimit(4000)\n\n# Token kinds\nEND = \"END\"\nLPAREN, RPAREN, LBRACK, RBRACK, COMMA = \"(\", \")\", \"[\", \"]\", \",\"\nNE, LE, GE, EQ, LT, GT = \"!=\", \"<=\", \">=\", \"=\", \"<\", \">\"\nINT, STRING, WORD = \"INT\", \"STRING\", \"WORD\"\nAND, OR, NOT, IN, HAS = \"and\", \"or\", \"not\", \"in\", \"has\"\nKEYWORDS = {AND, OR, NOT, IN, HAS}\n\n\nclass LexError(Exception):\n    def __init__(self, pos: int, message: str):\n        self.pos = pos\n        self.message = message\n\n\nclass ParseError(Exception):\n    def __init__(self, pos: int, message: str):\n        self.pos = pos\n        self.message = message\n\n\nclass Token:\n    __slots__ = (\"kind\", \"value\", \"pos\", \"text\")\n\n    def __init__(self, kind: str, value: Any, pos: int, text: str):\n        self.kind = kind\n        self.value = value\n        self.pos = pos\n        self.text = text\n\n\ndef tokenize(query: str) -> list[Token]:\n    tokens: list[Token] = []\n    i = 0\n    n = len(query)\n\n    while i < n:\n        c = query[i]\n\n        # Whitespace\n        if c in \" \\t\\n\":\n            i += 1\n            continue\n\n        # Punctuation\n        if c in \"()[],\":\n            tokens.append(Token(c, c, i, c))\n            i += 1\n            continue\n\n        # Two-char comparison operators\n        if i + 1 < n:\n            two = query[i : i + 2]\n            if two in (\"!=\", \"<=\", \">=\"):\n                tokens.append(Token(two, two, i, two))\n                i += 2\n                continue\n\n        # One-char comparison operators\n        if c in \"=<>\":\n            tokens.append(Token(c, c, i, c))\n            i += 1\n            continue\n\n        # INT: optional '-' followed by digits\n        if c == \"-\" or c.isdigit():\n            start = i\n            if c == \"-\":\n                if i + 1 >= n or not query[i + 1].isdigit():\n                    raise LexError(i, f\"unexpected character '-'\")\n                i += 1\n            if i >= n or not query[i].isdigit():\n                raise LexError(start, f\"unexpected character '-'\")\n            while i < n and query[i].isdigit():\n                i += 1\n            text = query[start:i]\n            tokens.append(Token(INT, int(text), start, text))\n            continue\n\n        # STRING\n        if c == '\"':\n            start = i\n            i += 1\n            chars: list[str] = []\n            while i < n:\n                ch = query[i]\n                if ch == \"\\\\\":\n                    if i + 1 >= n:\n                        raise LexError(i, \"bad escape\")\n                    nxt = query[i + 1]\n                    if nxt == '\"':\n                        chars.append('\"')\n                    elif nxt == \"\\\\\":\n                        chars.append(\"\\\\\")\n                    else:\n                        raise LexError(i, \"bad escape\")\n                    i += 2\n                    continue\n                if ch == '\"':\n                    i += 1\n                    text = query[start:i]\n                    tokens.append(Token(STRING, \"\".join(chars), start, text))\n                    break\n                chars.append(ch)\n                i += 1\n            else:\n                raise LexError(start, \"unterminated string\")\n            continue\n\n        # WORD / keyword\n        if c.isalpha() or c == \"_\":\n            start = i\n            i += 1\n            while i < n and (query[i].isalnum() or query[i] in \"_.\"):\n                i += 1\n            text = query[start:i]\n            if text in KEYWORDS:\n                tokens.append(Token(text, text, start, text))\n            else:\n                tokens.append(Token(WORD, text, start, text))\n            continue\n\n        # Unexpected character\n        raise LexError(i, f\"unexpected character '{c}'\")\n\n    tokens.append(Token(END, None, n, \"\"))\n    return tokens\n\n\n# AST node types\n# (\"cmp\", field, op, literal)\n# (\"in\", field, list_of_literals)\n# (\"has\", field)\n# (\"not\", expr)\n# (\"and\", left, right)\n# (\"or\", left, right)\n\n\nclass Parser:\n    def __init__(self, tokens: list[Token]):\n        self.tokens = tokens\n        self.pos = 0\n\n    def current(self) -> Token:\n        return self.tokens[self.pos]\n\n    def advance(self) -> Token:\n        tok = self.tokens[self.pos]\n        self.pos += 1\n        return tok\n\n    def error(self, tok: Token) -> ParseError:\n        if tok.kind == END:\n            return ParseError(tok.pos, \"unexpected end of input\")\n        return ParseError(tok.pos, f\"unexpected token '{tok.text}'\")\n\n    def expect(self, kind: str) -> Token:\n        tok = self.current()\n        if tok.kind != kind:\n            raise self.error(tok)\n        return self.advance()\n\n    def parse(self):\n        expr = self.parse_or()\n        if self.current().kind != END:\n            raise self.error(self.current())\n        return expr\n\n    def parse_or(self):\n        left = self.parse_and()\n        while self.current().kind == OR:\n            self.advance()\n            right = self.parse_and()\n            left = (\"or\", left, right)\n        return left\n\n    def parse_and(self):\n        left = self.parse_not()\n        while self.current().kind == AND:\n            self.advance()\n            right = self.parse_not()\n            left = (\"and\", left, right)\n        return left\n\n    def parse_not(self):\n        if self.current().kind == NOT:\n            self.advance()\n            operand = self.parse_not()\n            return (\"not\", operand)\n        return self.parse_primary()\n\n    def parse_primary(self):\n        tok = self.current()\n\n        if tok.kind == LPAREN:\n            self.advance()\n            expr = self.parse_or()\n            self.expect(RPAREN)\n            return expr\n\n        if tok.kind == HAS:\n            self.advance()\n            field_tok = self.current()\n            if field_tok.kind != WORD:\n                raise self.error(field_tok)\n            self.advance()\n            return (\"has\", field_tok.value)\n\n        if tok.kind == WORD:\n            field = tok.value\n            self.advance()\n            op_tok = self.current()\n\n            if op_tok.kind in (EQ, NE, LT, LE, GT, GE):\n                op = op_tok.kind\n                self.advance()\n                lit = self.parse_literal()\n                return (\"cmp\", field, op, lit)\n\n            if op_tok.kind == IN:\n                self.advance()\n                self.expect(LBRACK)\n                literals = [self.parse_literal()]\n                while self.current().kind == COMMA:\n                    self.advance()\n                    literals.append(self.parse_literal())\n                self.expect(RBRACK)\n                return (\"in\", field, literals)\n\n            raise self.error(op_tok)\n\n        raise self.error(tok)\n\n    def parse_literal(self):\n        tok = self.current()\n        if tok.kind == INT:\n            self.advance()\n            return tok.value\n        if tok.kind == STRING:\n            self.advance()\n            return tok.value\n        raise self.error(tok)\n\n\n# Three-valued logic: True, False, None (UNKNOWN)\n\ndef eval_expr(expr, record: dict) -> Union[bool, None]:\n    kind = expr[0]\n\n    if kind == \"cmp\":\n        _, field, op, literal = expr\n        if field not in record:\n            return None\n        val = record[field]\n        # Different types\n        if type(val) is not type(literal):\n            if op == EQ:\n                return False\n            if op == NE:\n                return True\n            return None  # < <= > >=\n        # Same type\n        if op == EQ:\n            return val == literal\n        if op == NE:\n            return val != literal\n        if op == LT:\n            return val < literal\n        if op == LE:\n            return val <= literal\n        if op == GT:\n            return val > literal\n        if op == GE:\n            return val >= literal\n\n    if kind == \"in\":\n        _, field, literals = expr\n        if field not in record:\n            return None\n        val = record[field]\n        for lit in literals:\n            if type(val) is type(lit) and val == lit:\n                return True\n        return False\n\n    if kind == \"has\":\n        _, field = expr\n        return field in record\n\n    if kind == \"not\":\n        v = eval_expr(expr[1], record)\n        if v is None:\n            return None\n        return not v\n\n    if kind == \"and\":\n        # FALSE if any FALSE, else UNKNOWN if any UNKNOWN, else TRUE\n        # Evaluate both (or short-circuit carefully)\n        left = eval_expr(expr[1], record)\n        if left is False:\n            return False\n        right = eval_expr(expr[2], record)\n        if right is False:\n            return False\n        if left is None or right is None:\n            return None\n        return True\n\n    if kind == \"or\":\n        # TRUE if any TRUE, else UNKNOWN if any UNKNOWN, else FALSE\n        left = eval_expr(expr[1], record)\n        if left is True:\n            return True\n        right = eval_expr(expr[2], record)\n        if right is True:\n            return True\n        if left is None or right is None:\n            return None\n        return False\n\n    raise RuntimeError(f\"unknown expr kind: {kind}\")\n\n\ndef filter_records(query: str, records: list[dict]) -> tuple:\n    try:\n        tokens = tokenize(query)\n    except LexError as e:\n        return (\"error\", e.pos, e.message)\n\n    try:\n        parser = Parser(tokens)\n        ast = parser.parse()\n    except ParseError as e:\n        return (\"error\", e.pos, e.message)\n\n    indices = []\n    for i, rec in enumerate(records):\n        result = eval_expr(ast, rec)\n        if result is True:\n            indices.append(i)\n\n    return (\"ok\", indices)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.9474,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Sieve record query language with three-valued logic",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 38.89,
+   "tokens_in": 1558,
+   "tokens_out": 2690,
+   "cost_usd": 0.018848016,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "stress_deep_nesting: expected {\"value\": [[\"ok\", [1, 5, 6, 8, 11, 12, 13, 14, 17, 18, 19, 20, 21, 23, 25, 29, 30, 33, 35, 38, 45, 46, 47, 49, 52, 53, 5 got {\"ok\": false, \"loaded\": true, \"exc\": \"RecursionError\", \"exc_msg\": \"maximum recursion depth exceeded\"}"
+  ]
+ },
+ {
+  "title": "Tally expression evaluator with exact error positions",
+  "category": "parsing",
+  "entry_point": "evaluate",
+  "code": "import sys\nimport threading\n\ndef evaluate(src: str, env: dict) -> tuple:\n    \"\"\"Parse and evaluate one Tally expression.\"\"\"\n    # Deep nesting (parens / power / unary) can exceed the default C stack.\n    # Run the real work on a thread with a large stack.\n    out = []\n\n    def _run():\n        out.append(_evaluate_impl(src, env))\n\n    prev = threading.stack_size(32 * 1024 * 1024)\n    try:\n        sys.setrecursionlimit(max(sys.getrecursionlimit(), 100000))\n        t = threading.Thread(target=_run)\n        t.start()\n        t.join()\n    finally:\n        threading.stack_size(prev)\n\n    return out[0]\n\n\n# ---------------------------------------------------------------------------\n# Tokenization\n# ---------------------------------------------------------------------------\n\n# token kinds\nINT, NAME, OP, INVALID, END = \"INT\", \"NAME\", \"OP\", \"INVALID\", \"END\"\n\n_TWO_CHAR = {\"<=\": 1, \">=\": 1, \"==\": 1, \"!=\": 1}\n_ONE_CHAR = set(\"+-*/%^():?<>\")\n\n\ndef _tokenize(src: str):\n    \"\"\"Return list of (start_pos, kind, text). text is str for all kinds.\"\"\"\n    tokens = []\n    n = len(src)\n    i = 0\n    while i < n:\n        c = src[i]\n        if c == \" \":\n            i += 1\n            continue\n        start = i\n        if c.isdigit():\n            i += 1\n            while i < n and src[i].isdigit():\n                i += 1\n            tokens.append((start, INT, src[start:i]))\n            continue\n        if c == \"_\" or (\"a\" <= c <= \"z\"):\n            i += 1\n            while i < n and (src[i] == \"_\" or \"a\" <= src[i] <= \"z\" or src[i].isdigit()):\n                i += 1\n            tokens.append((start, NAME, src[start:i]))\n            continue\n        if i + 1 < n and src[i : i + 2] in _TWO_CHAR:\n            tokens.append((start, OP, src[i : i + 2]))\n            i += 2\n            continue\n        if c in _ONE_CHAR:\n            tokens.append((start, OP, c))\n            i += 1\n            continue\n        # invalid character\n        tokens.append((start, INVALID, c))\n        i += 1\n    tokens.append((n, END, \"\"))\n    return tokens\n\n\n# ---------------------------------------------------------------------------\n# AST nodes (tuples for lightness)\n# ---------------------------------------------------------------------------\n# (\"int\", pos, value)\n# (\"name\", pos, name)\n# (\"neg\", pos, expr)          pos = position of '-'\n# (\"bin\", pos, op, left, right)  pos = operator position\n# (\"cmp\", pos, op, left, right)\n# (\"tern\", pos_q, cond, a, b)    pos_q = position of '?'\n\n\n# ---------------------------------------------------------------------------\n# Parser (recursive descent; deep recursion OK via large thread stack)\n# ---------------------------------------------------------------------------\n\nclass _ParseError(Exception):\n    def __init__(self, pos, message):\n        self.pos = pos\n        self.message = message\n\n\nclass _Parser:\n    __slots__ = (\"tokens\", \"i\")\n\n    def __init__(self, tokens):\n        self.tokens = tokens\n        self.i = 0\n\n    def _cur(self):\n        return self.tokens[self.i]\n\n    def _advance(self):\n        self.i += 1\n\n    def _fail_cur(self):\n        pos, kind, text = self._cur()\n        if kind == END:\n            raise _ParseError(pos, \"unexpected end of input\")\n        if kind == INVALID:\n            raise _ParseError(pos, f\"unexpected character '{text}'\")\n        raise _ParseError(pos, f\"unexpected token '{text}'\")\n\n    def parse_expr(self):\n        node = self.parse_cond()\n        pos, kind, text = self._cur()\n        if kind != END:\n            self._fail_cur()\n        return node\n\n    def parse_cond(self):\n        # cond := cmp [ '?' cond ':' cond ]   right-associative\n        left = self.parse_cmp()\n        pos, kind, text = self._cur()\n        if kind == OP and text == \"?\":\n            qpos = pos\n            self._advance()\n            mid = self.parse_cond()\n            pos2, kind2, text2 = self._cur()\n            if not (kind2 == OP and text2 == \":\"):\n                self._fail_cur()\n            self._advance()\n            right = self.parse_cond()\n            return (\"tern\", qpos, left, mid, right)\n        return left\n\n    def parse_cmp(self):\n        # cmp := sum [ cmpop sum ]   non-associative\n        left = self.parse_sum()\n        pos, kind, text = self._cur()\n        if kind == OP and text in (\"<\", \"<=\", \">\", \">=\", \"==\", \"!=\"):\n            op = text\n            oppos = pos\n            self._advance()\n            right = self.parse_sum()\n            # another cmpop would be invalid — detected when higher levels\n            # see leftover tokens, or here if we peek\n            pos2, kind2, text2 = self._cur()\n            if kind2 == OP and text2 in (\"<\", \"<=\", \">\", \">=\", \"==\", \"!=\"):\n                # a < b < c  → error at second '<'\n                self._fail_cur()\n            return (\"cmp\", oppos, op, left, right)\n        return left\n\n    def parse_sum(self):\n        left = self.parse_term()\n        while True:\n            pos, kind, text = self._cur()\n            if kind == OP and text in (\"+\", \"-\"):\n                op = text\n                oppos = pos\n                self._advance()\n                right = self.parse_term()\n                left = (\"bin\", oppos, op, left, right)\n            else:\n                break\n        return left\n\n    def parse_term(self):\n        left = self.parse_unary()\n        while True:\n            pos, kind, text = self._cur()\n            if kind == OP and text in (\"*\", \"/\", \"%\"):\n                op = text\n                oppos = pos\n                self._advance()\n                right = self.parse_unary()\n                left = (\"bin\", oppos, op, left, right)\n            else:\n                break\n        return left\n\n    def parse_unary(self):\n        # unary := '-' unary | power\n        # iterative for long minus chains\n        minuses = []\n        while True:\n            pos, kind, text = self._cur()\n            if kind == OP and text == \"-\":\n                minuses.append(pos)\n                self._advance()\n            else:\n                break\n        node = self.parse_power()\n        for pos in reversed(minuses):\n            node = (\"neg\", pos, node)\n        return node\n\n    def parse_power(self):\n        # power := atom [ '^' unary ]   right-associative\n        # collect a chain atom (^ unary)* and fold right\n        base = self.parse_atom()\n        pos, kind, text = self._cur()\n        if kind == OP and text == \"^\":\n            oppos = pos\n            self._advance()\n            # exponent is unary (so may start with '-')\n            exp = self.parse_unary()\n            return (\"bin\", oppos, \"^\", base, exp)\n        return base\n\n    def parse_atom(self):\n        pos, kind, text = self._cur()\n        if kind == INT:\n            self._advance()\n            return (\"int\", pos, int(text))\n        if kind == NAME:\n            self._advance()\n            return (\"name\", pos, text)\n        if kind == OP and text == \"(\":\n            self._advance()\n            node = self.parse_cond()\n            pos2, kind2, text2 = self._cur()\n            if not (kind2 == OP and text2 == \")\"):\n                self._fail_cur()\n            self._advance()\n            return node\n        self._fail_cur()\n\n\n# ---------------------------------------------------------------------------\n# Evaluation (iterative where it matters; recursion OK on large stack thread)\n# Ternary short-circuit requires careful branching — use explicit stack.\n# ---------------------------------------------------------------------------\n\nclass _EvalError(Exception):\n    def __init__(self, pos, message):\n        self.pos = pos\n        self.message = message\n\n\ndef _eval_ast(node, env):\n    \"\"\"\n    Iterative AST evaluator with short-circuit ternary.\n    Stack frames:\n      (\"eval\", node)           — evaluate node, push value\n      (\"neg\", pos)             — pop v, push -v\n      (\"bin\", pos, op)         — pop rhs, lhs; push lhs op rhs\n      (\"cmp\", pos, op)         — pop rhs, lhs; push 0/1\n      (\"tern_decide\", a, b)    — pop cond; push eval of a or b\n      (\"value\", v)             — already a value (used internally)\n    Values are left on a value stack.\n    \"\"\"\n    # For simplicity and correctness with short-circuit, a recursive evaluator\n    # is clearest; we already run on a large-stack thread. Power/unary/paren\n    # depth is bounded by the same 30k, so recursion here is fine.\n    return _eval_rec(node, env)\n\n\ndef _eval_rec(node, env):\n    tag = node[0]\n\n    if tag == \"int\":\n        return node[2]\n\n    if tag == \"name\":\n        _, pos, name = node\n        if name not in env:\n            raise _EvalError(pos, f\"unknown name '{name}'\")\n        return env[name]\n\n    if tag == \"neg\":\n        _, pos, expr = node\n        return -_eval_rec(expr, env)\n\n    if tag == \"bin\":\n        _, pos, op, left, right = node\n        lv = _eval_rec(left, env)\n        rv = _eval_rec(right, env)\n        if op == \"+\":\n            return lv + rv\n        if op == \"-\":\n            return lv - rv\n        if op == \"*\":\n            return lv * rv\n        if op == \"/\":\n            if rv == 0:\n                raise _EvalError(pos, \"division by zero\")\n            return lv // rv\n        if op == \"%\":\n            if rv == 0:\n                raise _EvalError(pos, \"division by zero\")\n            return lv % rv\n        if op == \"^\":\n            if rv < 0:\n                raise _EvalError(pos, \"negative exponent\")\n            if rv > 256:\n                raise _EvalError(pos, \"exponent too large\")\n            return lv ** rv\n        raise RuntimeError(f\"unknown binop {op}\")\n\n    if tag == \"cmp\":\n        _, pos, op, left, right = node\n        lv = _eval_rec(left, env)\n        rv = _eval_rec(right, env)\n        if op == \"<\":\n            return 1 if lv < rv else 0\n        if op == \"<=\":\n            return 1 if lv <= rv else 0\n        if op == \">\":\n            return 1 if lv > rv else 0\n        if op == \">=\":\n            return 1 if lv >= rv else 0\n        if op == \"==\":\n            return 1 if lv == rv else 0\n        if op == \"!=\":\n            return 1 if lv != rv else 0\n        raise RuntimeError(f\"unknown cmpop {op}\")\n\n    if tag == \"tern\":\n        _, _qpos, cond, a, b = node\n        cv = _eval_rec(cond, env)\n        if cv != 0:\n            return _eval_rec(a, env)\n        return _eval_rec(b, env)\n\n    raise RuntimeError(f\"unknown node {tag}\")\n\n\n# ---------------------------------------------------------------------------\n# Driver\n# ---------------------------------------------------------------------------\n\ndef _evaluate_impl(src: str, env: dict) -> tuple:\n    tokens = _tokenize(src)\n    try:\n        ast = _Parser(tokens).parse_expr()\n    except _ParseError as e:\n        return (\"error\", e.pos, e.message)\n\n    try:\n        val = _eval_ast(ast, env)\n    except _EvalError as e:\n        return (\"error\", e.pos, e.message)\n\n    return (\"ok\", val)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.875,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Tally expression evaluator with exact error positions",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 117.77,
+   "tokens_in": 1496,
+   "tokens_out": 6040,
+   "cost_usd": 0.038624256,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "stress_deep_parens: expected {\"value\": [\"ok\", 15]} got {\"ok\": false, \"loaded\": true, \"exc\": \"IndexError\", \"exc_msg\": \"list index out of range\"}",
+   "stress_power_tower_error: expected {\"value\": [[\"error\", 59993, \"exponent too large\"], [\"error\", 399999, \"unexpected end of input\"], [\"error\", 60000, \"unexp got {\"ok\": false, \"loaded\": true, \"exc\": \"IndexError\", \"exc_msg\": \"list index out of range\"}",
+   "stress_unary_ternary_nest: expected {\"value\": [[\"ok\", 7], [\"error\", 25000, \"unknown name 'q'\"]]} got {\"ok\": false, \"loaded\": true, \"exc\": \"IndexError\", \"exc_msg\": \"list index out of range\"}"
+  ]
+ },
+ {
+  "title": "Fence repainting with run-structure reports",
+  "category": "performance",
+  "entry_point": "fence_report",
+  "code": "from typing import List, Tuple, Optional\n\ndef fence_report(colors: List[int], operations: List[tuple]) -> List[Tuple[int, int]]:\n    if not colors:\n        return []\n\n    class SegTree:\n        def __init__(self, cols: List[int]):\n            self.n = len(cols)\n            self.size = 1\n            while self.size < self.n:\n                self.size *= 2\n            N = 2 * self.size\n            self.left_c = [0] * N\n            self.right_c = [0] * N\n            self.num_runs = [0] * N\n            self.max_run = [0] * N\n            self.pref = [0] * N\n            self.suff = [0] * N\n            self.length = [0] * N\n            self.lazy: List[Optional[int]] = [None] * N\n\n            for i in range(self.n):\n                p = self.size + i\n                c = cols[i]\n                self.left_c[p] = self.right_c[p] = c\n                self.num_runs[p] = 1\n                self.max_run[p] = 1\n                self.pref[p] = self.suff[p] = 1\n                self.length[p] = 1\n\n            for p in range(self.size - 1, 0, -1):\n                self._merge(p)\n\n        def _merge(self, p: int) -> None:\n            left, right = 2 * p, 2 * p + 1\n            ll, lr = self.length[left], self.length[right]\n            if ll == 0:\n                self.left_c[p] = self.left_c[right]\n                self.right_c[p] = self.right_c[right]\n                self.num_runs[p] = self.num_runs[right]\n                self.max_run[p] = self.max_run[right]\n                self.pref[p] = self.pref[right]\n                self.suff[p] = self.suff[right]\n                self.length[p] = lr\n                return\n            if lr == 0:\n                self.left_c[p] = self.left_c[left]\n                self.right_c[p] = self.right_c[left]\n                self.num_runs[p] = self.num_runs[left]\n                self.max_run[p] = self.max_run[left]\n                self.pref[p] = self.pref[left]\n                self.suff[p] = self.suff[left]\n                self.length[p] = ll\n                return\n\n            self.length[p] = ll + lr\n            self.left_c[p] = self.left_c[left]\n            self.right_c[p] = self.right_c[right]\n            self.num_runs[p] = self.num_runs[left] + self.num_runs[right]\n            self.max_run[p] = max(self.max_run[left], self.max_run[right])\n            self.pref[p] = self.pref[left]\n            self.suff[p] = self.suff[right]\n\n            if self.right_c[left] == self.left_c[right]:\n                self.num_runs[p] -= 1\n                self.max_run[p] = max(self.max_run[p], self.suff[left] + self.pref[right])\n                if self.num_runs[left] == 1:\n                    self.pref[p] = ll + self.pref[right]\n                if self.num_runs[right] == 1:\n                    self.suff[p] = lr + self.suff[left]\n\n        def _apply(self, p: int, c: int) -> None:\n            if self.length[p] == 0:\n                return\n            ln = self.length[p]\n            self.left_c[p] = self.right_c[p] = c\n            self.num_runs[p] = 1\n            self.max_run[p] = self.pref[p] = self.suff[p] = ln\n            self.lazy[p] = c\n\n        def _push(self, p: int) -> None:\n            if self.lazy[p] is not None:\n                c = self.lazy[p]\n                self._apply(2 * p, c)\n                self._apply(2 * p + 1, c)\n                self.lazy[p] = None\n\n        def update(self, l: int, r: int, c: int) -> None:\n            self._update(1, 0, self.size - 1, l, r, c)\n\n        def _update(self, p: int, L: int, R: int, l: int, r: int, c: int) -> None:\n            if r < L or R < l or self.length[p] == 0:\n                return\n            if l <= L and R <= r:\n                self._apply(p, c)\n                return\n            self._push(p)\n            mid = (L + R) // 2\n            self._update(2 * p, L, mid, l, r, c)\n            self._update(2 * p + 1, mid + 1, R, l, r, c)\n            self._merge(p)\n\n        def query(self, l: int, r: int) -> Tuple[int, int, int, int, int, int, int]:\n            res = self._query(1, 0, self.size - 1, l, r)\n            assert res is not None\n            return res\n\n        def _query(self, p: int, L: int, R: int, l: int, r: int) -> Optional[Tuple[int, int, int, int, int, int, int]]:\n            if r < L or R < l or self.length[p] == 0:\n                return None\n            if l <= L and R <= r:\n                return (\n                    self.left_c[p],\n                    self.right_c[p],\n                    self.num_runs[p],\n                    self.max_run[p],\n                    self.pref[p],\n                    self.suff[p],\n                    self.length[p],\n                )\n            self._push(p)\n            mid = (L + R) // 2\n            left_res = self._query(2 * p, L, mid, l, r)\n            right_res = self._query(2 * p + 1, mid + 1, R, l, r)\n            if left_res is None:\n                return right_res\n            if right_res is None:\n                return left_res\n\n            lc1, rc1, nr1, mr1, pr1, su1, le1 = left_res\n            lc2, rc2, nr2, mr2, pr2, su2, le2 = right_res\n            le = le1 + le2\n            lc = lc1\n            rc = rc2\n            nr = nr1 + nr2\n            mr = max(mr1, mr2)\n            pr = pr1\n            su = su2\n            if rc1 == lc2:\n                nr -= 1\n                mr = max(mr, su1 + pr2)\n                if nr1 == 1:\n                    pr = le1 + pr2\n                if nr2 == 1:\n                    su = le2 + su1\n            return (lc, rc, nr, mr, pr, su, le)\n\n    st = SegTree(colors)\n    result: List[Tuple[int, int]] = []\n    for op in operations:\n        if op[0] == \"paint\":\n            _, l, r, c = op\n            st.update(l, r, c)\n        else:\n            _, l, r = op\n            res = st.query(l, r)\n            result.append((res[2], res[3]))\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Fence repainting with run-structure reports",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 75.19,
+   "tokens_in": 881,
+   "tokens_out": 5019,
+   "cost_usd": 0.031341816,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard rank after every submission",
+  "category": "performance",
+  "entry_point": "leaderboard_ranks",
+  "code": "def leaderboard_ranks(submissions: list[tuple[str, int]]) -> list[int]:\n    if not submissions:\n        return []\n\n    class Fenwick:\n        def __init__(self, n: int) -> None:\n            self.n = n\n            self.tree = [0] * (n + 1)\n\n        def add(self, i: int, delta: int) -> None:\n            i += 1\n            while i <= self.n:\n                self.tree[i] += delta\n                i += i & -i\n\n        def prefix(self, i: int) -> int:\n            \"\"\"Sum of [0..i] inclusive (i may be -1 → 0).\"\"\"\n            if i < 0:\n                return 0\n            i += 1\n            s = 0\n            while i > 0:\n                s += self.tree[i]\n                i -= i & -i\n            return s\n\n    # First pass: discover every (best, best_time) key that will ever be inserted\n    player_best: dict[str, tuple[int, int]] = {}\n    keys: list[tuple[int, int]] = []\n    for i, (player, score) in enumerate(submissions):\n        if player not in player_best:\n            player_best[player] = (score, i)\n            keys.append((score, i))\n        else:\n            best, t = player_best[player]\n            if score > best:\n                player_best[player] = (score, i)\n                keys.append((score, i))\n\n    # Order keys from best to worst; assign dense ranks\n    keys.sort(key=lambda k: (-k[0], k[1]))\n    key_to_idx = {k: idx for idx, k in enumerate(keys)}\n    M = len(keys)\n    fw = Fenwick(M)\n\n    # Second pass: maintain the ordered set and answer ranks\n    player_best.clear()\n    result: list[int] = []\n    for i, (player, score) in enumerate(submissions):\n        if player not in player_best:\n            player_best[player] = (score, i)\n            fw.add(key_to_idx[(score, i)], 1)\n        else:\n            best, t = player_best[player]\n            if score > best:\n                fw.add(key_to_idx[(best, t)], -1)\n                player_best[player] = (score, i)\n                fw.add(key_to_idx[(score, i)], 1)\n\n        cur_best, cur_t = player_best[player]\n        idx = key_to_idx[(cur_best, cur_t)]\n        better = fw.prefix(idx - 1)\n        result.append(better + 1)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Leaderboard rank after every submission",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 57.24,
+   "tokens_in": 781,
+   "tokens_out": 2972,
+   "cost_usd": 0.018984636,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Budget shopping sprees over shelf ranges",
+  "category": "performance",
+  "entry_point": "budget_purchases",
+  "code": "def budget_purchases(prices: list[int], queries: list[tuple[int, int, int]]) -> list[tuple[int, int]]:\n    n = len(prices)\n    q = len(queries)\n    if q == 0:\n        return []\n    if n == 0:\n        return [(0, 0)] * q\n\n    # Coordinate compression\n    sorted_p = sorted(set(prices))\n    rank = {p: i + 1 for i, p in enumerate(sorted_p)}\n    m = len(sorted_p)\n\n    # Persistent segment tree (arrays for performance)\n    # Each update creates O(log m) nodes\n    maxnodes = n * 20 + 5\n    left = [0] * maxnodes\n    right = [0] * maxnodes\n    cnt = [0] * maxnodes\n    sm = [0] * maxnodes\n    roots = [0] * (n + 1)\n    nodecnt = 1  # next free node; 0 is the empty/null node\n\n    def update(node: int, l: int, r: int, pos: int, val: int) -> int:\n        nonlocal nodecnt\n        new = nodecnt\n        nodecnt += 1\n        if l == r:\n            cnt[new] = cnt[node] + 1\n            sm[new] = sm[node] + val\n            return new\n        mid = (l + r) // 2\n        left[new] = left[node]\n        right[new] = right[node]\n        if pos <= mid:\n            left[new] = update(left[node], l, mid, pos, val)\n        else:\n            right[new] = update(right[node], mid + 1, r, pos, val)\n        cnt[new] = cnt[left[new]] + cnt[right[new]]\n        sm[new] = sm[left[new]] + sm[right[new]]\n        return new\n\n    for i in range(n):\n        rnk = rank[prices[i]]\n        roots[i + 1] = update(roots[i], 1, m, rnk, prices[i])\n\n    def get_sum(nodeR: int, nodeL: int, k: int, l: int, r: int) -> int:\n        \"\"\"Sum of the k smallest values in the position-range difference.\"\"\"\n        if k == 0:\n            return 0\n        if l == r:\n            return sorted_p[l - 1] * k\n        mid = (l + r) // 2\n        left_cnt = cnt[left[nodeR]] - cnt[left[nodeL]]\n        if left_cnt >= k:\n            return get_sum(left[nodeR], left[nodeL], k, l, mid)\n        left_sm = sm[left[nodeR]] - sm[left[nodeL]]\n        return left_sm + get_sum(right[nodeR], right[nodeL], k - left_cnt, mid + 1, r)\n\n    res = []\n    for ql, qr, budget in queries:\n        length = qr - ql + 1\n        lo, hi = 0, length\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            s = get_sum(roots[qr + 1], roots[ql], mid, 1, m)\n            if s <= budget:\n                lo = mid\n            else:\n                hi = mid - 1\n        spent = get_sum(roots[qr + 1], roots[ql], lo, 1, m) if lo > 0 else 0\n        res.append((lo, spent))\n    return res",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Budget shopping sprees over shelf ranges",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 149.4,
+   "tokens_in": 810,
+   "tokens_out": 7316,
+   "cost_usd": 0.044845416,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tide-gauge records with a minimum margin over many windows",
+  "category": "performance",
+  "entry_point": "count_records",
+  "code": "def count_records(levels: list[int], margin: int, queries: list[tuple[int, int]]) -> list[int]:\n    n = len(levels)\n    if not queries:\n        return []\n    if n == 0:\n        return [0] * len(queries)\n\n    # Build sparse table for range maximum queries (O(1) after O(n log n) build)\n    LOG = (n).bit_length() + 1\n    st = [levels[:]]\n    for k in range(1, LOG):\n        prev = st[k - 1]\n        shift = 1 << (k - 1)\n        curr = [0] * n\n        for i in range(n):\n            if i + shift < n:\n                curr[i] = max(prev[i], prev[i + shift])\n            else:\n                curr[i] = prev[i]\n        st.append(curr)\n\n    def range_max(l: int, r: int) -> int:\n        if l > r or l >= n:\n            return -10**18 - 10**9  # smaller than any possible A[i] + margin\n        length = r - l + 1\n        k = length.bit_length() - 1\n        return max(st[k][l], st[k][r - (1 << k) + 1])\n\n    # Compute next[i] = smallest j > i with levels[j] >= levels[i] + margin, or n\n    next_pos = [n] * n\n    for i in range(n):\n        thresh = levels[i] + margin\n        lo = i + 1\n        hi = n\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if range_max(i + 1, mid) >= thresh:\n                hi = mid\n            else:\n                lo = mid + 1\n        next_pos[i] = lo if lo < n else n\n\n    # Binary lifting: jump[k][i] = the position after 2^k steps following next\n    LOGJ = 18  # 2^18 > 200000\n    jump = [[n] * n for _ in range(LOGJ)]\n    for i in range(n):\n        jump[0][i] = next_pos[i]\n    for k in range(1, LOGJ):\n        prev = jump[k - 1]\n        curr = jump[k]\n        for i in range(n):\n            j = prev[i]\n            curr[i] = prev[j] if j < n else n\n\n    # Answer each query by binary lifting along the next-path while staying <= r\n    ans = []\n    for l, r in queries:\n        pos = l\n        cnt = 1\n        for k in range(LOGJ - 1, -1, -1):\n            nxt = jump[k][pos]\n            if nxt <= r:\n                pos = nxt\n                cnt += 1 << k\n        ans.append(cnt)\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Tide-gauge records with a minimum margin over many windows",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 115.53,
+   "tokens_in": 808,
+   "tokens_out": 5136,
+   "cost_usd": 0.031892256,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact-cent loan amortization schedule",
+  "category": "numeric",
+  "entry_point": "amortize",
+  "code": "import re\nfrom fractions import Fraction\n\ndef amortize(principal: str, annual_rate_pct: str, months: int) -> list[tuple[str, str, str]]:\n    if not isinstance(months, int) or not (1 <= months <= 1200):\n        raise ValueError(\"invalid months\")\n    if not re.fullmatch(r\"\\d+(\\.\\d{1,2})?\", principal):\n        raise ValueError(\"invalid principal\")\n    P = Fraction(principal)\n    if P <= 0:\n        raise ValueError(\"principal must be > 0\")\n    if not re.fullmatch(r\"\\d+(\\.\\d{1,6})?\", annual_rate_pct):\n        raise ValueError(\"invalid annual_rate_pct\")\n    rate = Fraction(annual_rate_pct)\n    if rate > 100:\n        raise ValueError(\"annual_rate_pct must be <= 100\")\n    m = rate / 100 / 12\n    n = months\n\n    if m == 0:\n        A = P / n\n    else:\n        one_plus_m = 1 + m\n        pow_n = one_plus_m ** n\n        A = P * m * pow_n / (pow_n - 1)\n\n    # PAY = A rounded UP to a whole cent\n    cents_A = A * 100\n    num, den = cents_A.numerator, cents_A.denominator\n    ceil_cents = (num + den - 1) // den if den != 1 else num\n    # handle exact integer case already covered; for positive always\n    if cents_A.denominator == 1:\n        ceil_cents = cents_A.numerator\n    else:\n        ceil_cents = (cents_A.numerator + cents_A.denominator - 1) // cents_A.denominator\n    PAY = Fraction(ceil_cents, 100)\n\n    def round_half_even_to_cent(x: Fraction) -> Fraction:\n        if x < 0:\n            raise ValueError(\"negative unexpected\")\n        scaled = x * 100\n        floor = scaled.numerator // scaled.denominator\n        frac = scaled - floor\n        half = Fraction(1, 2)\n        if frac < half:\n            rounded = floor\n        elif frac > half:\n            rounded = floor + 1\n        else:\n            # tie: to even\n            rounded = floor if (floor % 2 == 0) else floor + 1\n        return Fraction(rounded, 100)\n\n    def fmt(x: Fraction) -> str:\n        cents = x * 100\n        c = cents.numerator // cents.denominator  # exact\n        d = c // 100\n        ct = c % 100\n        return f\"{d}.{ct:02d}\"\n\n    schedule = []\n    BAL = P\n    for t in range(1, n + 1):\n        INTEREST = round_half_even_to_cent(BAL * m)\n        if t == n or BAL + INTEREST <= PAY:\n            payment = BAL + INTEREST\n            new_bal = Fraction(0)\n            schedule.append((fmt(payment), fmt(INTEREST), fmt(new_bal)))\n            break\n        else:\n            payment = PAY\n            new_bal = BAL + INTEREST - PAY\n            schedule.append((fmt(payment), fmt(INTEREST), fmt(new_bal)))\n            BAL = new_bal\n    return schedule",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.95,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Exact-cent loan amortization schedule",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 66.6,
+   "tokens_in": 1056,
+   "tokens_out": 3398,
+   "cost_usd": 0.022059576,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "invalid_inputs: expected {\"value\": [\"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \" got {\"ok\": false, \"loaded\": true, \"exc\": \"TypeError\", \"exc_msg\": \"expected string or bytes-like object, got 'int'\"}"
+  ]
+ },
+ {
+  "title": "Fraction to base-b string with half-even rounding at k digits",
+  "category": "numeric",
+  "entry_point": "format_base",
+  "code": "def format_base(p: int, q: int, base: int, k: int) -> str:\n    if q == 0 or not (2 <= base <= 36) or k < 0:\n        raise ValueError(\"invalid argument\")\n\n    DIGITS = \"0123456789abcdefghijklmnopqrstuvwxyz\"\n\n    if p == 0:\n        return \"0\"\n\n    negative = (p < 0) != (q < 0)\n    p = abs(p)\n    q = abs(q)\n\n    power = pow(base, k)\n    N, rem = divmod(p * power, q)\n\n    # Round half to even (parity of N itself)\n    if rem * 2 > q or (rem * 2 == q and N % 2 == 1):\n        N += 1\n\n    if N == 0:\n        return \"0\"\n\n    int_part = N // power\n    frac_part = N % power\n\n    # Integer part (small: O(|p/q|), slow conversion is fine)\n    if int_part == 0:\n        int_str = \"0\"\n    else:\n        chars = []\n        x = int_part\n        while x:\n            x, d = divmod(x, base)\n            chars.append(DIGITS[d])\n        int_str = \"\".join(reversed(chars))\n\n    if frac_part == 0:\n        result = int_str\n    else:\n        # Fixed-width base conversion via divide-and-conquer.\n        # Split widths at powers of two so only O(log k) splitters are needed.\n        pow2exp = [base]  # pow2exp[i] = base ** (2 ** i)\n        e = 1\n        while e * 2 < k:\n            pow2exp.append(pow2exp[-1] * pow2exp[-1])\n            e *= 2\n\n        def frac_digits(n: int, width: int) -> list:\n            if width == 0:\n                return []\n            if width == 1:\n                return [DIGITS[n]]\n            mid = 1\n            idx = 0\n            while mid * 2 < width:\n                mid *= 2\n                idx += 1\n            hi, lo = divmod(n, pow2exp[idx])\n            return frac_digits(hi, width - mid) + frac_digits(lo, mid)\n\n        frac_chars = frac_digits(frac_part, k)\n        while frac_chars and frac_chars[-1] == \"0\":\n            frac_chars.pop()\n        if frac_chars:\n            result = int_str + \".\" + \"\".join(frac_chars)\n        else:\n            result = int_str\n\n    if negative:\n        result = \"-\" + result\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Fraction to base-b string with half-even rounding at k digits",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 247.67,
+   "tokens_in": 967,
+   "tokens_out": 13012,
+   "cost_usd": 0.078990516,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Closest fraction under numerator and denominator bounds",
+  "category": "numeric",
+  "entry_point": "closest_fraction",
+  "code": "import re\nfrom fractions import Fraction\nfrom math import gcd\n\ndef closest_fraction(x: str, max_num: int, max_den: int) -> str:\n    if max_num < 0 or max_den < 1:\n        raise ValueError(\"invalid bounds\")\n    val = _parse_literal(x)\n    if val == 0 or max_num == 0:\n        return \"0/1\"\n    neg = val < 0\n    abs_val = -val if neg else val\n    a, b = _closest_positive(abs_val, max_num, max_den)\n    if neg:\n        a = -a\n    return f\"{a}/{b}\"\n\n\ndef _parse_literal(s: str) -> Fraction:\n    match = re.fullmatch(r'([+-])?(\\d+\\.?|\\.\\d+|\\d+\\.\\d+)([eE]([+-]?\\d+))?', s)\n    if match is None:\n        raise ValueError(\"invalid literal\")\n    sign_s, mant_s, _, exp_num_s = match.groups()\n    sign = -1 if sign_s == '-' else 1\n    if '.' in mant_s:\n        intpart, fracpart = mant_s.split('.', 1)\n        digits_str = intpart + fracpart\n        places = len(fracpart)\n        mant_val = Fraction(int(digits_str), 10 ** places)\n    else:\n        mant_val = Fraction(int(mant_s))\n    if exp_num_s is not None:\n        e = int(exp_num_s)\n        if e >= 0:\n            mant_val *= 10 ** e\n        else:\n            mant_val /= 10 ** (-e)\n    return sign * mant_val\n\n\ndef _closest_positive(x: Fraction, N: int, D: int) -> tuple[int, int]:\n    if x <= 0 or N <= 0:\n        return 0, 1\n    if x >= N:\n        return N, 1\n    p0, q0 = 0, 1\n    p1, q1 = 1, 0\n    n, d = x.numerator, x.denominator\n    k = 0\n    while True:\n        if d == 0:\n            g = gcd(p1, q1)\n            return p1 // g, q1 // g\n        if p1 == 0:\n            kmax_n = (N + 1) if p0 <= N else -1\n        else:\n            kmax_n = (N - p0) // p1\n        if q1 == 0:\n            kmax_d = (D + 1) if q0 <= D else -1\n        else:\n            kmax_d = (D - q0) // q1\n        a_bound = min(kmax_n, kmax_d)\n        if a_bound < 0:\n            k = 0\n            break\n        prod = a_bound * d if a_bound > 0 else 0\n        if n > prod:\n            k = a_bound\n            break\n        a = n // d\n        p0, p1 = p1, p0 + a * p1\n        q0, q1 = q1, q0 + a * q1\n        n, d = d, n - a * d\n    ca1 = p0 + k * p1\n    cb1 = q0 + k * q1\n    ca2 = p1\n    cb2 = q1\n    g1 = gcd(ca1, cb1) if cb1 else 1\n    ba1, bb1 = ca1 // g1, cb1 // g1\n    g2 = gcd(ca2, cb2) if cb2 else 1\n    ba2, bb2 = ca2 // g2, cb2 // g2\n    if bb1 == 0:\n        return ba2, bb2\n    if bb2 == 0:\n        return ba1, bb1\n    if ba1 * bb2 == ba2 * bb1:\n        return ba1, bb1\n    xn, xd = x.numerator, x.denominator\n    err1 = abs(ba1 * xd - bb1 * xn)\n    err2 = abs(ba2 * xd - bb2 * xn)\n    left = err1 * bb2\n    right = err2 * bb1\n    if left < right:\n        return ba1, bb1\n    if right < left:\n        return ba2, bb2\n    if bb1 < bb2:\n        return ba1, bb1\n    if bb2 < bb1:\n        return ba2, bb2\n    if ba1 < ba2:\n        return ba1, bb1\n    return ba2, bb2",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.4444,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Closest fraction under numerator and denominator bounds",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 816.91,
+   "tokens_in": 915,
+   "tokens_out": 38703,
+   "cost_usd": 0.231492096,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "examples: expected {\"value\": [\"311/99\", \"3/1\", \"1/3\", \"0/1\", \"0/1\", \"-2/1\", \"0/1\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"311/99\", \"3/1\", \"1/2\", \"0/1\", \"0/1\", \"-2/1\", \"0/1\"]}",
+   "exact_representable: expected {\"value\": [\"3/4\", \"3/4\", \"-6/1\", \"5/2\", \"0/1\", \"0/1\", \"25/2\", \"1/8\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"3/4\", \"3/4\", \"-6/1\", \"5/2\", \"0/1\", \"0/1\", \"3/1\", \"0/1\"]}",
+   "numerator_cap_large_x: expected {\"value\": [\"12/1\", \"12/1\", \"12/1\", \"-7/1\", \"4/1\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"12/1\", \"12/1\", \"4/1\", \"-7/1\", \"4/1\"]}",
+   "ties_equal_denominator: expected {\"value\": [\"0/1\", \"0/1\", \"1/1\", \"-1/1\", \"-7/1\", \"0/1\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"0/1\", \"0/1\", \"1/1\", \"-1/1\", \"-2/1\", \"0/1\"]}",
+   "invalid_literals: expected {\"value\": [\"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"VE\", \"ok\"]}",
+   "random_small: expected {\"value\": [\"-9/1\", \"-14/5\", \"10/1\", \"-20/1\", \"32/3\", \"15/2\", \"6/1\", \"29/3\", \"-19/2\", \"6/1\", \"-3/10\", \"-3/1\", \"-8/1\", \"-1 got {\"ok\": true, \"loaded\": true, \"value\": [\"-9/1\", \"-14/5\", \"10/1\", \"-14/1\", \"32/3\", \"15/2\", \"6/1\", \"29/3\", \"-19/2\", \"6/1\", \"-3/10\", \"-3/1\", \"-8/1\", \"-14/1\", \"-17/1",
+   "random_ties_quarters: expected {\"value\": [\"5/1\", \"2/1\", \"1/1\", \"3/1\", \"5/1\", \"-2/1\", \"4/1\", \"4/1\", \"-1/1\", \"0/1\", \"0/1\", \"-1/4\", \"-1/1\", \"-2/1\", \"-1/2\" got {\"ok\": true, \"loaded\": true, \"value\": [\"5/1\", \"2/1\", \"1/1\", \"2/1\", \"4/1\", \"-2/1\", \"4/1\", \"4/1\", \"-1/1\", \"0/1\", \"0/1\", \"-1/4\", \"-1/1\", \"-2/1\", \"-1/2\", \"3/2\", \"0/",
+   "tiny_and_huge_values: expected {\"value\": [\"0/1\", \"1/1000000000000000000\", \"0/1\", \"1/666666666666666667\", \"1000000000000000000/1\", \"123456789987654321/1 got {\"ok\": true, \"loaded\": true, \"value\": [\"0/1\", \"1/1000000000000000000\", \"0/1\", \"0/1\", \"1000000000000000000/1\", \"123456789987654321/1\", \"0/1\"]}",
+   "exact_tie_big_denominators: expected {\"value\": [\"1/200000000000000000\", \"1/200000000000000000\", \"0/1\", \"500000000000000000/999999999999999999\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"0/1\", \"0/1\", \"0/1\", \"500000000000000000/999999999999999999\"]}",
+   "stress_long_mantissas: expected {\"value\": [[\"-61520691595338174/7\", \"-61099594968187273/6712655419957484\", \"-36831380522608204/601667578179114927\", \"0/1 got {\"ok\": true, \"loaded\": true, \"value\": [[\"-61520691595338174/7\", \"-61099594968187273/6712655419957484\", \"-36831380522608204/601667578179114927\", \"0/1\", \"33949291"
+  ]
+ },
+ {
+  "title": "Correctly rounded decimal string to binary16 bits",
+  "category": "numeric",
+  "entry_point": "decimal_to_half_bits",
+  "code": "def decimal_to_half_bits(s: str) -> int:\n    if not isinstance(s, str):\n        raise ValueError\n    n = len(s)\n    if n == 0:\n        raise ValueError\n\n    pos = 0\n    sign = 0\n    if s[pos] == '-':\n        sign = 1\n        pos += 1\n    elif s[pos] == '+':\n        pos += 1\n\n    if pos >= n:\n        raise ValueError\n\n    saw_digit = False\n    saw_dot = False\n    dot_pos = 0\n    digit_chars = []\n\n    while pos < n:\n        c = s[pos]\n        if c == '.':\n            if saw_dot:\n                raise ValueError\n            saw_dot = True\n            dot_pos = len(digit_chars)\n            pos += 1\n            continue\n        if '0' <= c <= '9':\n            saw_digit = True\n            digit_chars.append(c)\n            pos += 1\n            continue\n        break\n\n    if not saw_digit:\n        raise ValueError\n\n    exp10 = 0\n    if pos < n:\n        if s[pos] not in ('e', 'E'):\n            raise ValueError\n        pos += 1\n        if pos >= n:\n            raise ValueError\n        exp_sign = 1\n        if s[pos] == '-':\n            exp_sign = -1\n            pos += 1\n        elif s[pos] == '+':\n            pos += 1\n        if pos >= n or not ('0' <= s[pos] <= '9'):\n            raise ValueError\n        exp_start = pos\n        while pos < n and '0' <= s[pos] <= '9':\n            pos += 1\n        exp10 = exp_sign * int(s[exp_start:pos])\n\n    if pos != n:\n        raise ValueError\n\n    dec_places = (len(digit_chars) - dot_pos) if saw_dot else 0\n    digit_str = ''.join(digit_chars).lstrip('0')\n    if not digit_str:\n        return sign << 15\n\n    sig = int(digit_str)\n    exp10 -= dec_places\n    nd = len(digit_str)\n\n    INF = 0x7C00\n\n    if exp10 >= 0:\n        if exp10 + nd >= 7:\n            return INF | (sign << 15)\n        num = sig * (10 ** exp10)\n        den = 1\n    else:\n        if exp10 + nd <= -10:\n            return sign << 15\n        num = sig\n        den = 10 ** (-exp10)\n\n    def cmp_pow2(p: int) -> int:\n        if p >= 0:\n            t = den << p\n            return (num > t) - (num < t)\n        else:\n            t = num << (-p)\n            return (t > den) - (t < den)\n\n    e = num.bit_length() - den.bit_length()\n    while cmp_pow2(e) < 0:\n        e -= 1\n    while cmp_pow2(e + 1) >= 0:\n        e += 1\n\n    def round_div(n: int, d: int) -> int:\n        q, r = divmod(n, d)\n        if r == 0:\n            return q\n        twice_r = r << 1\n        if twice_r > d or (twice_r == d and (q & 1)):\n            q += 1\n        return q\n\n    if e >= 16:\n        return INF | (sign << 15)\n\n    if e >= -14:\n        scale = 10 - e\n        if scale >= 0:\n            q = round_div(num << scale, den)\n        else:\n            q = round_div(num, den << (-scale))\n        if q == 2048:\n            q = 1024\n            e += 1\n        if e > 15:\n            return INF | (sign << 15)\n        biased = e + 15\n        frac = q - 1024\n        return (biased << 10) | frac | (sign << 15)\n    else:\n        q = round_div(num << 24, den)\n        if q >= 1024:\n            return 0x0400 | (sign << 15)\n        if q == 0:\n            return sign << 15\n        return q | (sign << 15)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.8,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Correctly rounded decimal string to binary16 bits",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 313.74,
+   "tokens_in": 1099,
+   "tokens_out": 16611,
+   "cost_usd": 0.100629936,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "huge_exponents: expected {\"value\": [31744, 64512, 0, 40747, 31744, 0, 0, 168]} got {\"ok\": false, \"loaded\": true, \"exc\": \"ValueError\", \"exc_msg\": \"Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set",
+   "long_mantissa_sticky: expected {\"value\": [15360, 15361, 15362, 15361, 32769]} got {\"ok\": false, \"loaded\": true, \"exc\": \"ValueError\", \"exc_msg\": \"Exceeds the limit (4300 digits) for integer string conversion: value has 5012 digits; use sys.set",
+   "stress_long_literals: expected {\"value\": [32768, 32861, 22567, 56371, 0, 14, 0, 37854, 0, 0, 32768, 32768, 22349, 32915, 51226, 0, 32768, 877, 0, 32768 got {\"ok\": false, \"loaded\": true, \"exc\": \"ValueError\", \"exc_msg\": \"Exceeds the limit (4300 digits) for integer string conversion: value has 9000 digits; use sys.set",
+   "stress_giant_tie_expansion: expected {\"value\": [15360, 1, 31744, 61030]} got {\"ok\": false, \"loaded\": true, \"exc\": \"ValueError\", \"exc_msg\": \"Exceeds the limit (4300 digits) for integer string conversion: value has 199012 digits; use sys.s"
+  ]
+ },
+ {
+  "title": "Branching version store with range and rank queries",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "import random\n\nclass Node:\n    __slots__ = ('key', 'val', 'left', 'right', 'pri', 'size', 'sum', 'min_key', 'max_key')\n\n    def __init__(self, key, val, left=None, right=None, pri=None):\n        self.key = key\n        self.val = val\n        self.left = left\n        self.right = right\n        self.pri = random.random() if pri is None else pri\n        self.size = 1\n        self.sum = val\n        self.min_key = key\n        self.max_key = key\n        self._recalc()\n\n    def _recalc(self):\n        self.size = 1\n        self.sum = self.val\n        self.min_key = self.key\n        self.max_key = self.key\n        if self.left is not None:\n            self.size += self.left.size\n            self.sum += self.left.sum\n            self.min_key = self.left.min_key\n        if self.right is not None:\n            self.size += self.right.size\n            self.sum += self.right.sum\n            self.max_key = self.right.max_key\n\n\ndef split(node, key):\n    if node is None:\n        return None, None\n    if node.key < key:\n        l, r = split(node.right, key)\n        new_node = Node(node.key, node.val, node.left, l, node.pri)\n        return new_node, r\n    else:\n        l, r = split(node.left, key)\n        new_node = Node(node.key, node.val, r, node.right, node.pri)\n        return l, new_node\n\n\ndef merge(left, right):\n    if left is None:\n        return right\n    if right is None:\n        return left\n    if left.pri > right.pri:\n        new_right = merge(left.right, right)\n        return Node(left.key, left.val, left.left, new_right, left.pri)\n    else:\n        new_left = merge(left, right.left)\n        return Node(right.key, right.val, new_left, right.right, right.pri)\n\n\ndef insert(root, key, val):\n    l, r = split(root, key)\n    _, r = split(r, key + 1)\n    return merge(merge(l, Node(key, val)), r)\n\n\ndef delete(root, key):\n    l, r = split(root, key)\n    mid, r = split(r, key + 1)\n    if mid is None:\n        return None\n    return merge(l, r)\n\n\ndef get(node, key):\n    while node is not None:\n        if key == node.key:\n            return node.val\n        node = node.left if key < node.key else node.right\n    return None\n\n\ndef kth(node, k):\n    if node is None or k < 1 or k > node.size:\n        return None\n    left_size = node.left.size if node.left is not None else 0\n    if k <= left_size:\n        return kth(node.left, k)\n    if k == left_size + 1:\n        return node.key\n    return kth(node.right, k - left_size - 1)\n\n\ndef range_sum(node, lo, hi):\n    if node is None or lo > hi:\n        return 0\n    if node.max_key < lo or node.min_key > hi:\n        return 0\n    if lo <= node.min_key and node.max_key <= hi:\n        return node.sum\n    res = 0\n    if lo <= node.key <= hi:\n        res += node.val\n    res += range_sum(node.left, lo, hi)\n    res += range_sum(node.right, lo, hi)\n    return res\n\n\ndef range_count(node, lo, hi):\n    if node is None or lo > hi:\n        return 0\n    if node.max_key < lo or node.min_key > hi:\n        return 0\n    if lo <= node.min_key and node.max_key <= hi:\n        return node.size\n    res = 0\n    if lo <= node.key <= hi:\n        res += 1\n    res += range_count(node.left, lo, hi)\n    res += range_count(node.right, lo, hi)\n    return res\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    roots = [None]\n    output = []\n    for op in ops:\n        typ = op[0]\n        v = op[1]\n        if not (0 <= v < len(roots)):\n            output.append(\"BADVER\")\n            continue\n        root = roots[v]\n        if typ == \"set\":\n            key, value = op[2], op[3]\n            new_root = insert(root, key, value)\n            roots.append(new_root)\n            output.append(len(roots) - 1)\n        elif typ == \"del\":\n            key = op[2]\n            new_root = delete(root, key)\n            if new_root is None:\n                output.append(\"NOKEY\")\n            else:\n                roots.append(new_root)\n                output.append(len(roots) - 1)\n        elif typ == \"get\":\n            key = op[2]\n            output.append(get(root, key))\n        elif typ == \"count\":\n            lo, hi = op[2], op[3]\n            output.append(range_count(root, lo, hi))\n        elif typ == \"sum\":\n            lo, hi = op[2], op[3]\n            output.append(range_sum(root, lo, hi))\n        elif typ == \"kth\":\n            k = op[2]\n            output.append(kth(root, k))\n    return output",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 0.8571,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Branching version store with range and rank queries",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 163.21,
+   "tokens_in": 1075,
+   "tokens_out": 7812,
+   "cost_usd": 0.048316356,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "example_2: expected {\"value\": [\"NOKEY\", 1, 2, \"NOKEY\", 0, 1, \"BADVER\", \"BADVER\"]} got {\"ok\": true, \"loaded\": true, \"value\": [\"NOKEY\", 1, \"NOKEY\", \"BADVER\", \"BADVER\", 1, \"BADVER\", \"BADVER\"]}",
+   "value_zero_vs_absent: expected {\"value\": [1, 0, null, 1, 0, 2, null, \"NOKEY\"]} got {\"ok\": true, \"loaded\": true, \"value\": [1, 0, null, 1, 0, \"NOKEY\", \"BADVER\", \"BADVER\"]}",
+   "delete_then_reinsert_old_branch: expected {\"value\": [1, 2, 3, 80, null, 81, \"NOKEY\", 4, null]} got {\"ok\": true, \"loaded\": true, \"value\": [1, \"NOKEY\", \"BADVER\", 80, \"BADVER\", \"BADVER\", \"BADVER\", \"BADVER\", \"BADVER\"]}"
+  ]
+ },
+ {
+  "title": "Checkpoint and rollback multiset with order statistics",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "def run_ops(ops: list[tuple]) -> list:\n    import heapq\n\n    vals = set()\n    for op in ops:\n        if op[0] in (\"add\", \"remove\", \"count_less\"):\n            vals.add(op[1])\n    coord = sorted(vals)\n    m = len(coord)\n    rank = {v: i + 1 for i, v in enumerate(coord)}\n\n    LC = [0]\n    RC = [0]\n    SM = [0]\n    DT = [0]\n\n    def update(node, l, r, pos, delta):\n        newn = len(LC)\n        LC.append(0)\n        RC.append(0)\n        SM.append(0)\n        DT.append(0)\n        if l == r:\n            nsm = SM[node] + delta\n            SM[newn] = nsm\n            DT[newn] = 1 if nsm > 0 else 0\n            return newn\n        mid = (l + r) // 2\n        lc = LC[node]\n        rc = RC[node]\n        if pos <= mid:\n            lc = update(lc, l, mid, pos, delta)\n        else:\n            rc = update(rc, mid + 1, r, pos, delta)\n        LC[newn] = lc\n        RC[newn] = rc\n        SM[newn] = SM[lc] + SM[rc]\n        DT[newn] = DT[lc] + DT[rc]\n        return newn\n\n    def query_sum(node, l, r, ql, qr):\n        if node == 0 or ql > qr or ql > r or qr < l:\n            return 0\n        if ql <= l and r <= qr:\n            return SM[node]\n        mid = (l + r) // 2\n        return (query_sum(LC[node], l, mid, ql, qr) +\n                query_sum(RC[node], mid + 1, r, ql, qr))\n\n    def get_count(node, l, r, pos):\n        if node == 0:\n            return 0\n        if l == r:\n            return SM[node]\n        mid = (l + r) // 2\n        if pos <= mid:\n            return get_count(LC[node], l, mid, pos)\n        return get_count(RC[node], mid + 1, r, pos)\n\n    def find_kth(node, l, r, k):\n        if l == r:\n            return l\n        mid = (l + r) // 2\n        leftsm = SM[LC[node]]\n        if k <= leftsm:\n            return find_kth(LC[node], l, mid, k)\n        return find_kth(RC[node], mid + 1, r, k - leftsm)\n\n    current = 0\n    results = []\n    cp_roots = [None]\n    is_valid = [False]\n    maxh = []\n    cp_id_counter = 0\n\n    for op in ops:\n        typ = op[0]\n        if typ == \"add\":\n            x = op[1]\n            rx = rank[x]\n            current = update(current, 1, m, rx, 1)\n            results.append(SM[current])\n        elif typ == \"remove\":\n            x = op[1]\n            rx = rank[x]\n            cnt = get_count(current, 1, m, rx)\n            if cnt > 0:\n                current = update(current, 1, m, rx, -1)\n                results.append(True)\n            else:\n                results.append(False)\n        elif typ == \"checkpoint\":\n            cp_id_counter += 1\n            cp_roots.append(current)\n            is_valid.append(True)\n            heapq.heappush(maxh, -cp_id_counter)\n            results.append(cp_id_counter)\n        elif typ == \"rollback\":\n            c = op[1]\n            if not (1 <= c < len(is_valid) and is_valid[c]):\n                results.append(\"BADCP\")\n            else:\n                current = cp_roots[c]\n                while maxh and -maxh[0] > c:\n                    iid = -heapq.heappop(maxh)\n                    is_valid[iid] = False\n                results.append(SM[current])\n        elif typ == \"median\":\n            s = SM[current]\n            if s == 0:\n                results.append(None)\n            else:\n                k = (s + 1) // 2\n                rnk = find_kth(current, 1, m, k)\n                results.append(coord[rnk - 1])\n        elif typ == \"count_less\":\n            x = op[1]\n            rx = rank[x]\n            if rx <= 1:\n                res = 0\n            else:\n                res = query_sum(current, 1, m, 1, rx - 1)\n            results.append(res)\n        elif typ == \"distinct\":\n            results.append(DT[current])\n\n    return results",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Checkpoint and rollback multiset with order statistics",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 361.29,
+   "tokens_in": 968,
+   "tokens_out": 16463,
+   "cost_usd": 0.099491436,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking calendar with first-fit gap search",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "def run_ops(ops: list[tuple]) -> list:\n    import random\n    import sys\n    sys.setrecursionlimit(100000)\n\n    class Node:\n        __slots__ = ('s', 'e', 'pri', 'left', 'right', 'sum_len', 'max_gap', 'min_s', 'max_e')\n        def __init__(self, s, e):\n            self.s = s\n            self.e = e\n            self.pri = random.random()\n            self.left = None\n            self.right = None\n            self.sum_len = e - s\n            self.max_gap = 0\n            self.min_s = s\n            self.max_e = e\n\n        def update(self):\n            self.sum_len = self.e - self.s\n            self.min_s = self.s\n            self.max_e = self.e\n            self.max_gap = 0\n            if self.left is not None:\n                self.sum_len += self.left.sum_len\n                self.min_s = self.left.min_s\n                self.max_gap = max(self.max_gap, self.left.max_gap, self.s - self.left.max_e)\n            if self.right is not None:\n                self.sum_len += self.right.sum_len\n                self.max_e = self.right.max_e\n                self.max_gap = max(self.max_gap, self.right.max_gap, self.right.min_s - self.e)\n\n    def split(node, key):\n        if node is None:\n            return None, None\n        if node.s < key:\n            l, r = split(node.right, key)\n            node.right = l\n            node.update()\n            return node, r\n        else:\n            l, r = split(node.left, key)\n            node.left = r\n            node.update()\n            return l, node\n\n    def merge(left, right):\n        if left is None:\n            return right\n        if right is None:\n            return left\n        if left.pri > right.pri:\n            left.right = merge(left.right, right)\n            left.update()\n            return left\n        else:\n            right.left = merge(left, right.left)\n            right.update()\n            return right\n\n    def find_first(node, t, d, prev_end):\n        if node is None:\n            return None\n        entry_gap = node.min_s - prev_end\n        if node.max_e <= t or max(node.max_gap, entry_gap) < d:\n            return None\n        res = find_first(node.left, t, d, prev_end)\n        if res is not None:\n            return res\n        curr_prev = node.left.max_e if node.left is not None else prev_end\n        x = max(t, curr_prev)\n        if node.s - x >= d:\n            return x\n        return find_first(node.right, t, d, node.e)\n\n    root = None\n    output = []\n    for op in ops:\n        typ = op[0]\n        if typ == \"book\":\n            s, e = op[1], op[2]\n            if s >= e:\n                output.append(\"INVALID\")\n                continue\n            left, right = split(root, s)\n            conflict = (left is not None and left.max_e > s) or (right is not None and right.min_s < e)\n            if conflict:\n                root = merge(left, right)\n                output.append(\"CONFLICT\")\n            else:\n                new_node = Node(s, e)\n                root = merge(merge(left, new_node), right)\n                output.append(True)\n        elif typ == \"cancel\":\n            s = op[1]\n            left, right = split(root, s)\n            if right is None or right.min_s != s:\n                root = merge(left, right)\n                output.append(0)\n            else:\n                mid, right2 = split(right, s + 1)\n                length = mid.e - mid.s\n                root = merge(left, right2)\n                output.append(length)\n        elif typ == \"first_fit\":\n            t, d = op[1], op[2]\n            if root is None:\n                output.append(t)\n            else:\n                ans = find_first(root, t, d, -1)\n                if ans is None:\n                    ans = max(t, root.max_e)\n                output.append(ans)\n        elif typ == \"free_between\":\n            a, b = op[1], op[2]\n            if a >= b:\n                output.append(0)\n                continue\n            left, right = split(root, b)\n            ll, lr = split(left, a)\n            booked = 0\n            if ll is not None and ll.max_e > a:\n                booked += min(ll.max_e, b) - a\n            if lr is not None:\n                booked += lr.sum_len\n                if lr.max_e > b:\n                    booked -= lr.max_e - b\n            root = merge(merge(ll, lr), right)\n            output.append((b - a) - booked)\n    return output",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Room booking calendar with first-fit gap search",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 432.16,
+   "tokens_in": 921,
+   "tokens_out": 17958,
+   "cost_usd": 0.108278676,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Segment painter with run merging and change counts",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from sortedcontainers import SortedDict\n\ndef run_ops(ops: list[tuple]) -> list:\n    sd = SortedDict()  # start -> (end, label); disjoint, merged adjacent same-label runs\n    totals = {}  # label -> total length\n    res = []\n\n    def split(pos: int) -> None:\n        i = sd.bisect_right(pos) - 1\n        if i < 0:\n            return\n        s = sd.keys()[i]\n        e, lab = sd[s]\n        if not (s < pos < e):\n            return\n        del sd[s]\n        sd[s] = (pos, lab)\n        sd[pos] = (e, lab)\n\n    def merge_after_insert(l: int, r: int, lab: str) -> None:\n        # sd[l] == (r, lab) was just inserted; merge with immediate neighbours if possible\n        i = sd.bisect_left(l)\n        if i > 0:\n            prev_s = sd.keys()[i - 1]\n            prev_e, prev_lab = sd[prev_s]\n            if prev_e == l and prev_lab == lab:\n                del sd[l]\n                sd[prev_s] = (r, lab)\n                l = prev_s\n        i = sd.bisect_left(l)\n        if i + 1 < len(sd):\n            next_s = sd.keys()[i + 1]\n            if next_s == r:\n                next_e, next_lab = sd[next_s]\n                if next_lab == lab:\n                    del sd[next_s]\n                    sd[l] = (next_e, lab)\n\n    def apply_set(l: int, r: int, new_lab) -> int:\n        if l >= r:\n            return 0\n        split(l)\n        split(r)\n        to_remove = list(sd.irange(l, r, inclusive=(True, False)))\n        same = 0\n        painted = 0\n        for s in to_remove:\n            e, lab = sd[s]\n            length = e - s\n            painted += length\n            if new_lab is not None and lab == new_lab:\n                same += length\n            totals[lab] -= length\n            if totals[lab] == 0:\n                del totals[lab]\n            del sd[s]\n        if new_lab is not None:\n            changed = (r - l) - same\n            sd[l] = (r, new_lab)\n            totals[new_lab] = totals.get(new_lab, 0) + (r - l)\n            merge_after_insert(l, r, new_lab)\n            return changed\n        return painted\n\n    def find_lab(p: int):\n        i = sd.bisect_right(p) - 1\n        if i >= 0:\n            s = sd.keys()[i]\n            e, lab = sd[s]\n            if p < e:\n                return lab\n        return None\n\n    def next_change(p: int):\n        i = sd.bisect_right(p) - 1\n        if i >= 0:\n            s = sd.keys()[i]\n            e, lab = sd[s]\n            if p < e:\n                return e\n        j = sd.bisect_right(p)\n        if j < len(sd):\n            return sd.keys()[j]\n        return None\n\n    for op in ops:\n        typ = op[0]\n        if typ == \"paint\":\n            _, l, r, label = op\n            res.append(apply_set(l, r, label))\n        elif typ == \"erase\":\n            _, l, r = op\n            res.append(apply_set(l, r, None))\n        elif typ == \"at\":\n            _, p = op\n            res.append(find_lab(p))\n        elif typ == \"runs\":\n            res.append(len(sd))\n        elif typ == \"total\":\n            _, label = op\n            res.append(totals.get(label, 0))\n        elif typ == \"next_change\":\n            _, p = op\n            res.append(next_change(p))\n    return res",
+  "scores": {
+   "checker": 0,
+   "tests_ratio": 0.0,
+   "pass": 0
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Segment painter with run merging and change counts",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 256.1,
+   "tokens_in": 1025,
+   "tokens_out": 12909,
+   "cost_usd": 0.078493536,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": [
+   "import: ModuleNotFoundError: No module named 'sortedcontainers'"
+  ]
+ },
+ {
+  "title": "Fix the LRU cache with per-entry TTL replay",
+  "category": "bug_fixing",
+  "entry_point": "run_cache",
+  "code": "from collections import OrderedDict\nimport heapq\n\n\ndef run_cache(capacity, ops):\n    if not isinstance(capacity, int) or capacity < 1:\n        raise ValueError(\"capacity must be a positive int\")\n\n    # key -> (value, expires_at, ver); OrderedDict maintains LRU (oldest use first)\n    store = OrderedDict()\n    heap = []  # (expires_at, ver, key) — lazy expiry; ver ignores stale heap entries\n    out = []\n    last_t = None\n    ver_counter = 0\n\n    def purge(t):\n        \"\"\"Remove all entries whose expires_at <= t (no longer alive at t).\"\"\"\n        while heap and heap[0][0] <= t:\n            exp, ver, k = heapq.heappop(heap)\n            cur = store.get(k)\n            if cur is not None and cur[2] == ver:\n                del store[k]\n\n    for op in ops:\n        kind, t = op[0], op[1]\n        if last_t is not None and t < last_t:\n            raise ValueError(\"operations must have non-decreasing timestamps\")\n        last_t = t\n\n        if kind == \"put\":\n            _, _, key, value, ttl = op\n            if ttl is not None and (not isinstance(ttl, int) or ttl < 1):\n                raise ValueError(\"ttl must be None or a positive int\")\n            expires_at = None if ttl is None else t + ttl\n\n            purge(t)\n\n            ver_counter += 1\n            ver = ver_counter\n\n            if key in store:\n                # Existing unexpired entry: replace value/expiry; put counts as a USE\n                store[key] = (value, expires_at, ver)\n                store.move_to_end(key)\n            else:\n                # Insert; evict LRU unexpired if already at capacity\n                if len(store) >= capacity:\n                    store.popitem(last=False)\n                store[key] = (value, expires_at, ver)\n\n            if expires_at is not None:\n                heapq.heappush(heap, (expires_at, ver, key))\n\n        elif kind == \"get\":\n            key = op[2]\n            entry = store.get(key)\n            if entry is None:\n                out.append(None)\n            else:\n                value, expires_at, _ver = entry\n                # Alive only while t < expires_at (dead for all T >= expires_at)\n                if expires_at is not None and t >= expires_at:\n                    del store[key]\n                    out.append(None)\n                else:\n                    store.move_to_end(key)\n                    out.append(value)\n\n        elif kind == \"size\":\n            purge(t)\n            out.append(len(store))\n\n        else:\n            raise ValueError(\"unknown operation %r\" % (kind,))\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the LRU cache with per-entry TTL replay",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 122.53,
+   "tokens_in": 1522,
+   "tokens_out": 7853,
+   "cost_usd": 0.049444956,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the priority job scheduler with release times and deadlines",
+  "category": "bug_fixing",
+  "entry_point": "schedule",
+  "code": "def schedule(jobs):\n    \"\"\"Single-machine, non-preemptive priority scheduler with optional deadlines.\"\"\"\n    import heapq\n\n    seen = set()\n    for job in jobs:\n        if not isinstance(job, tuple) or len(job) != 5:\n            raise ValueError(\"each job must be a 5-tuple\")\n        job_id, release, duration, priority, deadline = job\n        if job_id in seen:\n            raise ValueError(\"duplicate job id %r\" % (job_id,))\n        seen.add(job_id)\n        if release < 0:\n            raise ValueError(\"job %r has a negative release time\" % (job_id,))\n        if duration < 1:\n            raise ValueError(\"job %r has a non-positive duration\" % (job_id,))\n\n    # Do not mutate the caller's list\n    jobs = sorted(jobs, key=lambda j: j[1])  # by release time\n\n    runs = []\n    dropped = []\n    ready = []  # min-heap of (rank, job)\n    clock = 0\n    nxt = 0\n    n = len(jobs)\n\n    while nxt < n or ready:\n        # Admit every job released at or before clock (release == T is eligible)\n        while nxt < n and jobs[nxt][1] <= clock:\n            job = jobs[nxt]\n            job_id, release, duration, priority, deadline = job\n            # highest priority first; then smaller release; then smaller job_id\n            rank = (-priority, release, job_id)\n            heapq.heappush(ready, (rank, job))\n            nxt += 1\n\n        if not ready:\n            # Idle until the earliest remaining release; re-evaluate at that instant\n            clock = jobs[nxt][1]\n            continue\n\n        _, best = heapq.heappop(ready)\n        job_id, release, duration, priority, deadline = best\n        if deadline is not None and clock + duration > deadline:\n            dropped.append(job_id)\n            # Machine stays free at clock; look again immediately\n            continue\n\n        runs.append((job_id, clock, clock + duration))\n        clock += duration\n\n    return runs, dropped",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the priority job scheduler with release times and deadlines",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 35.41,
+   "tokens_in": 1518,
+   "tokens_out": 2692,
+   "cost_usd": 0.018780696,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the sliding-window median with missing readings",
+  "category": "bug_fixing",
+  "entry_point": "window_medians",
+  "code": "import heapq\nfrom collections import defaultdict\n\n\ndef window_medians(readings, k):\n    if not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive int\")\n\n    low = []    # max-heap via negation: the smaller half; top is the lower median\n    high = []   # min-heap: the larger half\n    delayed = defaultdict(int)  # value -> pending lazy deletions\n    sizes = {\"low\": 0, \"high\": 0}  # live (not yet deleted) element counts\n    out = []\n\n    def prune(heap, sign):\n        # drop deleted values sitting on top of a heap\n        while heap and delayed[sign * heap[0]]:\n            delayed[sign * heap[0]] -= 1\n            if delayed[sign * heap[0]] == 0:\n                del delayed[sign * heap[0]]\n            heapq.heappop(heap)\n\n    def rebalance():\n        # invariant: sizes[\"low\"] == sizes[\"high\"] or sizes[\"low\"] == sizes[\"high\"] + 1\n        # tops of both heaps are kept free of delayed values\n        if sizes[\"low\"] > sizes[\"high\"] + 1:\n            heapq.heappush(high, -heapq.heappop(low))\n            sizes[\"low\"] -= 1\n            sizes[\"high\"] += 1\n            prune(low, -1)\n        elif sizes[\"low\"] < sizes[\"high\"]:\n            heapq.heappush(low, -heapq.heappop(high))\n            sizes[\"high\"] -= 1\n            sizes[\"low\"] += 1\n            prune(high, 1)\n\n    def add(x):\n        if not low or x <= -low[0]:\n            heapq.heappush(low, -x)\n            sizes[\"low\"] += 1\n        else:\n            heapq.heappush(high, x)\n            sizes[\"high\"] += 1\n        rebalance()\n\n    def remove(x):\n        delayed[x] += 1\n        # attribute the deletion to the half that must contain x under the invariant\n        # (all in low <= all in high; equals of the median may sit in either half —\n        # rebalance corrects the size counters if the physical copy was in the other half)\n        if low and x <= -low[0]:\n            sizes[\"low\"] -= 1\n            if x == -low[0]:\n                prune(low, -1)\n        else:\n            sizes[\"high\"] -= 1\n            if high and x == high[0]:\n                prune(high, 1)\n        rebalance()\n\n    for i, x in enumerate(readings):\n        if x is not None:\n            add(x)\n        # slide the window regardless of whether the incoming reading is None\n        if i >= k and readings[i - k] is not None:\n            remove(readings[i - k])\n        prune(low, -1)\n        out.append(-low[0] if sizes[\"low\"] else None)\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the sliding-window median with missing readings",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 239.16,
+   "tokens_in": 1258,
+   "tokens_out": 14035,
+   "cost_usd": 0.085643316,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the expression tokenizer with positions, escapes and exponents",
+  "category": "bug_fixing",
+  "entry_point": "tokenize",
+  "code": "TWO_CHAR_OPS = (\"==\", \"!=\", \"<=\", \">=\", \"->\")\nONE_CHAR_OPS = \"<>=+-*/(),\"\nESCAPES = {'\"': '\"', \"\\\\\": \"\\\\\", \"n\": \"\\n\", \"t\": \"\\t\"}\n\n\ndef _is_digit(ch):\n    return \"0\" <= ch <= \"9\"\n\n\ndef _is_ident_start(ch):\n    return ch == \"_\" or \"a\" <= ch <= \"z\" or \"A\" <= ch <= \"Z\"\n\n\ndef _is_ident_char(ch):\n    return _is_ident_start(ch) or _is_digit(ch)\n\n\ndef tokenize(src):\n    tokens = []\n    n = len(src)\n    i, line, col = 0, 1, 1\n\n    def fail(at_line, at_col, message):\n        raise ValueError(\"line %d col %d: %s\" % (at_line, at_col, message))\n\n    while i < n:\n        ch = src[i]\n\n        if ch == \"\\n\":\n            i += 1\n            line += 1\n            col = 1\n            continue\n        if ch == \" \" or ch == \"\\t\":\n            i += 1\n            col += 1\n            continue\n        if ch == \"#\":\n            end = src.find(\"\\n\", i)\n            if end == -1:\n                i = n\n            else:\n                i = end\n            continue\n\n        if _is_digit(ch):\n            j = i\n            while j < n and _is_digit(src[j]):\n                j += 1\n            is_float = False\n            if j < n and src[j] == \".\" and j + 1 < n and _is_digit(src[j + 1]):\n                j += 1\n                while j < n and _is_digit(src[j]):\n                    j += 1\n                is_float = True\n            if j < n and src[j] in \"eE\":\n                k = j + 1\n                if k < n and src[k] in \"+-\":\n                    k += 1\n                if k < n and _is_digit(src[k]):\n                    while k < n and _is_digit(src[k]):\n                        k += 1\n                    j = k\n                    is_float = True\n            text = src[i:j]\n            tokens.append((\"NUMBER\", float(text) if is_float else int(text), line, col))\n            col += j - i\n            i = j\n            continue\n\n        if _is_ident_start(ch):\n            j = i\n            while j < n and _is_ident_char(src[j]):\n                j += 1\n            tokens.append((\"IDENT\", src[i:j], line, col))\n            col += j - i\n            i = j\n            continue\n\n        if ch == '\"':\n            j = i + 1\n            chars = []\n            while True:\n                if j >= n or src[j] == \"\\n\":\n                    fail(line, col, \"unterminated string\")\n                c = src[j]\n                if c == '\"':\n                    j += 1\n                    break\n                if c == \"\\\\\":\n                    if j + 1 >= n or src[j + 1] == \"\\n\":\n                        fail(line, col, \"unterminated string\")\n                    if src[j + 1] not in ESCAPES:\n                        fail(line, col + (j - i), \"bad escape\")\n                    chars.append(ESCAPES[src[j + 1]])\n                    j += 2\n                    continue\n                chars.append(c)\n                j += 1\n            tokens.append((\"STRING\", \"\".join(chars), line, col))\n            col += j - i\n            i = j\n            continue\n\n        if src[i:i + 2] in TWO_CHAR_OPS:\n            tokens.append((\"OP\", src[i:i + 2], line, col))\n            i += 2\n            col += 2\n            continue\n        if ch in ONE_CHAR_OPS:\n            tokens.append((\"OP\", ch, line, col))\n            i += 1\n            col += 1\n            continue\n\n        fail(line, col, \"unexpected character %r\" % ch)\n\n    return tokens",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the expression tokenizer with positions, escapes and exponents",
+   "model": "x-ai/grok-4.5",
+   "provider": "openrouter",
+   "latency_s": 53.04,
+   "tokens_in": 2244,
+   "tokens_out": 3756,
+   "cost_usd": 0.026538336,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ }
+]

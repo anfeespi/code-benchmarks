@@ -1,0 +1,27 @@
+{
+ "slug": "context-window-pruning",
+ "cases": [
+  {
+   "case": "stress_full_domain",
+   "seconds": 0.068,
+   "timeout_s": 15,
+   "margin": 220.5,
+   "ok": true
+  },
+  {
+   "case": "stress_tight_budget",
+   "seconds": 0.256,
+   "timeout_s": 15,
+   "margin": 58.7,
+   "ok": true
+  },
+  {
+   "case": "stress_negatives_forced",
+   "seconds": 0.068,
+   "timeout_s": 15,
+   "margin": 222.0,
+   "ok": true
+  }
+ ],
+ "min_margin": 58.7
+}

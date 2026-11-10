@@ -1,0 +1,12 @@
+{
+ "slug": "pile-stack-interpreter",
+ "n": 2000,
+ "agree": 2000,
+ "status": "ok",
+ "outcomes": {
+  "ok": 2000,
+  "exc": 0
+ },
+ "seconds": 0.06,
+ "mismatches": []
+}

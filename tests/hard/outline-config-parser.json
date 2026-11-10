@@ -1,0 +1,2199 @@
+{
+ "title": "Indentation outline config parser with line-exact errors",
+ "entry_point": "parse_outline",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.parse_outline('server:\\n  host: example.org\\n  ports:\\n    - 80\\n    - \"443\"\\n    -\\n  limits:\\n  debug: false\\n# top-level comment\\nname:   007  ')",
+   "expected": {
+    "value": [
+     "ok",
+     {
+      "__dict__": [
+       [
+        "server",
+        {
+         "__dict__": [
+          [
+           "host",
+           "example.org"
+          ],
+          [
+           "ports",
+           [
+            80,
+            "443",
+            null
+           ]
+          ],
+          [
+           "limits",
+           null
+          ],
+          [
+           "debug",
+           false
+          ]
+         ]
+        }
+       ],
+       [
+        "name",
+        "007"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "example_2",
+   "code": "result = sol.parse_outline('a:\\n    b: 1\\n  c: 2')",
+   "expected": {
+    "value": [
+     "error",
+     3,
+     "inconsistent dedent"
+    ]
+   }
+  },
+  {
+   "name": "example_3",
+   "code": "result = sol.parse_outline('a: 1\\n  b: 2')",
+   "expected": {
+    "value": [
+     "error",
+     2,
+     "unexpected indent"
+    ]
+   }
+  },
+  {
+   "name": "example_4",
+   "code": "result = sol.parse_outline('a: 1\\nb:\\n  - x\\n  y: 2\\nc \"oops\"')",
+   "expected": {
+    "value": [
+     "error",
+     4,
+     "mixed block"
+    ]
+   }
+  },
+  {
+   "name": "example_5",
+   "code": "result = sol.parse_outline('k: v\\nk: w')",
+   "expected": {
+    "value": [
+     "error",
+     2,
+     "duplicate key 'k'"
+    ]
+   }
+  },
+  {
+   "name": "example_6",
+   "code": "result = sol.parse_outline('\\n  # indented comment\\n\\t\\n')",
+   "expected": {
+    "value": [
+     "ok",
+     null
+    ]
+   }
+  },
+  {
+   "name": "yaml_style_trap",
+   "code": "result = [sol.parse_outline(s) for s in ['list:\\n- a\\n- b', 'list:\\n - a\\n - b', '-\\n- x', '-\\n -\\n  - deep\\n- top']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      2,
+      "mixed block"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "list",
+         [
+          "a",
+          "b"
+         ]
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       null,
+       "x"
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        [
+         "deep"
+        ]
+       ],
+       "top"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "quoted_strings",
+   "code": "result = [sol.parse_outline(s) for s in ['s: \"a\\\\\"b\\\\\\\\c\\\\nd\\\\te\"', 's: \"a\"b', 's: \"x\\\\q\"', 's: \"end\\\\', 's: \"', 's: \"\"', 's: \"unterminated', 's: \"x\" ', 's:   \"padded\"   ', 's: \"a\\\\\"', 's: \"#not comment\"', '- \"\\\\\\\\\"']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "s",
+         "a\"b\\c\nd\te"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "error",
+      1,
+      "bad escape"
+     ],
+     [
+      "error",
+      1,
+      "bad escape"
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "s",
+         ""
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "s",
+         "x"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "s",
+         "padded"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "s",
+         "#not comment"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "\\"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "scalar_typing",
+   "code": "result = [sol.parse_outline(s) for s in ['- 0\\n- -0\\n- 007\\n- +3\\n- -12\\n- 1.5\\n- True\\n- true\\n- false\\n- null\\n- Null\\n- -\\n- - y\\n- a: b\\n- 12a\\n- ١٢']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      [
+       0,
+       0,
+       "007",
+       "+3",
+       -12,
+       "1.5",
+       "True",
+       true,
+       false,
+       null,
+       "Null",
+       "-",
+       "- y",
+       "a: b",
+       "12a",
+       "١٢"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "key_validity",
+   "code": "result = [sol.parse_outline(s) for s in ['a b: 1', '1a: 2', '_x-y: 3', 'a:b', 'a :b', ': x', 'a::b', 'a: : b', 'Z9_-: ok', '-x: 1', 'a:\\t', 'a: \\t', 'x', '-5', 'key:   ']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "_x-y",
+         3
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         ": b"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "Z9_-",
+         "ok"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "\t"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "key",
+         null
+        ]
+       ]
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "name": "tabs_and_comments",
+   "code": "result = [sol.parse_outline(s) for s in ['\\ta: 1', ' \\ta: 1', 'a: 1\\n\\t# fine\\n\\t\\nb: 2', 'a:\\n\\t- x', '# only\\n#\\n', 'a: 1 # trailing', 'a:\\n  # c\\n\\n  b: 1\\n # c2\\n  c: 2']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      1,
+      "tab in indentation"
+     ],
+     [
+      "error",
+      1,
+      "tab in indentation"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         1
+        ],
+        [
+         "b",
+         2
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      2,
+      "tab in indentation"
+     ],
+     [
+      "ok",
+      null
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "1 # trailing"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            1
+           ],
+           [
+            "c",
+            2
+           ]
+          ]
+         }
+        ]
+       ]
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "name": "dedent_levels",
+   "code": "result = [sol.parse_outline(s) for s in ['a:\\n  b:\\n      c:\\n         d: 1\\n      e: 2\\n  f: 3\\ng: 4', 'a:\\n  b:\\n      c: 1\\n    d: 2', 'a:\\n  b:\\n      c: 1\\n   d: 2', 'a:\\n b:\\n  c:\\n   d:\\ne: 1', 'a:\\n  b: 1\\n    c: 2', '-\\n   - 1\\n  - 2']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  1
+                 ]
+                ]
+               }
+              ],
+              [
+               "e",
+               2
+              ]
+             ]
+            }
+           ],
+           [
+            "f",
+            3
+           ]
+          ]
+         }
+        ],
+        [
+         "g",
+         4
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      4,
+      "inconsistent dedent"
+     ],
+     [
+      "error",
+      4,
+      "inconsistent dedent"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  null
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "e",
+         1
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      3,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      3,
+      "inconsistent dedent"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "error_priority",
+   "code": "result = [sol.parse_outline(s) for s in ['a: 1\\n  b: \"bad', 'a: 1\\n  b: 2\\nc: \"bad', 'a: 1\\nb: 2\\na: \"bad', 'a: 1\\na: 2\\nb c: 3', '  a: 1\\nb c', 'x:\\n  - 1\\n  k: \"v\\\\z\"', 'a:\\n\\t b: 1']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      2,
+      "bad string"
+     ],
+     [
+      "error",
+      2,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      3,
+      "bad string"
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'a'"
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      3,
+      "bad escape"
+     ],
+     [
+      "error",
+      2,
+      "tab in indentation"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "openers_none",
+   "code": "result = [sol.parse_outline(s) for s in ['a:\\nb:\\n  c:\\nd:', '-\\n-\\n- 1\\n-', 'a:\\n  -\\n  -\\n    x:\\n  -']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         null
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "c",
+            null
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         null
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       null,
+       null,
+       1,
+       null
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         [
+          null,
+          {
+           "__dict__": [
+            [
+             "x",
+             null
+            ]
+           ]
+          },
+          null
+         ]
+        ]
+       ]
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "name": "carriage_return",
+   "code": "result = [sol.parse_outline(s) for s in ['a: 1\\r\\nb: 2\\r', 'a:\\r\\n  b: 1']]",
+   "expected": {
+    "value": [
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "1\r"
+        ],
+        [
+         "b",
+         "2\r"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_1",
+   "code": "result = [sol.parse_outline(s) for s in ['-x \"\\\\\\\\\"\\n- - ', '_: \\n  - \\n    - \"\"\\n\\t# c\\n    - \\t\\n    - \"a\\\\\"b\"\\n  -  \\n     b: \"\\\\\\\\\"\\n     x-y: -12\\n\\t# c\\n  - \\n   - -12\\nb: \"a\\\\\"b\"\\n_: -0', '- \"tab\\\\there', 'b: \"q\"\\nb: \\t\\n\\n', '- \"\\\\\\\\\"\\n- -0\\n\\t\\n- true', '-  \\n    b: true\\n    b: \\n     Zed:   w\\n     Zed: \\n      - false\\n\\n      - \"\\n    b:   w', 'x-y:  \\n_:\\n - \\n  a: 0\\n  b: a: b\\n   \\nb:\\n - -\\n -  \\n   - \\n     b: 1.5\\n     x-y: true\\n  #\\n   - \\n     - 0\\n     - true\\n   \\n     - \"x\\\\q\"\\n   - -\\n - -12', 'key_1: \"q\"\\nkey_1: \"a\\\\\"\\n   \\n_: false', 'b: True\\n # c', 'b: k:v\\nZed: \"\\\\\\\\\"\\na:\\n   - 1\\n   - \"a\"b', 'x-y: v  \\n   \\n   \\nZed: -12\\nx-y: # not a comment\\n', '- Zed: \\n- v  \\n    - x\\n', '- \"q\"\\n- \\n  #\\n- \"\\\\\\\\\"', '- \\n    - true\\n- v  \\n', '- \\n    Zed : \"a\\\\\"b\"\\n   \\n- -12', '_: \"a\\\\\"b\"\\na: \"\\\\\\\\\"', 'a: a: b', '- 1.5\\n\\t\\n- # not a comment\\n- True', 'b: \"\\\\\\\\\"\\na: \\t\\nx-y:\\n   b: 0\\n   b: 0\\n   a:\\n       b: v  \\n       key_1: \"\"\\n      Zed: 007\\n', 'b: 0\\nb: # not a comment\\n \\t# c\\nb: -0\\n', 'Zed:\\n Zed: - y\\n x-y: true\\n b: true\\n  #', '-  \\n  a: \"q\"\\n  _: \"q\"\\n  a: null\\n\\t# c\\n-  \\n  - -12\\n  - \"q\"\\n  - \"q\"\\n   \\n-  \\n  - a b\\n', '- a: b\\n', 'b: ', ' - true\\n - true', 'key_1: -\\nx-y: \\n   - \"x\\\\q\"\\n   - 0\\n Zed:   w\\n', '-\\n - \"\"', 'key_1: \\n  a: 0\\n  _: \\n     -\\n       - \"\\\\\\\\\"\\n       - \"q\"\\n       - \"q\"\\n     - \"end\\\\\\n     - \\t\\n  a: -0', 'x-y: -12\\nb: \\n -  \\n    - false', '- \"x#: y\"\\n- - y\\n- - y\\n-  \\n   - \"a\\\\\"b\"\\n\\t# c\\n   - \"x\\\\q\"\\n', '-  \\n    a: k:v\\n    x-y: \"a\\\\\"b\"\\n    key_1: -\\n- v  \\n- true', '- k:v\\n- k:v\\n-\\n  - \\t\\n  - 0\\n- \\t# c\\n- false', '-\\n    - a: b\\n  - a b\\n\\t# c', '- x-y: 1\\n', 'a: \"a\\\\\"b\"\\nkey_1: \\n b: \"x#: y\"\\n _:\\n  - # not a comment\\n  -\\n      - 1.5\\n      - 1\\n      - \"\\\\\\\\\"\\n   \\n  - v  \\n', '- false\\n- - y\\n \\t- -12\\n   - ', 'a: True\\n   \\nkey_1: \\t\\n', '-\\n b:\\n   -   w\\n   - \"x#: y\"\\n a:  \\n   \\n _:  \\n  - \"tab\\\\there\"\\n- \"a\\\\\"\\n-  \\n', 'a: \"open\\n\\t', '_: -12\\n_: -12\\nkey_1 : \"\\\\\\\\\"\\n\\t# c\\nb: k:v', 'x-y: true\\n  #\\nb: # not a comment\\na: # not a comment', 'x-y: -0\\nb: \\n key_1: a b\\n\\t# c\\n   \\n_: false\\n   ', '- true\\n- true\\n- true\\n', 'a:  \\n    - x\\n    - a b\\n    - k:v\\nb:  \\n _: \"q\"\\n\\n\\t\\na: \\t', '_: true\\nb: \"\"\\nb: \"\"', 'b: 1.5\\nb: 1.5\\nb: 1.5', '- \\n', 'b:  \\n Zed: 1.5\\nZed: \\n    b: \\t\\n    Zed: -0\\na: 007\\n', 'Zed: a: b', 'key_1:  \\n  - 007\\nkey_1:  \\n -   w\\n']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      14,
+      "duplicate key '_'"
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      [
+       "\\",
+       0,
+       true
+      ]
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      18,
+      "bad escape"
+     ],
+     [
+      "error",
+      2,
+      "bad string"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         "True"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      5,
+      "bad string"
+     ],
+     [
+      "error",
+      5,
+      "duplicate key 'x-y'"
+     ],
+     [
+      "error",
+      3,
+      "unexpected indent"
+     ],
+     [
+      "ok",
+      [
+       "q",
+       null,
+       "\\"
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        true
+       ],
+       "v"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "_",
+         "a\"b"
+        ],
+        [
+         "a",
+         "\\"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "a: b"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "1.5",
+       "# not a comment",
+       "True"
+      ]
+     ],
+     [
+      "error",
+      5,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "Zed",
+         {
+          "__dict__": [
+           [
+            "Zed",
+            "- y"
+           ],
+           [
+            "x-y",
+            true
+           ],
+           [
+            "b",
+            true
+           ]
+          ]
+         }
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      4,
+      "duplicate key 'a'"
+     ],
+     [
+      "ok",
+      [
+       "a: b"
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         null
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      3,
+      "bad escape"
+     ],
+     [
+      "ok",
+      [
+       [
+        ""
+       ]
+      ]
+     ],
+     [
+      "error",
+      8,
+      "bad escape"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         -12
+        ],
+        [
+         "b",
+         [
+          [
+           false
+          ]
+         ]
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      7,
+      "bad escape"
+     ],
+     [
+      "ok",
+      [
+       {
+        "__dict__": [
+         [
+          "a",
+          "k:v"
+         ],
+         [
+          "x-y",
+          "a\"b"
+         ],
+         [
+          "key_1",
+          "-"
+         ]
+        ]
+       },
+       "v",
+       true
+      ]
+     ],
+     [
+      "ok",
+      [
+       "k:v",
+       "k:v",
+       [
+        "\t",
+        0
+       ],
+       "\t# c",
+       false
+      ]
+     ],
+     [
+      "error",
+      3,
+      "inconsistent dedent"
+     ],
+     [
+      "ok",
+      [
+       "x-y: 1"
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "a\"b"
+        ],
+        [
+         "key_1",
+         {
+          "__dict__": [
+           [
+            "b",
+            "x#: y"
+           ],
+           [
+            "_",
+            [
+             "# not a comment",
+             [
+              "1.5",
+              1,
+              "\\"
+             ],
+             "v"
+            ]
+           ]
+          ]
+         }
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      3,
+      "tab in indentation"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "True"
+        ],
+        [
+         "key_1",
+         "\t"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      9,
+      "bad string"
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "error",
+      2,
+      "duplicate key '_'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         true
+        ],
+        [
+         "b",
+         "# not a comment"
+        ],
+        [
+         "a",
+         "# not a comment"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         0
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "key_1",
+            "a b"
+           ]
+          ]
+         }
+        ],
+        [
+         "_",
+         false
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       true,
+       true,
+       true
+      ]
+     ],
+     [
+      "error",
+      9,
+      "duplicate key 'a'"
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      [
+       null
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "Zed",
+            "1.5"
+           ]
+          ]
+         }
+        ],
+        [
+         "Zed",
+         {
+          "__dict__": [
+           [
+            "b",
+            "\t"
+           ],
+           [
+            "Zed",
+            0
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         "007"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "Zed",
+         "a: b"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'key_1'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_2",
+   "code": "result = [sol.parse_outline(s) for s in ['Zed: \"q\\nZed: \"q\\nb: true\\n', 'a: \\n _: \"\"\\n  #\\n\\t\\na: \"a\\\\\"', '- \"x#:y\"\\n\\t# c\\n-   w', 'b: false\\nb: true\\n_: \"a\\\\\"b\"', 'a:\\n    - x\\n    - \\n       - \\t\\nkey_1: 0', 'b: \\n   b: a: b\\n   b:\\n     a: - y\\n   _:\\n\\t\\na: \"\\\\\\\\\"\\n\\t# c\\n', 'b:\\n    - \"tab\\\\there\"\\n    - v  ', ' b: -12\\nZed:  \\na: # not a comment', 'Zed: \\n', 'key_1: \"a\\\\\"b\"\\nb: \"a\\\\\"\\na: 1.5', '-\\n   - -12\\n   - \"a\\\\\"b\"\\n   \\n   - # not a comment\\n- \\n  - \\n     x-y: a b\\n  #\\n  - x\\n  - v  \\n- v  ', '- true\\n- 1.5\\n-   w', '- x-y: - y\\nZed: - y', 'a: # not a comment\\n_: \"\"', 'x-xy: \\n  b:\\n   key_1:  \\n     key_1: a: b\\n     b: \"\\n     x-y: a: b\\na: \\n a: - y\\n\\n_: +3', 'b:\\n  - \"end\\\\\\n  - \\t\\n', '-  \\n a:\\n  -  \\n    a: -\\n    b: \"tab\\\\there\"\\n    Zed: \"q\"\\n  - \"a\\\\\"b\"\\n  - \"\"\\n- \"q\"\\n- \\n b: 007\\n\\t# c\\n key_1: \"\\\\\\\\\"\\n a: \"\\\\\\\\\"\\n\\n', '- a b\\n\\n- -\\n# c\\n', 'x-y:   w', '- -\\n- \\n    -  \\n    -  \\n -', 'b: -\\n', 'a: \"q\"', '_: \\na:  \\n   b: a b\\n   b: a b\\n   x-xy: +3\\nZed: 0', '- -0\\n\\t\\n-  \\n    b: 0\\n    _: \\n\\n    _: a: b\\n-x \"\"', '  Zed: 0\\n  #', '-\\n   _: \"x#: y\"\\n   _: \"x#: y\"\\n   b: \"x\\\\q\"\\n   a: 1\\n  #\\n\\t', 'a:  \\n    key_1: \\n        Zed: # not a comment\\n  #\\n        _: \\t\\n        key_1: -12\\n    b:\\n    a: \\t\\n\\t\\nb:\\n   Zed: - y\\n   x-y: \"q\"\\n   a:   w\\n_: +3', 'b: \\nb: ', 'x-y: 1\\n# c', '- \"a\\\\\"b\"\\n- \"\"\\n-   w\\n-   w\\n', '- \\n  - True\\n  - 007\\n- \"\"', 'b: \"\"\\nZed:\\n  x-y: \"x#: y\"\\n  a: 1.5\\n  a: \"', '- x\\n-\\n _:\\n   b:  \\n     b: # not a comment\\n\\n   key_1:   w\\n   ', '- \\n- \\n -\\n - \"\\n - a: b\\n\\t# c\\n-  \\n-  \\n    - a b\\n    - 007\\n  #\\n    - 0', 'b:  \\n   key_1: \"a\\\\\"b\"\\n   b: \\n      x-y: True\\nx-y: -\\na: null\\n', 'k:  \\n  Zed:   w\\n  a: null\\n  b: k:v\\n- x\\n- \\n   -  \\n     - 1\\n\\t\\n\\t   - 007', '- 1.5\\n# c\\n-x true\\n   ', 'Zed: - y', '- \\n    - \\n       a: \"\"\\n       x-y: 1.5\\n    - -0\\n    - \"\\\\\\\\\"\\n- -0\\n-  \\n - -12\\n - \\n     Zed: \"q\"\\n     x-y: # not a comment\\n     key_1: v  \\n  #\\n - x', '- -12\\n# c\\n- # not a comment\\n', '- a: b\\n - ', 'key_1: 0\\n\\tkey_1: 0\\n', '- \"a\\\\\"b\"\\n\\t\\n- 0', 'a: \"\"', '- 007\\n- 007\\n- \"tab\\\\there\"\\n-   w\\n  #', 'a: - y\\nb: a: b\\n', '- \"x#: y\"\\n# c', 'Zed:\"q\"', '- \\n key_1: \"end\\\\\\n   \\n-  \\n   key_1: \"\\\\\\\\\"', '- \"\"\\n\\n - 0\\n']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "error",
+      5,
+      "bad string"
+     ],
+     [
+      "ok",
+      [
+       "x#:y",
+       "w"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         [
+          "x",
+          [
+           "\t"
+          ]
+         ]
+        ],
+        [
+         "key_1",
+         0
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         [
+          "tab\there",
+          "v"
+         ]
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "Zed",
+         null
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      2,
+      "bad string"
+     ],
+     [
+      "ok",
+      [
+       [
+        -12,
+        "a\"b",
+        "# not a comment"
+       ],
+       [
+        {
+         "__dict__": [
+          [
+           "x-y",
+           "a b"
+          ]
+         ]
+        },
+        "x",
+        "v"
+       ],
+       "v"
+      ]
+     ],
+     [
+      "ok",
+      [
+       true,
+       "1.5",
+       "w"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "mixed block"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "# not a comment"
+        ],
+        [
+         "_",
+         ""
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      5,
+      "bad string"
+     ],
+     [
+      "error",
+      2,
+      "bad escape"
+     ],
+     [
+      "ok",
+      [
+       {
+        "__dict__": [
+         [
+          "a",
+          [
+           {
+            "__dict__": [
+             [
+              "a",
+              "-"
+             ],
+             [
+              "b",
+              "tab\there"
+             ],
+             [
+              "Zed",
+              "q"
+             ]
+            ]
+           },
+           "a\"b",
+           ""
+          ]
+         ]
+        ]
+       },
+       "q",
+       {
+        "__dict__": [
+         [
+          "b",
+          "007"
+         ],
+         [
+          "key_1",
+          "\\"
+         ],
+         [
+          "a",
+          "\\"
+         ]
+        ]
+       }
+      ]
+     ],
+     [
+      "ok",
+      [
+       "a b",
+       "-"
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         "w"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      5,
+      "inconsistent dedent"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         "-"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "q"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      4,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      7,
+      "duplicate key '_'"
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      3,
+      "duplicate key '_'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "key_1",
+            {
+             "__dict__": [
+              [
+               "Zed",
+               "# not a comment"
+              ],
+              [
+               "_",
+               "\t"
+              ],
+              [
+               "key_1",
+               -12
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            null
+           ],
+           [
+            "a",
+            "\t"
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "Zed",
+            "- y"
+           ],
+           [
+            "x-y",
+            "q"
+           ],
+           [
+            "a",
+            "w"
+           ]
+          ]
+         }
+        ],
+        [
+         "_",
+         "+3"
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         1
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "a\"b",
+       "",
+       "w",
+       "w"
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        "True",
+        "007"
+       ],
+       ""
+      ]
+     ],
+     [
+      "error",
+      5,
+      "bad string"
+     ],
+     [
+      "ok",
+      [
+       "x",
+       {
+        "__dict__": [
+         [
+          "_",
+          {
+           "__dict__": [
+            [
+             "b",
+             {
+              "__dict__": [
+               [
+                "b",
+                "# not a comment"
+               ]
+              ]
+             }
+            ],
+            [
+             "key_1",
+             "w"
+            ]
+           ]
+          }
+         ]
+        ]
+       }
+      ]
+     ],
+     [
+      "error",
+      4,
+      "bad string"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "key_1",
+            "a\"b"
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "x-y",
+               "True"
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "x-y",
+         "-"
+        ],
+        [
+         "a",
+         null
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      5,
+      "mixed block"
+     ],
+     [
+      "error",
+      3,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "Zed",
+         "- y"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       [
+        {
+         "__dict__": [
+          [
+           "a",
+           ""
+          ],
+          [
+           "x-y",
+           "1.5"
+          ]
+         ]
+        },
+        0,
+        "\\"
+       ],
+       0,
+       [
+        -12,
+        {
+         "__dict__": [
+          [
+           "Zed",
+           "q"
+          ],
+          [
+           "x-y",
+           "# not a comment"
+          ],
+          [
+           "key_1",
+           "v"
+          ]
+         ]
+        },
+        "x"
+       ]
+      ]
+     ],
+     [
+      "ok",
+      [
+       -12,
+       "# not a comment"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      2,
+      "tab in indentation"
+     ],
+     [
+      "ok",
+      [
+       "a\"b",
+       0
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         ""
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "007",
+       "007",
+       "tab\there",
+       "w"
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         "- y"
+        ],
+        [
+         "b",
+         "a: b"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "x#: y"
+      ]
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      2,
+      "bad escape"
+     ],
+     [
+      "error",
+      3,
+      "unexpected indent"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_3",
+   "code": "result = [sol.parse_outline(s) for s in ['x-y: \\n    x-y: 007\\n    a:   w\\n    Zed: \"open\\n    Zed: \"open', 'x-y:  \\n    b: +3\\n    b: \"tab\\\\there\"\\n    b: \"tab\\\\there\\n    b: k:v\\n# c', 'b:\"\"', '- \"tab\\\\there\"\\n- \\n  key_1: \"a\\\\\"b\"\\n  _: \"\\\\\\\\\"\\n  a:   w\\n\\n-\\n   a: true\\n   b: - y\\n   b: x', '- True\\n- -12\\n - - y\\n - - y', 'a: \"tab\\\\there\"\\na : 1', 'a: \\n  x-y:\\n     b: \"q\"\\n     b: k:v\\n     b:\\n       _: \"a\\\\\"b\"\\n       _: \"a\\\\\"b\"\\n       Zed: 0\\nb:  \\n  - True\\n  - \"a\\\\\"b\"\\n  -\\n    b:   w\\n    b: \\n      - \\t\\n    a: \"x#: y\"\\n\\t\\na: \"\\\\\\\\\"\\na: \"\\\\\\\\\"', '- 007\\n- \\n  - -12\\n  - -12\\n  - \"open\\n', '_: -\\nb: true\\nb: true\\n  #', '- True\\n- \"\"\\n', 'Zed: True\\nb: true\\n\\t\\n b: \\n   - # not a comment\\n  #', '- -12\\n# c\\n- # not a comment', 'b: true\\nb: \"q\"\\na: v  \\n', ' - x', '-\\n-  \\n _: -\\n _: -\\n a: \"\\\\\\\\\"\\n a: true\\n- +3', 'b:  \\n   x-y: \"x#: y\"\\na:  \\n    b: \"x#: y\"\\n    _: -\\n', 'b: -12\\nb: true', '- \\n   x-y: \\n     - v  \\n     - \"\\\\\\\\\"\\n  #\\n   _: \"\\\\\\\\\"\\n\\t# c\\n   x-y: null\\n# c\\n- \"\"\\n-  \\n - \"a\"b\\n', '- \\n  -  \\n    -\\n  #\\n- a b', '- \"\"\\n\\t# c\\n- \"tab\\\\there\"\\nk: -12', 'b:\\n Zed: - y\\n\\n x-y: x\\n x-y:  \\n   -  \\n     - - y\\n     -   w\\n   - 1.5\\na: x', 'Zed: \"\\nb: k:v', '- +3\\n\\n-  \\n    b: +3\\n    key_1:   w', '-\\n - a b\\n - null', '-   w\\n-   w\\n- -', '- -0', 'b:  \\n  - \\n - \\n  - -0\\n  #\\n  -\\n   b: v  \\n   b: \\n     a: \"\\\\\\\\\"\\n     key_1: \"a\"b\\na: \"tab\\\\there\"', '- true\\n- \\n  Zed:\\n    Zed: 1\\n    Zed: a: b\\n    Zed: a: b\\n    b: +3\\n-\\n  - \"q\"\\n  - a: b\\n  -\\n    b:\\n      - \"\"\\n      - 0\\n\\t\\n      - True\\n    a:  \\n       - \"\\n       - -12\\n    b:  \\n      - \"\\n      - \"\\\\\\\\\"\\n #\\n      - x\\n\\t# c\\n', 'Zed:\\nb:\\n  -  \\n     - false\\n\\t# c\\n     - \\n     - \\n      key_1: a b\\n      _: +3\\n  - True\\n  -\\n     _:   w\\n     _:   w\\n     key_1: \"q\"\\n_: x\\n', '- # not a comment', '-\\n - \\t\\n -  \\n     - \"x#: y\"', '-  \\n - \\n   - \\n    - true\\n     - \"x#: y\"\\n     - 1.5\\n   - -0\\n   \\n - ', 'a: \"open\\n_: \\n Zed:\\n  b:\\n      Zed: \"a\\\\\"\\n  b: \"\"', '- true\\n- a: \\n- k:v', '- \"x#: y\"', 'a: \"\"', '- \\n    - \"q\"\\n    - \"\\n# c\\n    - 1.5\\n- \\t\\n-  \\n    -\\n', ' - True', '- a b\\n# c\\n- \\t', 'a: \"\"\\nb: \"open\\n  a: \"a\"b', 'a : \\na: a: b', '-', 'x-y: - y\\n\\t\\na: \"tab\\\\there\"\\n', 'key_1: -x \\n', '- -0\\n# c', '- true\\n- +3', 'b:  \\n - b: \"\"\\n x-y: True\\n\\n Zed: \"\"\\nb: - y\\na:  \\n  b: \\n     - \"a\"b', 'a: -12\\n   #', '- \"tab\\\\there\"\\n- -', '\\ta: 0\\n\\ta: 0\\nZed: false']]",
+   "expected": {
+    "value": [
+     [
+      "error",
+      4,
+      "bad string"
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "error",
+      10,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      3,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      2,
+      "invalid entry"
+     ],
+     [
+      "error",
+      4,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      5,
+      "bad string"
+     ],
+     [
+      "error",
+      3,
+      "duplicate key 'b'"
+     ],
+     [
+      "ok",
+      [
+       "True",
+       ""
+      ]
+     ],
+     [
+      "error",
+      4,
+      "unexpected indent"
+     ],
+     [
+      "ok",
+      [
+       -12,
+       "# not a comment"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      4,
+      "duplicate key '_'"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "x-y",
+            "x#: y"
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            "x#: y"
+           ],
+           [
+            "_",
+            "-"
+           ]
+          ]
+         }
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      2,
+      "duplicate key 'b'"
+     ],
+     [
+      "error",
+      8,
+      "duplicate key 'x-y'"
+     ],
+     [
+      "ok",
+      [
+       [
+        [
+         null
+        ]
+       ],
+       "a b"
+      ]
+     ],
+     [
+      "error",
+      4,
+      "mixed block"
+     ],
+     [
+      "error",
+      5,
+      "duplicate key 'x-y'"
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "ok",
+      [
+       "+3",
+       {
+        "__dict__": [
+         [
+          "b",
+          "+3"
+         ],
+         [
+          "key_1",
+          "w"
+         ]
+        ]
+       }
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        "a b",
+        null
+       ]
+      ]
+     ],
+     [
+      "ok",
+      [
+       "w",
+       "w",
+       "-"
+      ]
+     ],
+     [
+      "ok",
+      [
+       0
+      ]
+     ],
+     [
+      "error",
+      3,
+      "inconsistent dedent"
+     ],
+     [
+      "error",
+      5,
+      "duplicate key 'Zed'"
+     ],
+     [
+      "error",
+      13,
+      "duplicate key '_'"
+     ],
+     [
+      "ok",
+      [
+       "# not a comment"
+      ]
+     ],
+     [
+      "ok",
+      [
+       [
+        "\t",
+        [
+         "x#: y"
+        ]
+       ]
+      ]
+     ],
+     [
+      "error",
+      5,
+      "unexpected indent"
+     ],
+     [
+      "error",
+      1,
+      "bad string"
+     ],
+     [
+      "ok",
+      [
+       true,
+       "a:",
+       "k:v"
+      ]
+     ],
+     [
+      "ok",
+      [
+       "x#: y"
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         ""
+        ]
+       ]
+      }
+     ],
+     [
+      "error",
+      3,
+      "bad string"
+     ],
+     [
+      "error",
+      1,
+      "unexpected indent"
+     ],
+     [
+      "ok",
+      [
+       "a b",
+       "\t"
+      ]
+     ],
+     [
+      "error",
+      2,
+      "bad string"
+     ],
+     [
+      "error",
+      1,
+      "invalid entry"
+     ],
+     [
+      "ok",
+      [
+       null
+      ]
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "x-y",
+         "- y"
+        ],
+        [
+         "a",
+         "tab\there"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "key_1",
+         "-x"
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       0
+      ]
+     ],
+     [
+      "ok",
+      [
+       true,
+       "+3"
+      ]
+     ],
+     [
+      "error",
+      3,
+      "mixed block"
+     ],
+     [
+      "ok",
+      {
+       "__dict__": [
+        [
+         "a",
+         -12
+        ]
+       ]
+      }
+     ],
+     [
+      "ok",
+      [
+       "tab\there",
+       "-"
+      ]
+     ],
+     [
+      "error",
+      1,
+      "tab in indentation"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_deep_nesting",
+   "code": "d = 3000\nlines = []\nfor i in range(d):\n    lines.append(' ' * i + ('k%d:' % i if i % 2 == 0 else '-'))\nlines.append(' ' * d + 'leaf: \"x\\\\ty\"')\nfor i in range(d - 1, -1, -1):\n    if i % 2 == 0:\n        lines.append(' ' * i + 'z%d: %d' % (i, i))\n    else:\n        lines.append(' ' * i + '- %d' % i)\nr = sol.parse_outline('\\n'.join(lines))\nif r[0] != 'ok':\n    result = r\nelse:\n    v, depth, sig = r[1], 0, 0\n    while isinstance(v, (dict, list)):\n        sig = (sig * 31 + len(v)) % 1000003\n        if isinstance(v, list):\n            v = v[0]\n        elif 'leaf' in v:\n            v = v['leaf']\n        else:\n            v = v['k%d' % depth]\n        depth += 1\n    result = ('ok', depth, sig, v)",
+   "timeout_s": 6,
+   "expected": {
+    "value": [
+     "ok",
+     3001,
+     554711,
+     "x\ty"
+    ]
+   }
+  },
+  {
+   "name": "stress_wide_flat",
+   "code": "import random\nr = random.Random(5)\nlines = []\nfor i in range(100000):\n    lines.append('key_%d: %s' % (i, r.choice(['1', '-0', '007', 'true', 'null', '\"q\\\\n\"', 'text here', '-'])))\n    if i % 7 == 0:\n        lines.append(r.choice(['', '  # c', '\\t']))\nres = sol.parse_outline('\\n'.join(lines))\nresult = (res[0], len(res[1]), [res[1]['key_%d' % i] for i in range(0, 100000, 4999)]) if res[0] == 'ok' else res",
+   "timeout_s": 6,
+   "expected": {
+    "value": [
+     "ok",
+     100000,
+     [
+      null,
+      "007",
+      "q\n",
+      1,
+      0,
+      "007",
+      0,
+      "007",
+      "007",
+      1,
+      0,
+      "q\n",
+      true,
+      "007",
+      1,
+      "-",
+      0,
+      0,
+      0,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_late_error",
+   "code": "lines = []\nfor i in range(60000):\n    lines.append('b%d:' % i)\n    lines.append('  - %d' % i)\n    lines.append('  -')\n    lines.append('      x: y')\nlines.append('   - bad')\nresult = sol.parse_outline('\\n'.join(lines))",
+   "timeout_s": 6,
+   "expected": {
+    "value": [
+     "error",
+     240001,
+     "inconsistent dedent"
+    ]
+   }
+  }
+ ]
+}

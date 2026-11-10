@@ -1,0 +1,12 @@
+{
+ "slug": "half-precision-from-decimal",
+ "n": 800,
+ "agree": 800,
+ "status": "ok",
+ "outcomes": {
+  "ok": 710,
+  "exc": 90
+ },
+ "seconds": 0.05,
+ "mismatches": []
+}

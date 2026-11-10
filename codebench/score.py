@@ -6,6 +6,8 @@ Usage:
   python -m codebench.score data/outputs/code-bench-v4__*.json --tests strict   # v4-strict suite
 --tests picks the suite: v4 (default, tests/<slug>.json) or strict (tests/strict/<slug>.json).
 --jobs N scores N problems concurrently (default 1).
+  python -m codebench.score data/outputs/code-bench-hard-v1__<tag>.json   # hard tier (suite inferred from the name)
+--suite forces a suite (default: inferred from the filename; anything not code-bench-hard-v1__* is v4).
 --write stores the new scores back into the file under "scores" (keeping any stored July
 scores under "scores_july").
 """
@@ -15,6 +17,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from . import harness
 from .harness import ROOT, load_problems, load_tests, score_candidate, extract_code
 
 OUT = ROOT / "data" / "outputs"
@@ -37,6 +40,8 @@ def score_file(path, write=False, verbose=False, suite="v4", jobs=1):
         p = probs[r["title"]]
         code = r["code"] if isinstance(r["code"], str) else extract_code(str(r["code"] or ""))
         refused = bool((r.get("metadata") or {}).get("refused")) or (r.get("metadata") or {}).get("empty_output") is True and not code.strip()
+        if (r.get("metadata") or {}).get("truncated"):
+            refused = False  # hit max_tokens: counted as a failed attempt, not a refusal
         if write and suite != "v4":
             r.setdefault("scores_by_suite", {})[suite] = {"checker": s["checker"], "tests_ratio": s["tests_ratio"], "pass": s["pass"]}
             r.setdefault("detail_by_suite", {})[suite] = s["detail"]
@@ -56,7 +61,7 @@ def score_file(path, write=False, verbose=False, suite="v4", jobs=1):
         Path(path).write_text(json.dumps(rows, indent=1, ensure_ascii=False))
     att = tot["attempted"]
     print("[%s] %s: pass %d/%d (%.0f%% raw, %.0f%% when attempted) | tests_ratio %.3f | checker %.3f | refused %d" % (
-        suite, Path(path).name, tot["pass"], tot["n"], 100 * tot["pass"] / tot["n"], 100 * tot["pass"] / att if att else 0,
+        suite if suite != "v4" else harness.SUITE, Path(path).name, tot["pass"], tot["n"], 100 * tot["pass"] / tot["n"], 100 * tot["pass"] / att if att else 0,
         tot["ratio"] / tot["n"], tot["checker"] / tot["n"], tot["refused"]))
     for c, (p_, rf, n) in sorted(by_cat.items()):
         print("   %-16s %d/%d%s" % (c, p_, n, "  (refused %d)" % rf if rf else ""))
@@ -71,11 +76,13 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--tests", choices=["v4", "strict"], default="v4", help="test suite (default v4)")
     ap.add_argument("--jobs", type=int, default=1)
+    ap.add_argument("--suite", choices=sorted(harness.SUITES), help="default: inferred from each filename")
     a = ap.parse_args()
     files = list(a.files)
     if a.all_v3:
         files += sorted(str(p) for p in OUT.glob("code-bench-v3__*.json"))
     for f in files:
+        harness.use_suite(a.suite or harness.suite_for_output(f))
         score_file(f, a.write, a.verbose, suite=a.tests, jobs=a.jobs)
 
 

@@ -1,0 +1,1 @@
+{"id": "hard-statement-renderer-overdraft", "title": "Account statement renderer with automatic overdraft fees", "category": "spec_compliance", "entry_point": "render_statement"}

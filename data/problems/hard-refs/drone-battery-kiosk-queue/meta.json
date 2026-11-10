@@ -1,0 +1,1 @@
+{"id": "hard-drone-battery-kiosk-queue", "title": "Drone battery-swap kiosk with charging slots and impatient queue", "category": "state_machines", "entry_point": "run_kiosk"}

@@ -1,0 +1,1 @@
+{"id": "hard-half-precision-from-decimal", "title": "Correctly rounded decimal string to binary16 bits", "category": "numeric", "entry_point": "decimal_to_half_bits"}

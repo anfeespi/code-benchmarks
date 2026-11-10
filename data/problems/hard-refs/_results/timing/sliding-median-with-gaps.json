@@ -1,0 +1,20 @@
+{
+ "slug": "sliding-median-with-gaps",
+ "cases": [
+  {
+   "case": "stress_long_window",
+   "seconds": 0.171,
+   "timeout_s": 10,
+   "margin": 58.5,
+   "ok": true
+  },
+  {
+   "case": "stress_dupes_and_gaps",
+   "seconds": 0.154,
+   "timeout_s": 10,
+   "margin": 65.0,
+   "ok": true
+  }
+ ],
+ "min_margin": 58.5
+}

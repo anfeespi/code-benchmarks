@@ -1,0 +1,27 @@
+{
+ "slug": "transit-boarding-limit",
+ "cases": [
+  {
+   "case": "stress_transfer_chain_with_noise",
+   "seconds": 0.112,
+   "timeout_s": 20,
+   "margin": 178.8,
+   "ok": true
+  },
+  {
+   "case": "stress_random_network",
+   "seconds": 0.344,
+   "timeout_s": 20,
+   "margin": 58.1,
+   "ok": true
+  },
+  {
+   "case": "stress_long_seated_trips",
+   "seconds": 0.141,
+   "timeout_s": 20,
+   "margin": 142.0,
+   "ok": true
+  }
+ ],
+ "min_margin": 58.1
+}

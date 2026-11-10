@@ -1,0 +1,12 @@
+{
+ "slug": "lock-manager-deadlock-victims",
+ "n": 800,
+ "agree": 800,
+ "status": "ok",
+ "outcomes": {
+  "ok": 800,
+  "exc": 0
+ },
+ "seconds": 0.04,
+ "mismatches": []
+}

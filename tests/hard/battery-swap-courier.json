@@ -1,0 +1,372 @@
+{
+ "title": "Fastest courier route with battery swaps and regenerative roads",
+ "entry_point": "fastest_delivery",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 3), (1, 3, 1, 3), (0, 2, 5, 1), (2, 3, 5, 1)], [1], 3, 2, 1, 0, 3)",
+   "expected": {
+    "value": [
+     4,
+     1
+    ]
+   }
+  },
+  {
+   "name": "example_2_no_swaps",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 3), (1, 3, 1, 3), (0, 2, 5, 1), (2, 3, 5, 1)], [1], 3, 2, 0, 0, 3)",
+   "expected": {
+    "value": [
+     10,
+     0
+    ]
+   }
+  },
+  {
+   "name": "example_3_swap_budget_trap",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 4), (1, 2, 1, 1), (0, 2, 5, 1), (2, 3, 1, 4)], [1, 2], 4, 1, 1, 0, 3)",
+   "expected": {
+    "value": [
+     7,
+     1
+    ]
+   }
+  },
+  {
+   "name": "example_4_regen_cap",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 4), (1, 2, 1, -5), (2, 3, 1, 5)], [], 5, 9, 0, 0, 3)",
+   "expected": {
+    "value": [
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "name": "same_node",
+   "code": "result = sol.fastest_delivery(1, [], [], 0, 0, 0, 0, 0)",
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "unreachable",
+   "code": "result = sol.fastest_delivery(3, [(1, 0, 1, 0), (0, 1, 1, 5)], [0], 4, 1, 3, 0, 2)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "directed_only",
+   "code": "result = sol.fastest_delivery(2, [(1, 0, 1, 0)], [], 1, 0, 0, 0, 1)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "zero_capacity_neutral_only",
+   "code": "result = sol.fastest_delivery(3, [(0, 1, 2, 0), (1, 2, 2, 1), (0, 2, 9, 0)], [0, 1, 2], 0, 0, 6, 0, 2)",
+   "expected": {
+    "value": [
+     9,
+     0
+    ]
+   }
+  },
+  {
+   "name": "zero_time_swap_tiebreak",
+   "code": "result = sol.fastest_delivery(3, [(0, 1, 1, 2), (1, 2, 1, 2), (0, 2, 2, 1)], [0, 1], 2, 0, 3, 0, 2)",
+   "expected": {
+    "value": [
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "name": "swap_at_start_station",
+   "code": "result = sol.fastest_delivery(3, [(0, 1, 1, 2), (1, 0, 1, 0), (0, 2, 1, 3)], [0], 3, 4, 2, 0, 2)",
+   "expected": {
+    "value": [
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "regen_loop_instead_of_swap",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 3), (1, 2, 2, -2), (2, 1, 2, -1), (1, 3, 1, 3)], [1], 3, 10, 2, 0, 3)",
+   "expected": {
+    "value": [
+     6,
+     0
+    ]
+   }
+  },
+  {
+   "name": "exact_zero_arrival",
+   "code": "result = sol.fastest_delivery(3, [(0, 1, 3, 2), (1, 2, 3, 3)], [], 5, 0, 0, 0, 2)",
+   "expected": {
+    "value": [
+     6,
+     0
+    ]
+   }
+  },
+  {
+   "name": "two_swaps_needed",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 2), (1, 2, 1, 2), (2, 3, 1, 2)], [1, 2, 2], 2, 3, 2, 0, 3)",
+   "expected": {
+    "value": [
+     9,
+     2
+    ]
+   }
+  },
+  {
+   "name": "two_swaps_needed_budget_one",
+   "code": "result = sol.fastest_delivery(4, [(0, 1, 1, 2), (1, 2, 1, 2), (2, 3, 1, 2)], [1, 2], 2, 3, 1, 0, 3)",
+   "expected": {
+    "value": null
+   }
+  },
+  {
+   "name": "parallel_and_self_loops",
+   "code": "result = sol.fastest_delivery(3, [(0, 0, 0, -1), (0, 1, 4, 2), (0, 1, 1, 3), (1, 1, 0, 1), (1, 2, 0, 1)], [], 3, 0, 0, 0, 2)",
+   "expected": {
+    "value": [
+     4,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_small_1",
+   "code": "import random\nr = random.Random(101)\nout = []\nfor _ in range(40):\n    n = r.randint(2, 8); cap = r.randint(0, 6)\n    roads = [(r.randrange(n), r.randrange(n), r.randint(0, 6), r.randint(-cap, cap)) for _ in range(r.randint(1, 18))]\n    st = [r.randrange(n) for _ in range(r.randint(0, 3))]\n    out.append(sol.fastest_delivery(n, roads, st, cap, r.randint(0, 4), r.randint(0, 3), r.randrange(n), r.randrange(n)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      1,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      4,
+      0
+     ],
+     null,
+     null,
+     [
+      8,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     null,
+     [
+      0,
+      0
+     ],
+     null,
+     null,
+     [
+      0,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     null,
+     [
+      6,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      5,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     null,
+     [
+      5,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     null,
+     [
+      0,
+      0
+     ],
+     null,
+     [
+      2,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     null,
+     [
+      7,
+      1
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      1,
+      0
+     ],
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "random_medium",
+   "code": "import random\nr = random.Random(202)\nout = []\nfor _ in range(10):\n    n = 30; cap = r.randint(5, 15)\n    roads = [(r.randrange(n), r.randrange(n), r.randint(0, 50), r.randint(-cap // 2, cap)) for _ in range(150)]\n    st = r.sample(range(n), 5)\n    out.append(sol.fastest_delivery(n, roads, st, cap, r.randint(0, 30), r.randint(0, 4), 0, n - 1))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      54,
+      0
+     ],
+     [
+      19,
+      0
+     ],
+     [
+      31,
+      0
+     ],
+     [
+      56,
+      0
+     ],
+     [
+      87,
+      0
+     ],
+     [
+      31,
+      0
+     ],
+     [
+      41,
+      0
+     ],
+     [
+      24,
+      0
+     ],
+     [
+      18,
+      0
+     ],
+     [
+      86,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_random_dense",
+   "code": "import random\nr = random.Random(303)\nn = 200; cap = 40\nroads = [(r.randrange(n), r.randrange(n), r.randint(0, 10**6), r.randint(-20, 40)) for _ in range(1500)]\nst = r.sample(range(n), 40)\nresult = [sol.fastest_delivery(n, roads, st, cap, r.randint(0, 10**6), 6, 0, t) for t in (199, 57)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     [
+      1065303,
+      0
+     ],
+     [
+      1149870,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_reversed_chain",
+   "code": "n = 200; cap = 40\nroads = []\nfor i in range(n - 1):\n    roads.append((i, i + 1, 7, 13))\n    roads.append((i, i + 1, 3, 29))\n    roads.append((i + 1, i, 1, -11))\n    roads.append((i, i, 2, -9))\nroads.reverse()\nst = list(range(0, n, 9))\nresult = [sol.fastest_delivery(n, roads, st, cap, 5, 6, 0, n - 1), sol.fastest_delivery(n, roads, st, cap, 5, 6, 0, 37)]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     [
+      1853,
+      6
+     ],
+     [
+      331,
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "name": "stress_layered",
+   "code": "import random\nr = random.Random(404)\nn = 200; cap = 40\nroads = []\nfor i in range(n - 10):\n    for d in range(1, 9):\n        roads.append((i, i + d, r.randint(1, 1000), r.randint(-10, 40)))\nroads.reverse()\nst = [x for x in range(n) if x % 5 == 0]\nresult = sol.fastest_delivery(n, roads, st, cap, 250, 6, 0, n - 11)",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     5636,
+     2
+    ]
+   }
+  }
+ ]
+}

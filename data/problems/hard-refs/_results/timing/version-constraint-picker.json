@@ -1,0 +1,20 @@
+{
+ "slug": "version-constraint-picker",
+ "cases": [
+  {
+   "case": "stress_many_versions",
+   "seconds": 0.838,
+   "timeout_s": 20,
+   "margin": 23.9,
+   "ok": true
+  },
+  {
+   "case": "stress_long_constraint",
+   "seconds": 0.153,
+   "timeout_s": 20,
+   "margin": 130.4,
+   "ok": true
+  }
+ ],
+ "min_margin": 23.9
+}

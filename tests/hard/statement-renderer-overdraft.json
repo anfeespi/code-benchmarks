@@ -1,0 +1,624 @@
+{
+ "title": "Account statement renderer with automatic overdraft fees",
+ "entry_point": "render_statement",
+ "cases": [
+  {
+   "name": "example_1",
+   "code": "result = sol.render_statement('10.00', [('2024-03-01', 'debit', '15', 'rent part'), ('2024-03-01', 'debit', '1.5', 'snack'), ('2024-03-02', 'credit', '1000', '  pay   check  ')])",
+   "expected": {
+    "value": [
+     "Opening balance: 10.00",
+     "2024-03-01  rent part                     -15.00            -5.00 OD",
+     "2024-03-01  OVERDRAFT FEE                 -25.00           -30.00 OD",
+     "2024-03-01  snack                          -1.50           -31.50 OD",
+     "2024-03-02  pay check                  +1,000.00           968.50",
+     "Closing balance: 968.50",
+     "Credits: 1  Debits: 2  Fees: 1"
+    ]
+   }
+  },
+  {
+   "name": "example_out_of_order",
+   "code": "try:\n    sol.render_statement('0.00', [('2024-01-02', 'fee', '3', 'x'), ('2024-01-01', 'credit', '5', 'y')])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "entry 1: date out of order"
+    ]
+   }
+  },
+  {
+   "name": "example_bad_opening",
+   "code": "try:\n    sol.render_statement('5', [])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "opening: bad amount '5'"
+    ]
+   }
+  },
+  {
+   "name": "empty_entries_negative_zero",
+   "code": "result = sol.render_statement('-0.00', [])",
+   "expected": {
+    "value": [
+     "Opening balance: 0.00",
+     "Closing balance: 0.00",
+     "Credits: 0  Debits: 0  Fees: 0"
+    ]
+   }
+  },
+  {
+   "name": "negative_opening_grouping",
+   "code": "result = sol.render_statement('-1234567.89', [('2024-01-01', 'credit', '0.05', 'tiny'), ('2024-01-01', 'credit', '1234567.84', 'big one')])",
+   "expected": {
+    "value": [
+     "Opening balance: -1,234,567.89",
+     "2024-01-01  tiny                           +0.05    -1,234,567.84 OD",
+     "2024-01-01  big one                +1,234,567.84             0.00",
+     "Closing balance: 0.00",
+     "Credits: 2  Debits: 0  Fees: 0"
+    ]
+   }
+  },
+  {
+   "name": "manual_fee_no_trigger_then_debit",
+   "code": "result = sol.render_statement('1.00', [('2024-05-05', 'fee', '2', 'manual fee'), ('2024-05-05', 'debit', '0.01', 'still neg'), ('2024-05-05', 'debit', '1', 'again'), ('2024-05-06', 'debit', '0.5', 'next day')])",
+   "expected": {
+    "value": [
+     "Opening balance: 1.00",
+     "2024-05-05  manual fee                     -2.00            -1.00 OD",
+     "2024-05-05  still neg                      -0.01            -1.01 OD",
+     "2024-05-05  OVERDRAFT FEE                 -25.00           -26.01 OD",
+     "2024-05-05  again                          -1.00           -27.01 OD",
+     "2024-05-06  next day                       -0.50           -27.51 OD",
+     "2024-05-06  OVERDRAFT FEE                 -25.00           -52.51 OD",
+     "Closing balance: -52.51",
+     "Credits: 0  Debits: 3  Fees: 3"
+    ]
+   }
+  },
+  {
+   "name": "debit_to_exact_zero_no_fee",
+   "code": "result = sol.render_statement('20.00', [('2024-05-05', 'debit', '20', 'all of it'), ('2024-05-05', 'debit', '0.1', 'now negative')])",
+   "expected": {
+    "value": [
+     "Opening balance: 20.00",
+     "2024-05-05  all of it                     -20.00             0.00",
+     "2024-05-05  now negative                   -0.10            -0.10 OD",
+     "2024-05-05  OVERDRAFT FEE                 -25.00           -25.10 OD",
+     "Closing balance: -25.10",
+     "Credits: 0  Debits: 2  Fees: 1"
+    ]
+   }
+  },
+  {
+   "name": "memo_truncation_boundaries",
+   "code": "result = sol.render_statement('100.00', [('2024-01-01', 'credit', '1', 'a' * 20), ('2024-01-01', 'credit', '1', 'b' * 21), ('2024-01-01', 'credit', '1', ' one  two\\u00a0 three   four five six '), ('2024-01-01', 'credit', '1', 'x')])",
+   "expected": {
+    "value": [
+     "Opening balance: 100.00",
+     "2024-01-01  aaaaaaaaaaaaaaaaaaaa           +1.00           101.00",
+     "2024-01-01  bbbbbbbbbbbbbbbbbbb~           +1.00           102.00",
+     "2024-01-01  one two three four ~           +1.00           103.00",
+     "2024-01-01  x                              +1.00           104.00",
+     "Closing balance: 104.00",
+     "Credits: 4  Debits: 0  Fees: 0"
+    ]
+   }
+  },
+  {
+   "name": "wide_amount_not_truncated",
+   "code": "result = sol.render_statement('999999999.99', [('2999-12-31', 'credit', '999999999.99', 'max'), ('2999-12-31', 'debit', '999999999.99', 'max'), ('2999-12-31', 'debit', '999999999.99', 'max'), ('2999-12-31', 'debit', '999999999.99', 'max')])",
+   "expected": {
+    "value": [
+     "Opening balance: 999,999,999.99",
+     "2999-12-31  max                   +999,999,999.99  1,999,999,999.98",
+     "2999-12-31  max                   -999,999,999.99   999,999,999.99",
+     "2999-12-31  max                   -999,999,999.99             0.00",
+     "2999-12-31  max                   -999,999,999.99  -999,999,999.99 OD",
+     "2999-12-31  OVERDRAFT FEE                 -25.00  -1,000,000,024.99 OD",
+     "Closing balance: -1,000,000,024.99",
+     "Credits: 1  Debits: 3  Fees: 1"
+    ]
+   }
+  },
+  {
+   "name": "leap_days",
+   "code": "out = []\nfor d in ['2024-02-29', '2000-02-29', '1900-02-29', '2023-02-29']:\n    try:\n        out.append(sol.render_statement('0.00', [(d, 'credit', '1', 'leap')])[1])\n    except Exception as e:\n        out.append((type(e).__name__, str(e)))\nresult = out",
+   "expected": {
+    "value": [
+     "2024-02-29  leap                           +1.00             1.00",
+     "2000-02-29  leap                           +1.00             1.00",
+     [
+      "ValueError",
+      "entry 0: bad date '1900-02-29'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '2023-02-29'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "validation_before_output",
+   "code": "try:\n    sol.render_statement('0.00', [('2024-01-01', 'debit', '5', 'ok'), ('2024-01-01', 'debit', '5', 'bad\\tmemo')])\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "ValueError",
+     "entry 1: bad memo"
+    ]
+   }
+  },
+  {
+   "name": "check_order_within_entry",
+   "code": "out = []\nfor e in [('2024-13-01', 'refund', '0', ''), ('2024-01-01', 'refund', '0', ''), ('2024-01-01', 'debit', '0', ''), ('2024-01-01', 'debit', '1', '   '), ['2024-01-01', 'debit', '1', 'x'], ('2024-01-01', 'debit', '1')]:\n    try:\n        sol.render_statement('1.00', [('2024-02-01', 'credit', '1', 'first'), e])\n        out.append('no error')\n    except Exception as ex:\n        out.append((type(ex).__name__, str(ex)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "entry 1: bad date '2024-13-01'"
+     ],
+     [
+      "ValueError",
+      "entry 1: date out of order"
+     ],
+     [
+      "ValueError",
+      "entry 1: date out of order"
+     ],
+     [
+      "ValueError",
+      "entry 1: date out of order"
+     ],
+     [
+      "TypeError",
+      "entry 1: expected 4-tuple"
+     ],
+     [
+      "TypeError",
+      "entry 1: expected 4-tuple"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "bad_amount_forms",
+   "code": "out = []\nfor a in ['01', '1.', '.5', '1.234', '+5', '1,000', '1000000000', '0.00', 5, '00.5', '5 ']:\n    try:\n        sol.render_statement('1.00', [('2024-01-01', 'debit', a, 'x')])\n        out.append('no error')\n    except Exception as ex:\n        out.append((type(ex).__name__, str(ex)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "entry 0: bad amount '01'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '1.'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '.5'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '1.234'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '+5'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '1,000'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '1000000000'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '0.00'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount 5"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '00.5'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad amount '5 '"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "bad_opening_forms",
+   "code": "out = []\nfor o in ['5.0', '05.00', '+1.00', '1.000', 5, None, '1,000.00', '-', '1000000000.00']:\n    try:\n        sol.render_statement(o, [])\n        out.append('no error')\n    except Exception as ex:\n        out.append((type(ex).__name__, str(ex)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "opening: bad amount '5.0'"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '05.00'"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '+1.00'"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '1.000'"
+     ],
+     [
+      "TypeError",
+      "opening must be a str"
+     ],
+     [
+      "TypeError",
+      "opening must be a str"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '1,000.00'"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '-'"
+     ],
+     [
+      "ValueError",
+      "opening: bad amount '1000000000.00'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "entries_not_list",
+   "code": "try:\n    sol.render_statement('1.00', (('2024-01-01', 'debit', '1', 'x'),))\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "expected": {
+    "value": [
+     "TypeError",
+     "entries must be a list"
+    ]
+   }
+  },
+  {
+   "name": "bad_dates_repr",
+   "code": "out = []\nfor d in ['2024/01/01', '2024-1-01', None, 20240101, '1899-12-31', '3000-01-01', '2024-04-31', '2024-01-01 ']:\n    try:\n        sol.render_statement('1.00', [(d, 'debit', '1', 'x')])\n        out.append('no error')\n    except Exception as ex:\n        out.append((type(ex).__name__, str(ex)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "entry 0: bad date '2024/01/01'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '2024-1-01'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date None"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date 20240101"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '1899-12-31'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '3000-01-01'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '2024-04-31'"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad date '2024-01-01 '"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "control_chars_memo",
+   "code": "out = []\nfor m in ['ok\\x7f', 'ok\\x1f', 'ok\\n', '\\u00a0', 'ok\\u0085x', 'caf\\u00e9']:\n    try:\n        out.append(sol.render_statement('1.00', [('2024-01-01', 'credit', '1', m)])[1])\n    except Exception as ex:\n        out.append((type(ex).__name__, str(ex)))\nresult = out",
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      "entry 0: bad memo"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad memo"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad memo"
+     ],
+     [
+      "ValueError",
+      "entry 0: bad memo"
+     ],
+     "2024-01-01  ok x                           +1.00             2.00",
+     "2024-01-01  café                           +1.00             2.00"
+    ]
+   }
+  },
+  {
+   "name": "one_fee_per_date_many_dates",
+   "code": "result = sol.render_statement('0.00', [('2024-01-0%d' % d, k, '10', 'm%d' % d) for d in range(1, 8) for k in ('debit', 'credit', 'debit')])",
+   "expected": {
+    "value": [
+     "Opening balance: 0.00",
+     "2024-01-01  m1                            -10.00           -10.00 OD",
+     "2024-01-01  OVERDRAFT FEE                 -25.00           -35.00 OD",
+     "2024-01-01  m1                            +10.00           -25.00 OD",
+     "2024-01-01  m1                            -10.00           -35.00 OD",
+     "2024-01-02  m2                            -10.00           -45.00 OD",
+     "2024-01-02  OVERDRAFT FEE                 -25.00           -70.00 OD",
+     "2024-01-02  m2                            +10.00           -60.00 OD",
+     "2024-01-02  m2                            -10.00           -70.00 OD",
+     "2024-01-03  m3                            -10.00           -80.00 OD",
+     "2024-01-03  OVERDRAFT FEE                 -25.00          -105.00 OD",
+     "2024-01-03  m3                            +10.00           -95.00 OD",
+     "2024-01-03  m3                            -10.00          -105.00 OD",
+     "2024-01-04  m4                            -10.00          -115.00 OD",
+     "2024-01-04  OVERDRAFT FEE                 -25.00          -140.00 OD",
+     "2024-01-04  m4                            +10.00          -130.00 OD",
+     "2024-01-04  m4                            -10.00          -140.00 OD",
+     "2024-01-05  m5                            -10.00          -150.00 OD",
+     "2024-01-05  OVERDRAFT FEE                 -25.00          -175.00 OD",
+     "2024-01-05  m5                            +10.00          -165.00 OD",
+     "2024-01-05  m5                            -10.00          -175.00 OD",
+     "2024-01-06  m6                            -10.00          -185.00 OD",
+     "2024-01-06  OVERDRAFT FEE                 -25.00          -210.00 OD",
+     "2024-01-06  m6                            +10.00          -200.00 OD",
+     "2024-01-06  m6                            -10.00          -210.00 OD",
+     "2024-01-07  m7                            -10.00          -220.00 OD",
+     "2024-01-07  OVERDRAFT FEE                 -25.00          -245.00 OD",
+     "2024-01-07  m7                            +10.00          -235.00 OD",
+     "2024-01-07  m7                            -10.00          -245.00 OD",
+     "Closing balance: -245.00",
+     "Credits: 7  Debits: 14  Fees: 7"
+    ]
+   }
+  },
+  {
+   "name": "random_1",
+   "code": "import random\nr = random.Random(31)\nds = sorted('2024-%02d-%02d' % (r.randint(1, 12), r.randint(1, 28)) for _ in range(60))\nresult = sol.render_statement('50.00', [(d, r.choice(['credit', 'debit', 'debit', 'fee']), str(r.randint(1, 9999)) + r.choice(['', '.5', '.05', '.99']), r.choice(['a', ' b  c ', 'long memo ' * 3])) for d in ds])",
+   "expected": {
+    "value": [
+     "Opening balance: 50.00",
+     "2024-01-02  long memo long memo~       +4,386.00         4,436.00",
+     "2024-01-09  b c                        +3,181.50         7,617.50",
+     "2024-01-16  a                          -2,489.99         5,127.51",
+     "2024-01-18  b c                        -8,390.05        -3,262.54 OD",
+     "2024-02-01  a                          -9,678.00       -12,940.54 OD",
+     "2024-02-06  a                          -2,260.99       -15,201.53 OD",
+     "2024-02-24  b c                        -8,025.99       -23,227.52 OD",
+     "2024-02-24  OVERDRAFT FEE                 -25.00       -23,252.52 OD",
+     "2024-02-25  b c                          -184.00       -23,436.52 OD",
+     "2024-02-25  OVERDRAFT FEE                 -25.00       -23,461.52 OD",
+     "2024-03-04  a                          -7,305.50       -30,767.02 OD",
+     "2024-03-04  OVERDRAFT FEE                 -25.00       -30,792.02 OD",
+     "2024-03-05  long memo long memo~       -2,046.00       -32,838.02 OD",
+     "2024-03-05  OVERDRAFT FEE                 -25.00       -32,863.02 OD",
+     "2024-03-07  long memo long memo~       -3,168.05       -36,031.07 OD",
+     "2024-03-07  OVERDRAFT FEE                 -25.00       -36,056.07 OD",
+     "2024-03-08  long memo long memo~       -9,085.99       -45,142.06 OD",
+     "2024-03-08  OVERDRAFT FEE                 -25.00       -45,167.06 OD",
+     "2024-03-12  long memo long memo~       -3,719.50       -48,886.56 OD",
+     "2024-03-27  b c                        -5,055.99       -53,942.55 OD",
+     "2024-04-01  long memo long memo~       -6,088.00       -60,030.55 OD",
+     "2024-04-01  OVERDRAFT FEE                 -25.00       -60,055.55 OD",
+     "2024-04-04  long memo long memo~       -3,139.05       -63,194.60 OD",
+     "2024-04-04  OVERDRAFT FEE                 -25.00       -63,219.60 OD",
+     "2024-04-07  a                          -9,499.50       -72,719.10 OD",
+     "2024-04-07  a                          +6,962.50       -65,756.60 OD",
+     "2024-04-07  a                          -6,238.05       -71,994.65 OD",
+     "2024-04-07  OVERDRAFT FEE                 -25.00       -72,019.65 OD",
+     "2024-04-16  b c                        -5,030.50       -77,050.15 OD",
+     "2024-05-06  long memo long memo~         +541.99       -76,508.16 OD",
+     "2024-05-10  b c                        -4,241.50       -80,749.66 OD",
+     "2024-05-10  OVERDRAFT FEE                 -25.00       -80,774.66 OD",
+     "2024-06-07  a                          -3,450.99       -84,225.65 OD",
+     "2024-06-07  OVERDRAFT FEE                 -25.00       -84,250.65 OD",
+     "2024-06-07  a                          -6,294.50       -90,545.15 OD",
+     "2024-06-10  b c                        -5,276.05       -95,821.20 OD",
+     "2024-06-10  OVERDRAFT FEE                 -25.00       -95,846.20 OD",
+     "2024-06-13  a                          -1,841.50       -97,687.70 OD",
+     "2024-06-13  OVERDRAFT FEE                 -25.00       -97,712.70 OD",
+     "2024-06-15  b c                        -7,857.99      -105,570.69 OD",
+     "2024-06-15  OVERDRAFT FEE                 -25.00      -105,595.69 OD",
+     "2024-06-19  a                          -2,975.99      -108,571.68 OD",
+     "2024-06-19  OVERDRAFT FEE                 -25.00      -108,596.68 OD",
+     "2024-06-20  b c                        +7,905.50      -100,691.18 OD",
+     "2024-06-21  b c                           -92.00      -100,783.18 OD",
+     "2024-07-01  b c                        -4,465.05      -105,248.23 OD",
+     "2024-07-05  b c                        -9,493.05      -114,741.28 OD",
+     "2024-07-05  OVERDRAFT FEE                 -25.00      -114,766.28 OD",
+     "2024-07-07  long memo long memo~       -3,917.50      -118,683.78 OD",
+     "2024-07-07  OVERDRAFT FEE                 -25.00      -118,708.78 OD",
+     "2024-07-11  a                          -1,573.50      -120,282.28 OD",
+     "2024-07-11  OVERDRAFT FEE                 -25.00      -120,307.28 OD",
+     "2024-07-16  b c                        -8,888.99      -129,196.27 OD",
+     "2024-07-16  OVERDRAFT FEE                 -25.00      -129,221.27 OD",
+     "2024-07-19  b c                        -8,509.05      -137,730.32 OD",
+     "2024-07-24  long memo long memo~       -6,521.50      -144,251.82 OD",
+     "2024-07-26  long memo long memo~       -6,729.00      -150,980.82 OD",
+     "2024-07-26  OVERDRAFT FEE                 -25.00      -151,005.82 OD",
+     "2024-08-07  b c                        -3,923.00      -154,928.82 OD",
+     "2024-08-07  OVERDRAFT FEE                 -25.00      -154,953.82 OD",
+     "2024-08-17  long memo long memo~       -4,472.00      -159,425.82 OD",
+     "2024-08-17  OVERDRAFT FEE                 -25.00      -159,450.82 OD",
+     "2024-08-21  long memo long memo~       +5,371.50      -154,079.32 OD",
+     "2024-09-08  a                          -7,006.50      -161,085.82 OD",
+     "2024-09-20  b c                        -5,123.00      -166,208.82 OD",
+     "2024-09-20  OVERDRAFT FEE                 -25.00      -166,233.82 OD",
+     "2024-09-24  long memo long memo~       -8,823.99      -175,057.81 OD",
+     "2024-09-24  OVERDRAFT FEE                 -25.00      -175,082.81 OD",
+     "2024-09-27  b c                        -1,256.00      -176,338.81 OD",
+     "2024-09-27  OVERDRAFT FEE                 -25.00      -176,363.81 OD",
+     "2024-09-28  b c                        -7,210.05      -183,573.86 OD",
+     "2024-10-03  a                             -56.05      -183,629.91 OD",
+     "2024-10-12  b c                        -1,471.99      -185,101.90 OD",
+     "2024-10-12  OVERDRAFT FEE                 -25.00      -185,126.90 OD",
+     "2024-11-02  b c                        +9,327.99      -175,798.91 OD",
+     "2024-11-02  a                          -3,313.99      -179,112.90 OD",
+     "2024-11-10  long memo long memo~       +7,311.00      -171,801.90 OD",
+     "2024-11-13  a                          -7,389.99      -179,191.89 OD",
+     "2024-11-18  long memo long memo~       -7,015.50      -186,207.39 OD",
+     "2024-11-18  OVERDRAFT FEE                 -25.00      -186,232.39 OD",
+     "2024-11-21  a                          -1,490.99      -187,723.38 OD",
+     "2024-11-21  OVERDRAFT FEE                 -25.00      -187,748.38 OD",
+     "2024-11-27  long memo long memo~       -9,593.05      -197,341.43 OD",
+     "2024-11-27  OVERDRAFT FEE                 -25.00      -197,366.43 OD",
+     "2024-12-02  b c                        -2,051.99      -199,418.42 OD",
+     "2024-12-02  OVERDRAFT FEE                 -25.00      -199,443.42 OD",
+     "2024-12-04  b c                        -4,505.05      -203,948.47 OD",
+     "2024-12-04  OVERDRAFT FEE                 -25.00      -203,973.47 OD",
+     "2024-12-04  long memo long memo~       -5,132.05      -209,105.52 OD",
+     "2024-12-07  a                          -6,885.05      -215,990.57 OD",
+     "2024-12-25  a                          -3,705.05      -219,695.62 OD",
+     "2024-12-25  OVERDRAFT FEE                 -25.00      -219,720.62 OD",
+     "Closing balance: -219,720.62",
+     "Credits: 8  Debits: 33  Fees: 51"
+    ]
+   }
+  },
+  {
+   "name": "random_2",
+   "code": "import random\nr = random.Random(32)\nds = sorted('20%02d-%02d-%02d' % (r.randint(0, 30), r.randint(1, 12), r.randint(1, 28)) for _ in range(80))\nresult = sol.render_statement('-7.07', [(d, r.choice(['credit', 'debit']), str(r.randint(1, 10**8)) + '.' + str(r.randint(0, 9)), 'memo %d' % i) for i, d in enumerate(ds)])",
+   "expected": {
+    "value": [
+     "Opening balance: -7.07",
+     "2000-02-01  memo 0                +42,741,614.50    42,741,607.43",
+     "2000-07-02  memo 1                -24,898,743.90    17,842,863.53",
+     "2000-08-24  memo 2                +83,310,253.50   101,153,117.03",
+     "2000-09-17  memo 3                 +2,950,756.80   104,103,873.83",
+     "2001-02-11  memo 4                +23,871,948.10   127,975,821.93",
+     "2001-09-04  memo 5                +91,481,088.30   219,456,910.23",
+     "2001-09-23  memo 6                -76,180,343.70   143,276,566.53",
+     "2001-10-24  memo 7                +85,418,887.80   228,695,454.33",
+     "2002-01-19  memo 8                +60,034,157.40   288,729,611.73",
+     "2002-01-20  memo 9                +26,468,831.40   315,198,443.13",
+     "2002-02-06  memo 10               +88,235,040.60   403,433,483.73",
+     "2002-04-05  memo 11                +5,230,964.50   408,664,448.23",
+     "2002-06-04  memo 12               -74,303,323.40   334,361,124.83",
+     "2002-08-01  memo 13               +76,786,866.30   411,147,991.13",
+     "2002-12-17  memo 14               -40,559,361.80   370,588,629.33",
+     "2004-04-20  memo 15                +3,647,511.80   374,236,141.13",
+     "2004-10-08  memo 16               -59,746,684.20   314,489,456.93",
+     "2005-12-03  memo 17               -40,227,561.40   274,261,895.53",
+     "2006-11-17  memo 18                  +312,074.70   274,573,970.23",
+     "2007-02-13  memo 19               +20,021,721.00   294,595,691.23",
+     "2007-04-13  memo 20               +56,505,292.30   351,100,983.53",
+     "2007-09-26  memo 21               +81,814,903.00   432,915,886.53",
+     "2007-10-11  memo 22               +37,785,735.20   470,701,621.73",
+     "2007-11-28  memo 23               -50,426,401.80   420,275,219.93",
+     "2008-08-22  memo 24               -48,823,019.70   371,452,200.23",
+     "2009-04-10  memo 25               +75,629,721.70   447,081,921.93",
+     "2009-04-15  memo 26               -34,339,816.20   412,742,105.73",
+     "2009-07-23  memo 27               -46,919,883.80   365,822,221.93",
+     "2009-10-06  memo 28               +46,679,483.60   412,501,705.53",
+     "2009-12-08  memo 29               +91,903,104.10   504,404,809.63",
+     "2010-02-08  memo 30               +89,396,874.50   593,801,684.13",
+     "2010-04-21  memo 31               +73,367,894.90   667,169,579.03",
+     "2010-07-06  memo 32               -37,553,320.10   629,616,258.93",
+     "2010-11-03  memo 33               +82,188,187.70   711,804,446.63",
+     "2011-02-24  memo 34               -56,216,290.00   655,588,156.63",
+     "2011-04-06  memo 35               +91,455,368.60   747,043,525.23",
+     "2011-04-27  memo 36               -93,372,264.00   653,671,261.23",
+     "2011-11-12  memo 37               +74,054,566.90   727,725,828.13",
+     "2012-01-07  memo 38               +46,762,521.60   774,488,349.73",
+     "2012-10-24  memo 39               +90,582,571.20   865,070,920.93",
+     "2014-01-15  memo 40               +84,161,169.10   949,232,090.03",
+     "2014-05-01  memo 41               +54,248,096.10  1,003,480,186.13",
+     "2014-05-24  memo 42               +74,749,031.90  1,078,229,218.03",
+     "2014-07-03  memo 43               +23,808,682.20  1,102,037,900.23",
+     "2015-01-24  memo 44               -59,973,479.80  1,042,064,420.43",
+     "2015-08-28  memo 45               -24,545,494.20  1,017,518,926.23",
+     "2016-06-27  memo 46               -85,319,816.20   932,199,110.03",
+     "2016-10-17  memo 47               -79,838,387.80   852,360,722.23",
+     "2017-02-05  memo 48               +15,878,927.20   868,239,649.43",
+     "2017-05-05  memo 49               -44,831,665.10   823,407,984.33",
+     "2017-12-10  memo 50               +46,369,057.70   869,777,042.03",
+     "2018-01-16  memo 51               +74,500,253.60   944,277,295.63",
+     "2018-03-25  memo 52               +48,127,074.60   992,404,370.23",
+     "2018-10-19  memo 53               +29,712,838.20  1,022,117,208.43",
+     "2019-01-18  memo 54               -29,847,711.70   992,269,496.73",
+     "2019-11-27  memo 55               +75,219,812.30  1,067,489,309.03",
+     "2021-01-01  memo 56               -62,314,518.30  1,005,174,790.73",
+     "2021-05-02  memo 57               -32,176,336.40   972,998,454.33",
+     "2021-07-27  memo 58               +31,388,016.60  1,004,386,470.93",
+     "2022-06-12  memo 59               -11,334,908.80   993,051,562.13",
+     "2023-03-15  memo 60               -93,708,992.10   899,342,570.03",
+     "2024-03-17  memo 61               -25,498,148.10   873,844,421.93",
+     "2024-04-05  memo 62               +36,919,148.50   910,763,570.43",
+     "2024-04-27  memo 63               -13,536,215.60   897,227,354.83",
+     "2024-06-13  memo 64                +8,600,523.70   905,827,878.53",
+     "2024-12-19  memo 65               +94,299,362.60  1,000,127,241.13",
+     "2026-03-15  memo 66               -56,152,865.00   943,974,376.13",
+     "2027-01-05  memo 67               +96,392,709.40  1,040,367,085.53",
+     "2027-06-25  memo 68               +83,739,158.50  1,124,106,244.03",
+     "2027-09-05  memo 69               -18,048,043.70  1,106,058,200.33",
+     "2028-02-17  memo 70               -94,349,251.40  1,011,708,948.93",
+     "2029-01-18  memo 71               -11,040,030.40  1,000,668,918.53",
+     "2029-06-13  memo 72               +92,250,084.40  1,092,919,002.93",
+     "2029-08-06  memo 73               +67,096,613.20  1,160,015,616.13",
+     "2030-01-01  memo 74               +53,621,840.30  1,213,637,456.43",
+     "2030-01-16  memo 75               +84,165,520.00  1,297,802,976.43",
+     "2030-03-01  memo 76                -6,560,250.70  1,291,242,725.73",
+     "2030-06-10  memo 77               -10,370,197.00  1,280,872,528.73",
+     "2030-07-08  memo 78               +90,005,326.00  1,370,877,854.73",
+     "2030-08-12  memo 79               +25,487,795.70  1,396,365,650.43",
+     "Closing balance: 1,396,365,650.43",
+     "Credits: 49  Debits: 31  Fees: 0"
+    ]
+   }
+  },
+  {
+   "name": "stress_long_statement",
+   "code": "import random, hashlib\nr = random.Random(41)\nents = []\nfor d in range(1, 29):\n    for k in range(2000):\n        ents.append(('2024-02-%02d' % d, r.choice(['credit', 'debit', 'debit', 'fee']), str(r.randint(1, 99999)) + '.' + str(r.randint(10, 99)), 'item %d  x' % k))\nout = sol.render_statement('0.00', ents)\nresult = (len(out), out[:3], out[-3:], hashlib.sha256('\\n'.join(out).encode()).hexdigest())",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     56031,
+     [
+      "Opening balance: 0.00",
+      "2024-02-01  item 0 x                  -43,546.39       -43,546.39 OD",
+      "2024-02-01  item 1 x                  -50,546.83       -94,093.22 OD"
+     ],
+     [
+      "2024-02-28  item 1999 x               +31,623.71  -1,385,502,618.33 OD",
+      "Closing balance: -1,385,502,618.33",
+      "Credits: 14145  Debits: 27973  Fees: 13910"
+     ],
+     "d1896f8987e613a1f88ded857c65209e4f94ec9adbefd465f8ddba9e716909a9"
+    ]
+   }
+  },
+  {
+   "name": "stress_late_error",
+   "code": "ents = [('2024-06-01', 'credit', '1.25', 'ok')] * 120000 + [('2024-06-01', 'debit', '1.250', 'bad')]\ntry:\n    sol.render_statement('0.00', ents)\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, str(e))",
+   "timeout_s": 15,
+   "expected": {
+    "value": [
+     "ValueError",
+     "entry 120000: bad amount '1.250'"
+    ]
+   }
+  }
+ ]
+}

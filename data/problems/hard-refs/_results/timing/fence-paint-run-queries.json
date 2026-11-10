@@ -1,0 +1,34 @@
+{
+ "slug": "fence-paint-run-queries",
+ "cases": [
+  {
+   "case": "stress_fragmented_short_paints",
+   "seconds": 0.987,
+   "timeout_s": 20,
+   "margin": 20.3,
+   "ok": true
+  },
+  {
+   "case": "stress_long_paints_two_colors",
+   "seconds": 1.45,
+   "timeout_s": 20,
+   "margin": 13.8,
+   "ok": true
+  },
+  {
+   "case": "stress_distinct_colors",
+   "seconds": 1.223,
+   "timeout_s": 20,
+   "margin": 16.4,
+   "ok": true
+  },
+  {
+   "case": "stress_queries_only_periodic",
+   "seconds": 0.716,
+   "timeout_s": 20,
+   "margin": 27.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 13.8
+}

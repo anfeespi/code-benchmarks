@@ -1,0 +1,1 @@
+{"id": "hard-tokenizer-positions-and-escapes", "title": "Fix the expression tokenizer with positions, escapes and exponents", "category": "bug_fixing", "entry_point": "tokenize"}

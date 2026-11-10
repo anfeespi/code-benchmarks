@@ -1,0 +1,34 @@
+{
+ "slug": "tide-records-with-margin",
+ "cases": [
+  {
+   "case": "stress_random_wide",
+   "seconds": 0.611,
+   "timeout_s": 10,
+   "margin": 16.4,
+   "ok": true
+  },
+  {
+   "case": "stress_rising_long_chains",
+   "seconds": 0.574,
+   "timeout_s": 10,
+   "margin": 17.4,
+   "ok": true
+  },
+  {
+   "case": "stress_plateaus_margin0",
+   "seconds": 0.469,
+   "timeout_s": 10,
+   "margin": 21.3,
+   "ok": true
+  },
+  {
+   "case": "stress_full_windows_staircase",
+   "seconds": 0.247,
+   "timeout_s": 10,
+   "margin": 40.4,
+   "ok": true
+  }
+ ],
+ "min_margin": 16.4
+}

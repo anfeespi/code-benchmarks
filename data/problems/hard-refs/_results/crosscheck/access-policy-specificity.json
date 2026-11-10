@@ -1,0 +1,12 @@
+{
+ "slug": "access-policy-specificity",
+ "n": 1500,
+ "agree": 1500,
+ "status": "ok",
+ "outcomes": {
+  "ok": 1132,
+  "exc": 368
+ },
+ "seconds": 0.08,
+ "mismatches": []
+}

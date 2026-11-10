@@ -1,0 +1,27 @@
+{
+ "slug": "base-k-digit-rounding",
+ "cases": [
+  {
+   "case": "stress_base7",
+   "seconds": 0.06,
+   "timeout_s": 4,
+   "margin": 66.7,
+   "ok": true
+  },
+  {
+   "case": "stress_base10",
+   "seconds": 0.078,
+   "timeout_s": 4,
+   "margin": 51.4,
+   "ok": true
+  },
+  {
+   "case": "stress_base36_tie",
+   "seconds": 0.051,
+   "timeout_s": 6,
+   "margin": 116.6,
+   "ok": true
+  }
+ ],
+ "min_margin": 51.4
+}

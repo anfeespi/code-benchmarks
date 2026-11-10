@@ -1,0 +1,27 @@
+{
+ "slug": "segment-painter-run-merging",
+ "cases": [
+  {
+   "case": "stress_fragmenting_paints",
+   "seconds": 1.617,
+   "timeout_s": 20,
+   "margin": 12.4,
+   "ok": true
+  },
+  {
+   "case": "stress_wipe_and_rebuild",
+   "seconds": 1.404,
+   "timeout_s": 20,
+   "margin": 14.2,
+   "ok": true
+  },
+  {
+   "case": "stress_queries_on_many_runs",
+   "seconds": 0.158,
+   "timeout_s": 20,
+   "margin": 126.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 12.4
+}

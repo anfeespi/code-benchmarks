@@ -1,0 +1,8 @@
+{
+ "slug": "tide-records-with-margin",
+ "stress_cases": 4,
+ "stress_failed": 4,
+ "nonstress_failed": [],
+ "naive_pass": 0,
+ "status": "ok"
+}

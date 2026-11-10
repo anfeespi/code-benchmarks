@@ -1,0 +1,27 @@
+{
+ "slug": "battery-swap-courier",
+ "cases": [
+  {
+   "case": "stress_random_dense",
+   "seconds": 0.152,
+   "timeout_s": 20,
+   "margin": 131.6,
+   "ok": true
+  },
+  {
+   "case": "stress_reversed_chain",
+   "seconds": 0.088,
+   "timeout_s": 20,
+   "margin": 226.7,
+   "ok": true
+  },
+  {
+   "case": "stress_layered",
+   "seconds": 0.083,
+   "timeout_s": 20,
+   "margin": 240.9,
+   "ok": true
+  }
+ ],
+ "min_margin": 131.6
+}

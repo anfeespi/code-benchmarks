@@ -1,0 +1,1 @@
+{"id": "hard-token-bucket-strikes-bans", "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans", "category": "state_machines", "entry_point": "admit_requests"}

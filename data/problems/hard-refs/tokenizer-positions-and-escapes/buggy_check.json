@@ -1,0 +1,59 @@
+{
+ "note": "failed test cases for the buggy prompt code and for single-bug variants (canonical with one bug re-injected)",
+ "failed_cases": {
+  "BUGGY": [
+   "example_1",
+   "example_2",
+   "example_3",
+   "arrow_and_minus_gt",
+   "comment_lines_positions",
+   "comment_then_error_position",
+   "dot_without_digit",
+   "exponent_incomplete",
+   "backslash_at_eof",
+   "backslash_newline",
+   "unterminated_line_3",
+   "unterminated_at_eof_after_comment",
+   "hash_inside_string",
+   "random_valid_program",
+   "random_snippets",
+   "stress_long_program",
+   "stress_huge_string"
+  ],
+  "B1_no_arrow": [
+   "example_1",
+   "arrow_and_minus_gt",
+   "random_valid_program",
+   "stress_long_program",
+   "stress_huge_string"
+  ],
+  "B2_comment_eats_newline": [
+   "example_2",
+   "comment_lines_positions",
+   "comment_then_error_position",
+   "unterminated_at_eof_after_comment",
+   "hash_inside_string",
+   "random_valid_program",
+   "random_snippets",
+   "stress_long_program"
+  ],
+  "B3_dot_greedy": [
+   "dot_without_digit",
+   "random_snippets"
+  ],
+  "B4_exponent_greedy": [
+   "example_2",
+   "exponent_incomplete",
+   "random_snippets",
+   "stress_long_program"
+  ],
+  "B5_unterminated_pos": [
+   "example_3",
+   "backslash_at_eof",
+   "backslash_newline",
+   "unterminated_line_3",
+   "unterminated_at_eof_after_comment",
+   "random_snippets"
+  ]
+ }
+}

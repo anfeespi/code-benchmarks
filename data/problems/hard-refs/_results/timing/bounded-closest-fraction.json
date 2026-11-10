@@ -1,0 +1,20 @@
+{
+ "slug": "bounded-closest-fraction",
+ "cases": [
+  {
+   "case": "stress_long_mantissas",
+   "seconds": 0.073,
+   "timeout_s": 8,
+   "margin": 109.2,
+   "ok": true
+  },
+  {
+   "case": "stress_extreme_exponents",
+   "seconds": 0.041,
+   "timeout_s": 8,
+   "margin": 195.3,
+   "ok": true
+  }
+ ],
+ "min_margin": 109.2
+}

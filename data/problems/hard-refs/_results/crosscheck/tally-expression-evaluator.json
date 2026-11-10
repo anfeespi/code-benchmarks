@@ -1,0 +1,12 @@
+{
+ "slug": "tally-expression-evaluator",
+ "n": 1500,
+ "agree": 1500,
+ "status": "ok",
+ "outcomes": {
+  "ok": 1500,
+  "exc": 0
+ },
+ "seconds": 0.04,
+ "mismatches": []
+}

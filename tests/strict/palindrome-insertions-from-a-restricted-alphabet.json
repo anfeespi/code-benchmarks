@@ -1,0 +1,475 @@
+{
+ "title": "Palindrome insertions from a restricted alphabet",
+ "entry_point": "min_insertions",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "enumerate the set U of unmatched chars (each needs one inserted copy, so U must be allowed); s minus U must be a palindrome"
+ },
+ "cases": [
+  {
+   "name": "v4:example_race",
+   "code": "result = sol.min_insertions('race', 'acer')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:example_abcb",
+   "code": "result = sol.min_insertions('abcb', 'ab')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "v4:example_impossible_empty_alphabet",
+   "code": "result = sol.min_insertions('ab', '')",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "v4:empty_and_single",
+   "code": "result = (sol.min_insertions('', ''), sol.min_insertions('z', ''))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:already_palindrome_no_alphabet",
+   "code": "result = (sol.min_insertions('abcba', ''), sol.min_insertions('abba', ''))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:allowed_as_set",
+   "code": "result = sol.min_insertions('abcb', set(['a', 'b']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "v4:allowed_as_list",
+   "code": "result = sol.min_insertions('race', ['a', 'c', 'e', 'r'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "v4:restricted_alphabet_impossible",
+   "code": "result = sol.min_insertions('abc', 'a')",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "v4:partial_alphabet_possible",
+   "code": "result = (sol.min_insertions('aab', 'b'), sol.min_insertions('aab', 'a'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:large_seeded",
+   "code": "import random\nrnd = random.Random(0)\ns = ''.join(rnd.choice('abc') for _ in range(300))\nresult = (sol.min_insertions(s, 'abc'), sol.min_insertions(s, 'ab'))",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     83,
+     131
+    ]
+   }
+  },
+  {
+   "name": "two_equal_no_alphabet",
+   "code": "result = sol.min_insertions('aa', '')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "two_diff_one_allowed",
+   "code": "result = sol.min_insertions('ab', 'b')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "two_diff_other_allowed",
+   "code": "result = sol.min_insertions('ab', 'a')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "allowed_unrelated_chars",
+   "code": "result = sol.min_insertions('ab', 'xyz')",
+   "timeout_s": 5,
+   "expected": {
+    "value": -1
+   }
+  },
+  {
+   "name": "allowed_tuple",
+   "code": "result = sol.min_insertions('abcb', ('a', 'b'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "allowed_frozenset",
+   "code": "result = sol.min_insertions('race', frozenset({'a', 'c', 'e', 'r'}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "allowed_generator",
+   "code": "result = sol.min_insertions('abcb', (c for c in 'ab'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "allowed_dict_keys",
+   "code": "result = sol.min_insertions('race', {'a': 1, 'c': 2, 'e': 3, 'r': 4}.keys())",
+   "timeout_s": 5,
+   "expected": {
+    "value": 3
+   }
+  },
+  {
+   "name": "allowed_with_duplicates",
+   "code": "result = sol.min_insertions('abc', 'aaabbbccc')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 2
+   }
+  },
+  {
+   "name": "center_char_not_allowed",
+   "code": "result = sol.min_insertions('aba', '')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 0
+   }
+  },
+  {
+   "name": "only_char_not_allowed_inside",
+   "code": "result = sol.min_insertions('abca', 'b')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "only_char_not_allowed_inside_c",
+   "code": "result = sol.min_insertions('abca', 'c')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "punctuation_alphabet",
+   "code": "result = sol.min_insertions('!?', '!')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "space_char",
+   "code": "result = sol.min_insertions('a ', ' ')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "case_sensitive",
+   "code": "result = sol.min_insertions('Aa', 'a')",
+   "timeout_s": 5,
+   "expected": {
+    "value": 1
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [sol.min_insertions(*a) for a in [('baabbbcbc', [' ', 'a', 'b', 'c']), ('acab', {'d'}), ('bab', set()), ('aa ', {'b', 'c'}), ('bb ', {'d'}), ('ab', 'a'), ('', [' ', 'b', 'c', 'd']), ('bca  a', ' abcd'), ('babbabaaa a', [' ', 'd']), ('', {'d'})]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     4,
+     -1,
+     0,
+     -1,
+     -1,
+     1,
+     0,
+     2,
+     -1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [sol.min_insertions(*a) for a in [('bbbbab', {'b'}), ('aabbba caba', [' ', 'b', 'c', 'd']), ('a', {' ', 'a', 'b', 'c', 'd'}), ('bb', {'a', 'b'}), ('bcb cacaab ', {' ', 'b', 'c'}), ('baababc', [' ', 'a', 'd']), ('abb abab', [' ', 'a', 'b', 'd']), ('b ', ['c', 'd']), ('aaca ', 'bd'), ('abaaaab', [])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     6,
+     0,
+     0,
+     6,
+     -1,
+     3,
+     -1,
+     -1,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [sol.min_insertions(*a) for a in [('', [' ']), ('aaaa', 'ac'), ('abbc ', {' ', 'a', 'b', 'c', 'd'}), ('bbb ', ''), ('babb', {'b', 'c', 'd'}), ('babbcba', {'c'}), (' abbbbb ba ', []), ('ca ', [' ', 'a', 'b', 'c', 'd']), ('ab aa bacb', {'a', 'b', 'd'}), ('bbb acabbac', [' '])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     3,
+     -1,
+     1,
+     -1,
+     -1,
+     2,
+     -1,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [sol.min_insertions(*a) for a in [('abbcaba ', {'c', 'd'}), ('cbccb ab', ' abcd'), ('aa  b', ' abcd'), ('b bbcabc', 'bd'), ('cabb', 'd'), ('aaa ', ''), (' aa abaaa', ['b', 'd']), ('bcbab', {' '}), ('abbb', ' abcd'), ('bcbabbcbbb', ' abcd')]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -1,
+     4,
+     3,
+     -1,
+     -1,
+     -1,
+     -1,
+     -1,
+     1,
+     3
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [sol.min_insertions(*a) for a in [(' aa abba ', []), ('b bb b', {' ', 'b', 'd'}), (' ', ' acd'), ('bbaa bacbb', ''), (' ba a', ['a', 'b', 'c']), ('bacababbaab', 'b'), ('', ['a', 'd']), ('  acaabbab', []), (' bbcbbabac', [' ', 'a', 'b', 'c', 'd']), ('ca', {' ', 'a', 'd'})]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -1,
+     0,
+     0,
+     -1,
+     2,
+     -1,
+     0,
+     -1,
+     5,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [sol.min_insertions(*a) for a in [('a ', {'c'}), ('bbbaab', [' ', 'c']), ('ababcaaa', []), ('ab', {'b'}), (' abaaaaabb', 'abcd'), ('a', [' ', 'b', 'd']), ('bacb', ['a']), ('aba ', {' ', 'a', 'b', 'c', 'd'}), ('ababaaabbb', [' ', 'b', 'c', 'd']), ('a', {' ', 'b'})]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -1,
+     -1,
+     -1,
+     1,
+     9,
+     0,
+     1,
+     1,
+     5,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [sol.min_insertions(*a) for a in [('', ' acd'), ('', {' ', 'a', 'b', 'd'}), ('', [' ', 'a', 'b', 'd']), ('babcbb', set()), (' ab', ' abcd'), ('cba bcbbc', ' ab'), ('cbb', ''), ('aab', {'a', 'c'}), ('ababab aaa', 'd'), ('', ' bcd')]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     0,
+     -1,
+     2,
+     2,
+     -1,
+     2,
+     -1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [sol.min_insertions(*a) for a in [('aabbabb', {'a'}), ('abbb', ' abcd'), (' ', []), ('bbbabaaba', {'a'}), ('b', [' ', 'a', 'b', 'c', 'd']), ('aa abbaa', 'a'), ('b', {' ', 'a', 'b', 'c', 'd'}), ('bab bbbbabb', ['d']), ('aba ', {'a'}), ('a abb abb', set())]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1,
+     0,
+     4,
+     0,
+     -1,
+     0,
+     -1,
+     -1,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "result = [sol.min_insertions(*a) for a in [('acbbbbcbb', ' bcd'), ('', ' abcd'), ('a', ' d'), ('bb', set()), ('bcba aabba', [' ', 'b', 'c', 'd']), ('', ' abcd'), ('b caca', [' ', 'a', 'b', 'c', 'd']), ('bababa', 'ad'), ('bbba b', [' ']), ('cba b aa', {' '})]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     8,
+     0,
+     0,
+     0,
+     6,
+     0,
+     3,
+     1,
+     -1,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "result = [sol.min_insertions(*a) for a in [('a a', ['a', 'b', 'd']), ('c', ' abcd'), ('ab', [' ', 'a', 'b', 'c', 'd']), ('  cbcb', [' ', 'a']), ('abc', ' a'), ('bacababa', {' ', 'a', 'c', 'd'}), ('aabc a', ' abcd'), ('aaa', [' ']), ('ac cca', {' '}), ('bcbbbb', {' ', 'a', 'c'})]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     1,
+     -1,
+     -1,
+     3,
+     3,
+     0,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "random_batch_10",
+   "code": "result = [sol.min_insertions(*a) for a in [('aabbbaabaa', {'a', 'b', 'c', 'd'}), ('aac', ' bc'), ('bb b aca', ['a', 'b', 'c']), ('bbacb bba', {' ', 'a', 'b', 'c'}), ('acbcb', {'b', 'c'}), ('bbabbb', ['a', 'c']), ('bab', ' ad'), ('a aba b', ' bcd'), ('bb', ['a']), ('', ' abcd')]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1,
+     5,
+     4,
+     4,
+     1,
+     0,
+     4,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "random_batch_11",
+   "code": "result = [sol.min_insertions(*a) for a in [('bcbbaaaaab', set()), ('cab a a', {' ', 'a'}), ('b', ' abcd'), ('ab', ['a']), ('abbbababca', ' bcd'), ('b abcaaaaaa', {'d'}), ('bbbc', set()), (' cabc', [' ', 'a', 'b']), ('bbaaaabba', {' ', 'a', 'b', 'c', 'd'}), ('cbbc', [' ', 'd'])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     -1,
+     -1,
+     0,
+     1,
+     3,
+     -1,
+     -1,
+     2,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "stress_300_full_alphabet",
+   "code": "import random\nrnd = random.Random(61)\ns = ''.join(chr(rnd.randint(33, 126)) for _ in range(300))\nresult = [sol.min_insertions(s, [chr(i) for i in range(32, 127)]), sol.min_insertions(s, s[:150])]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     247,
+     -1
+    ]
+   }
+  },
+  {
+   "name": "stress_300_restricted",
+   "code": "import random\nrnd = random.Random(62)\ns = ''.join(rnd.choice('abcd') for _ in range(300))\nresult = [sol.min_insertions(s, 'abc'), sol.min_insertions(s, 'abcd'), sol.min_insertions(s, '')]",
+   "timeout_s": 20,
+   "expected": {
+    "value": [
+     153,
+     107,
+     -1
+    ]
+   }
+  }
+ ]
+}

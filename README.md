@@ -7,6 +7,9 @@ were lost; problems and every stored model output come from the Braintrust proje
 
 - `data/problems/code-bench-v2.json` — the 48 problems (prompt, entry point, canonical solution)
 - `tests/<slug>.json` — v4 test cases; `expected` values are generated from the canonical solution
+- `tests/strict/<slug>.json` — **v4-strict** suite: the v4 cases (`v4:*`) plus seeded randomized,
+  edge and stress cases, each problem cross-checked against an independent brute-force reference
+  (specs in `codebench/strict/<category>.py`, built by `codebench/build_strict.py`)
 - `data/outputs/` — model outputs (July v1/v2/v2r/v3 from Braintrust, v4 fresh runs)
 - `codebench/harness.py` — sandboxed execution + scoring (checker / tests_ratio / pass)
 - `codebench/build_tests.py` — author tests, fill expected values
@@ -16,3 +19,8 @@ were lost; problems and every stored model output come from the Braintrust proje
 
 Typical flow: `build_tests show <category>` -> write `tests/<slug>.json` -> `build_tests expect <slug>`
 -> `calibrate --category <c>` -> `generate` -> `score --write` -> `publish`.
+
+v4-strict: `python -m codebench.build_strict build all` regenerates `tests/strict/` (cross-check
+brute vs canonical on >=500 seeded inputs, expected values from the canonical, canonical must pass
+100%); score with `python -m codebench.score data/outputs/code-bench-v4__*.json --tests strict`
+(`--tests v4` is the default); `python -m codebench.build_strict flips all` lists pass->fail flips.

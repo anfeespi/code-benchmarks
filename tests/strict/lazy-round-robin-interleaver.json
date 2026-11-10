@@ -1,0 +1,1254 @@
+{
+ "title": "Lazy round-robin interleaver",
+ "entry_point": "round_robin",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "itertools.zip_longest with a sentinel, sentinel dropped (finite inputs)"
+ },
+ "cases": [
+  {
+   "name": "v4:mixed_example",
+   "code": "result = list(sol.round_robin([[1, 2, 3], 'ab', [10]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     "a",
+     10,
+     2,
+     "b",
+     3
+    ]
+   }
+  },
+  {
+   "name": "v4:empties_mixed_in",
+   "code": "result = list(sol.round_robin([[], [1, 2], []]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:empty_input_list",
+   "code": "result = list(sol.round_robin([]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "v4:all_empty",
+   "code": "result = list(sol.round_robin([[], [], '']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "v4:infinite_islice",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([itertools.count(0), itertools.count(100)]), 4))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     100,
+     1,
+     101
+    ]
+   }
+  },
+  {
+   "name": "v4:iterator_protocol",
+   "code": "it = sol.round_robin([[1, 2]])\nresult = (iter(it) is it, hasattr(it, '__next__'), next(it), next(it))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true,
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:lazy_not_drained_up_front",
+   "code": "class Rec:\n    def __init__(self, n):\n        self.n = n\n        self.i = 0\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.i >= self.n:\n            raise StopIteration\n        self.i += 1\n        return self.i\na = Rec(100)\nb = Rec(100)\nit = sol.round_robin([a, b])\nfirst = [next(it), next(it), next(it)]\nresult = (first, a.i, b.i)\n",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      1,
+      2
+     ],
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "v4:no_over_advance",
+   "code": "class Fuse:\n    def __init__(self, limit):\n        self.limit = limit\n        self.calls = 0\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.calls >= self.limit:\n            raise RuntimeError('over-advanced')\n        self.calls += 1\n        return self.calls * 10\nimport itertools\nf = Fuse(3)\nresult = list(itertools.islice(sol.round_robin([f]), 3))\n",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     10,
+     20,
+     30
+    ]
+   }
+  },
+  {
+   "name": "v4:drop_out_keeps_order",
+   "code": "result = list(sol.round_robin([[1], [2, 3, 4], [5, 6]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     5,
+     3,
+     6,
+     4
+    ]
+   }
+  },
+  {
+   "name": "v4:duplicates_preserved",
+   "code": "result = list(sol.round_robin([[1, 1], [1], [1, 1, 1]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "v4:one_shot_generators",
+   "code": "gens = [(x for x in range(3)), (x for x in 'xy')]\nresult = list(sol.round_robin(gens))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     "x",
+     1,
+     "y",
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:larger_deterministic",
+   "code": "result = list(sol.round_robin([list(range(0, 10)), list(range(100, 103)), list(range(200, 207)), []]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     100,
+     200,
+     1,
+     101,
+     201,
+     2,
+     102,
+     202,
+     3,
+     203,
+     4,
+     204,
+     5,
+     205,
+     6,
+     206,
+     7,
+     8,
+     9
+    ]
+   }
+  },
+  {
+   "name": "single_list",
+   "code": "result = list(sol.round_robin([[1, 2, 3]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "single_string",
+   "code": "result = list(sol.round_robin(['hello']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "h",
+     "e",
+     "l",
+     "l",
+     "o"
+    ]
+   }
+  },
+  {
+   "name": "single_empty",
+   "code": "result = list(sol.round_robin([[]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "empty_first_then_values",
+   "code": "result = list(sol.round_robin([[], 'ab', [], [1]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "a",
+     1,
+     "b"
+    ]
+   }
+  },
+  {
+   "name": "tuple_and_range_inputs",
+   "code": "result = list(sol.round_robin([(1, 2), range(10, 13), iter([7])]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     10,
+     7,
+     2,
+     11,
+     12
+    ]
+   }
+  },
+  {
+   "name": "unicode_string_chars",
+   "code": "result = list(sol.round_robin(['é中', 'x😀']))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "é",
+     "x",
+     "中",
+     "😀"
+    ]
+   }
+  },
+  {
+   "name": "none_values_preserved",
+   "code": "result = list(sol.round_robin([[None, None], [0, None]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     null,
+     0,
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "short_first_long_last",
+   "code": "result = list(sol.round_robin([[1], [], [2, 3, 4, 5]]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "name": "empty_input_next_raises_stopiteration",
+   "code": "it = sol.round_robin([])\ntry:\n    next(it)\n    result = 'no stop'\nexcept StopIteration:\n    result = 'stop'",
+   "timeout_s": 5,
+   "expected": {
+    "value": "stop"
+   }
+  },
+  {
+   "name": "all_empty_iterator_protocol",
+   "code": "it = sol.round_robin([[], ''])\nresult = (iter(it) is it, list(it))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     []
+    ]
+   }
+  },
+  {
+   "name": "generators_mixed_finite_infinite",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([(x for x in 'ab'), itertools.count(5), [9]]), 8))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "a",
+     5,
+     9,
+     "b",
+     6,
+     7,
+     8,
+     9
+    ]
+   }
+  },
+  {
+   "name": "infinite_repeat_with_finite",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([itertools.repeat('r'), [1, 2]]), 7))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "r",
+     1,
+     "r",
+     2,
+     "r",
+     "r",
+     "r"
+    ]
+   }
+  },
+  {
+   "name": "islice_zero_from_infinite",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([itertools.count()]), 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": []
+   }
+  },
+  {
+   "name": "call_does_not_advance_inputs",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\na = Spy(itertools.count(), limit=0)\nb = Spy([1, 2], limit=0)\nit = sol.round_robin([a, b])\nresult = (a.taken, b.taken)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "first_value_advances_only_first_input",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\na = Spy(itertools.count(), limit=1)\nb = Spy(itertools.count(100), limit=0)\nit = sol.round_robin([a, b])\nv = next(it)\nresult = (v, a.taken, b.taken)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "prefix_advance_counts",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\nspies = [Spy(itertools.count(0)), Spy('abc'), Spy(itertools.count(100))]\nvals = list(itertools.islice(sol.round_robin(spies), 5))\nresult = (vals, [s.taken for s in spies])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      "a",
+      100,
+      1,
+      "b"
+     ],
+     [
+      2,
+      2,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "over_advance_fuse_infinite",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\na = Spy(itertools.count(0), limit=3)\nb = Spy(itertools.count(50), limit=3)\nc = Spy(itertools.count(90), limit=2)\nvals = list(itertools.islice(sol.round_robin([a, b, c]), 8))\nresult = (vals, a.taken, b.taken, c.taken)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      50,
+      90,
+      1,
+      51,
+      91,
+      2,
+      52
+     ],
+     3,
+     3,
+     2
+    ]
+   }
+  },
+  {
+   "name": "over_advance_fuse_after_dropout",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\na = Spy([1], limit=None)\nb = Spy(itertools.count(10), limit=4)\nvals = list(itertools.islice(sol.round_robin([a, b]), 5))\nresult = (vals, a.taken, b.taken)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      10,
+      11,
+      12,
+      13
+     ],
+     1,
+     4
+    ]
+   }
+  },
+  {
+   "name": "incremental_next_counts",
+   "code": "import itertools\nclass Spy:\n    def __init__(self, src, limit=None):\n        self.src = iter(src)\n        self.taken = 0\n        self.limit = limit\n    def __iter__(self):\n        return self\n    def __next__(self):\n        if self.limit is not None and self.taken >= self.limit:\n            raise RuntimeError('over-advanced')\n        v = next(self.src)\n        self.taken += 1\n        return v\nspies = [Spy(itertools.count(0)), Spy(itertools.count(10)), Spy(itertools.count(20))]\nit = sol.round_robin(spies)\nlog = []\nfor _ in range(4):\n    v = next(it)\n    log.append((v, [s.taken for s in spies]))\nresult = log",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      [
+       1,
+       0,
+       0
+      ]
+     ],
+     [
+      10,
+      [
+       1,
+       1,
+       0
+      ]
+     ],
+     [
+      20,
+      [
+       1,
+       1,
+       1
+      ]
+     ],
+     [
+      1,
+      [
+       2,
+       1,
+       1
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "many_infinite_inputs",
+   "code": "import itertools\nresult = list(itertools.islice(sol.round_robin([itertools.count(i * 1000) for i in range(50)]), 120))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1000,
+     2000,
+     3000,
+     4000,
+     5000,
+     6000,
+     7000,
+     8000,
+     9000,
+     10000,
+     11000,
+     12000,
+     13000,
+     14000,
+     15000,
+     16000,
+     17000,
+     18000,
+     19000,
+     20000,
+     21000,
+     22000,
+     23000,
+     24000,
+     25000,
+     26000,
+     27000,
+     28000,
+     29000,
+     30000,
+     31000,
+     32000,
+     33000,
+     34000,
+     35000,
+     36000,
+     37000,
+     38000,
+     39000,
+     40000,
+     41000,
+     42000,
+     43000,
+     44000,
+     45000,
+     46000,
+     47000,
+     48000,
+     49000,
+     1,
+     1001,
+     2001,
+     3001,
+     4001,
+     5001,
+     6001,
+     7001,
+     8001,
+     9001,
+     10001,
+     11001,
+     12001,
+     13001,
+     14001,
+     15001,
+     16001,
+     17001,
+     18001,
+     19001,
+     20001,
+     21001,
+     22001,
+     23001,
+     24001,
+     25001,
+     26001,
+     27001,
+     28001,
+     29001,
+     30001,
+     31001,
+     32001,
+     33001,
+     34001,
+     35001,
+     36001,
+     37001,
+     38001,
+     39001,
+     40001,
+     41001,
+     42001,
+     43001,
+     44001,
+     45001,
+     46001,
+     47001,
+     48001,
+     49001,
+     2,
+     1002,
+     2002,
+     3002,
+     4002,
+     5002,
+     6002,
+     7002,
+     8002,
+     9002,
+     10002,
+     11002,
+     12002,
+     13002,
+     14002,
+     15002,
+     16002,
+     17002,
+     18002,
+     19002
+    ]
+   }
+  },
+  {
+   "name": "large_finite_mixed",
+   "code": "srcs = [list(range(i)) for i in range(60)]\nr = list(sol.round_robin(srcs))\nresult = (len(r), r[:80], r[-10:])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1770,
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ],
+     [
+      55,
+      55,
+      55,
+      55,
+      56,
+      56,
+      56,
+      57,
+      57,
+      58
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [list(sol.round_robin(x)) for x in [[[3]], [[7], [], [7], [2, 9, 1, 6, 5, 4, 6], [6]], [[7, 3, 0, 1, 3], [], [2, 5, 6, 0], [3], [8]], [], [[], [2], [4, 9, 2, 9, 6, 5, 7], [0], [], []], [], [], [[0, 8, 8, 8, 1, 5, 7], [], [], [5]], [[6], [3], [], [9, 2]], [[1], []]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      3
+     ],
+     [
+      7,
+      7,
+      2,
+      6,
+      9,
+      1,
+      6,
+      5,
+      4,
+      6
+     ],
+     [
+      7,
+      2,
+      3,
+      8,
+      3,
+      5,
+      0,
+      6,
+      1,
+      0,
+      3
+     ],
+     [],
+     [
+      2,
+      4,
+      0,
+      9,
+      2,
+      9,
+      6,
+      5,
+      7
+     ],
+     [],
+     [],
+     [
+      0,
+      5,
+      8,
+      8,
+      8,
+      1,
+      5,
+      7
+     ],
+     [
+      6,
+      3,
+      9,
+      2
+     ],
+     [
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [list(sol.round_robin(x)) for x in [[[1]], [[2, 7, 9, 9, 2, 1, 0], [7], [], [], [], []], [[9, 0, 4, 3, 4], [2, 1, 7, 3, 3, 9, 2], [], [6, 5, 2, 4], [2]], [[8]], [], [[], [0], [], []], [[], [], [2], [3, 7, 2, 4], []], [[], [4], [6], [1], [1, 8, 0, 1, 6, 4], []], [[4], [], [], [5], []], [[1]]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1
+     ],
+     [
+      2,
+      7,
+      7,
+      9,
+      9,
+      2,
+      1,
+      0
+     ],
+     [
+      9,
+      2,
+      6,
+      2,
+      0,
+      1,
+      5,
+      4,
+      7,
+      2,
+      3,
+      3,
+      4,
+      4,
+      3,
+      9,
+      2
+     ],
+     [
+      8
+     ],
+     [],
+     [
+      0
+     ],
+     [
+      2,
+      3,
+      7,
+      2,
+      4
+     ],
+     [
+      4,
+      6,
+      1,
+      1,
+      8,
+      0,
+      1,
+      6,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [list(sol.round_robin(x)) for x in [[[4, 6], [9, 9, 5, 6], [3, 9], [], [], [7]], [[3, 4, 1], [2], [8, 8, 1, 7, 8, 3, 6], [], [2]], [], [[]], [[3], [], [], [9, 5, 6], [], [4, 9, 8, 0, 5, 1, 0]], [[]], [[]], [[0]], [[3], [], [9, 1, 5, 3, 0, 8]], [[9, 1, 6], [5, 2, 5], [], [1], [2], []]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      4,
+      9,
+      3,
+      7,
+      6,
+      9,
+      9,
+      5,
+      6
+     ],
+     [
+      3,
+      2,
+      8,
+      2,
+      4,
+      8,
+      1,
+      1,
+      7,
+      8,
+      3,
+      6
+     ],
+     [],
+     [],
+     [
+      3,
+      9,
+      4,
+      5,
+      9,
+      6,
+      8,
+      0,
+      5,
+      1,
+      0
+     ],
+     [],
+     [],
+     [
+      0
+     ],
+     [
+      3,
+      9,
+      1,
+      5,
+      3,
+      0,
+      8
+     ],
+     [
+      9,
+      5,
+      1,
+      2,
+      1,
+      2,
+      6,
+      5
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [list(sol.round_robin(x)) for x in [[[5, 5, 6, 0], [0, 3, 1, 0, 4, 3], [3], [9, 7, 6, 3, 1]], [[], [3, 8, 0, 3, 0], [], [], [4, 7, 2, 8, 9, 9], []], [[], [1, 9], [7, 5, 4, 6, 7], [4, 6, 4], [3]], [[1, 1, 6, 2, 9, 2, 1], [0, 8, 3], [2], [1]], [[], [7, 6, 9, 8, 8, 4, 0], [6], []], [[], [2], [], []], [[6], [2], [5, 6, 2, 4, 1, 8, 1], []], [[6], [], [], [], [], [4, 4]], [[7], [], [3, 8, 4, 9, 5, 9, 6]], [[9], [7, 3], [6]]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      5,
+      0,
+      3,
+      9,
+      5,
+      3,
+      7,
+      6,
+      1,
+      6,
+      0,
+      0,
+      3,
+      4,
+      1,
+      3
+     ],
+     [
+      3,
+      4,
+      8,
+      7,
+      0,
+      2,
+      3,
+      8,
+      0,
+      9,
+      9
+     ],
+     [
+      1,
+      7,
+      4,
+      3,
+      9,
+      5,
+      6,
+      4,
+      4,
+      6,
+      7
+     ],
+     [
+      1,
+      0,
+      2,
+      1,
+      1,
+      8,
+      6,
+      3,
+      2,
+      9,
+      2,
+      1
+     ],
+     [
+      7,
+      6,
+      6,
+      9,
+      8,
+      8,
+      4,
+      0
+     ],
+     [
+      2
+     ],
+     [
+      6,
+      2,
+      5,
+      6,
+      2,
+      4,
+      1,
+      8,
+      1
+     ],
+     [
+      6,
+      4,
+      4
+     ],
+     [
+      7,
+      3,
+      8,
+      4,
+      9,
+      5,
+      9,
+      6
+     ],
+     [
+      9,
+      7,
+      6,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [list(sol.round_robin(x)) for x in [[], [], [[4, 3, 3], [2]], [[], [], [2], [], [3]], [[7, 1, 9, 6, 6, 0], [0], [5, 3], [], []], [], [[7, 9], [9], [], [8, 4, 5, 0]], [[], [2]], [], [[]]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     [],
+     [
+      4,
+      2,
+      3,
+      3
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      7,
+      0,
+      5,
+      1,
+      3,
+      9,
+      6,
+      6,
+      0
+     ],
+     [],
+     [
+      7,
+      9,
+      8,
+      9,
+      4,
+      5,
+      0
+     ],
+     [
+      2
+     ],
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [list(sol.round_robin(x)) for x in [[], [[2], [1, 6, 7], [5, 0, 5, 1, 7, 6, 9], [0]], [[5, 2, 2, 4, 9], [], [5], [6, 9, 9]], [[5, 7, 7, 9], [], [1]], [[3], [], []], [[1, 2, 2, 8, 0, 7, 8]], [[5, 7], [], [2, 9, 7, 7, 3, 2, 9], [2]], [[], [], [2], [3], []], [], []]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     [
+      2,
+      1,
+      5,
+      0,
+      6,
+      0,
+      7,
+      5,
+      1,
+      7,
+      6,
+      9
+     ],
+     [
+      5,
+      5,
+      6,
+      2,
+      9,
+      2,
+      9,
+      4,
+      9
+     ],
+     [
+      5,
+      1,
+      7,
+      7,
+      9
+     ],
+     [
+      3
+     ],
+     [
+      1,
+      2,
+      2,
+      8,
+      0,
+      7,
+      8
+     ],
+     [
+      5,
+      2,
+      2,
+      7,
+      9,
+      7,
+      7,
+      3,
+      2,
+      9
+     ],
+     [
+      2,
+      3
+     ],
+     [],
+     []
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [list(sol.round_robin(x)) for x in [[[8, 4, 1, 7, 0], [], [3], [4, 6, 4, 3, 0, 3, 3]], [[]], [[9], [0]], [], [[], []], [], [[4], []], [[1, 4, 2, 0, 3], [9, 2, 0, 9, 3, 2], []], [[9]], [[3]]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      8,
+      3,
+      4,
+      4,
+      6,
+      1,
+      4,
+      7,
+      3,
+      0,
+      0,
+      3,
+      3
+     ],
+     [],
+     [
+      9,
+      0
+     ],
+     [],
+     [],
+     [],
+     [
+      4
+     ],
+     [
+      1,
+      9,
+      4,
+      2,
+      2,
+      0,
+      0,
+      9,
+      3,
+      3,
+      2
+     ],
+     [
+      9
+     ],
+     [
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [list(sol.round_robin(x)) for x in [[], [[9], [], [7], [7], [3, 8, 9, 4], []], [], [[9], [], [], [4, 2, 3, 5, 0]], [[3], [4, 0, 7], [2], [6], [4]], [[7]], [[]], [], [[3], [], [], [], [9]], [[1], [8, 9, 8, 5]]]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [],
+     [
+      9,
+      7,
+      7,
+      3,
+      8,
+      9,
+      4
+     ],
+     [],
+     [
+      9,
+      4,
+      2,
+      3,
+      5,
+      0
+     ],
+     [
+      3,
+      4,
+      2,
+      6,
+      4,
+      0,
+      7
+     ],
+     [
+      7
+     ],
+     [],
+     [],
+     [
+      3,
+      9
+     ],
+     [
+      1,
+      8,
+      9,
+      8,
+      5
+     ]
+    ]
+   }
+  }
+ ]
+}

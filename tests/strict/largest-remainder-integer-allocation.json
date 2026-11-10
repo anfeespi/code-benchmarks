@@ -1,0 +1,1316 @@
+{
+ "title": "Largest-remainder integer allocation",
+ "entry_point": "allocate_shares",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 800,
+  "agree": 800,
+  "reference": "exact Fraction quotas, floor + remainder ordering by (-remainder, index)"
+ },
+ "cases": [
+  {
+   "name": "v4:equal_thirds",
+   "code": "result = sol.allocate_shares(100, [1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     34,
+     33,
+     33
+    ]
+   }
+  },
+  {
+   "name": "v4:quota_example",
+   "code": "result = sol.allocate_shares(7, [3, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     2
+    ]
+   }
+  },
+  {
+   "name": "v4:zero_weight_parties",
+   "code": "result = sol.allocate_shares(5, [0, 2, 0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     5,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:total_zero",
+   "code": "result = sol.allocate_shares(0, [1, 2, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:single_party",
+   "code": "result = sol.allocate_shares(13, [4])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     13
+    ]
+   }
+  },
+  {
+   "name": "v4:tie_break_lower_index",
+   "code": "result = (sol.allocate_shares(1, [1, 1]), sol.allocate_shares(2, [1, 1, 1]), sol.allocate_shares(1, [1, 1, 1, 1]))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      0
+     ],
+     [
+      1,
+      1,
+      0
+     ],
+     [
+      1,
+      0,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:float_weights",
+   "code": "result = sol.allocate_shares(100, [0.5, 0.25, 0.25])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     50,
+     25,
+     25
+    ]
+   }
+  },
+  {
+   "name": "v4:shares_are_ints",
+   "code": "result = [type(x).__name__ for x in sol.allocate_shares(7, [3, 1])]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "int",
+     "int"
+    ]
+   }
+  },
+  {
+   "name": "v4:negative_total_raises",
+   "code": "result = sol.allocate_shares(-1, [1, 1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:empty_weights_raises",
+   "code": "result = sol.allocate_shares(5, [])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:negative_weight_raises",
+   "code": "result = sol.allocate_shares(5, [1, -1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:zero_sum_raises",
+   "code": "result = sol.allocate_shares(5, [0, 0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:larger_deterministic",
+   "code": "weights = [(i * 7) % 11 for i in range(37)]\nshares = sol.allocate_shares(1000003, weights)\nresult = (shares, sum(shares), len(shares), min(shares))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5406,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5405,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054,
+      32433,
+      10811,
+      48649,
+      27027,
+      5405,
+      43243,
+      21622,
+      0,
+      37838,
+      16216,
+      54054
+     ],
+     1000003,
+     37,
+     0
+    ]
+   }
+  },
+  {
+   "name": "total_one_single",
+   "code": "result = sol.allocate_shares(1, [5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "total_zero_single",
+   "code": "result = sol.allocate_shares(0, [5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "total_one_many_equal",
+   "code": "result = sol.allocate_shares(1, [3, 3, 3, 3, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     0,
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "total_less_than_parties",
+   "code": "result = sol.allocate_shares(3, [1, 1, 1, 1, 1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "zero_weights_between",
+   "code": "result = sol.allocate_shares(10, [0, 1, 0, 1, 0, 1, 0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     4,
+     0,
+     3,
+     0,
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "name": "zero_weight_first_with_tie",
+   "code": "result = sol.allocate_shares(1, [0, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "name": "larger_remainder_later_index",
+   "code": "result = sol.allocate_shares(10, [1, 2])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     7
+    ]
+   }
+  },
+  {
+   "name": "remainder_order_not_weight_order",
+   "code": "result = sol.allocate_shares(10, [7, 3, 5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "tie_break_three_way",
+   "code": "result = sol.allocate_shares(5, [2, 2, 2])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "tie_break_among_subset",
+   "code": "result = sol.allocate_shares(4, [1, 3, 1, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     2,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "single_party_huge_total",
+   "code": "result = sol.allocate_shares(1000000, [0.001])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1000000
+    ]
+   }
+  },
+  {
+   "name": "many_parties_one_unit_each",
+   "code": "result = sol.allocate_shares(3, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "exact_division_no_leftover",
+   "code": "result = sol.allocate_shares(60, [1, 2, 3])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     10,
+     20,
+     30
+    ]
+   }
+  },
+  {
+   "name": "float_weights_halves",
+   "code": "result = sol.allocate_shares(3, [0.5, 0.5])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "float_weights_mixed",
+   "code": "result = sol.allocate_shares(10, [2.5, 1.25, 1.25])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     5,
+     3,
+     2
+    ]
+   }
+  },
+  {
+   "name": "int_and_float_weights",
+   "code": "result = sol.allocate_shares(9, [1, 2.0, 0, 1.0])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     2,
+     5,
+     0,
+     2
+    ]
+   }
+  },
+  {
+   "name": "sum_is_total_large",
+   "code": "w = [((i * 13) % 7) for i in range(50)]\nr = sol.allocate_shares(9973, w)\nresult = (sum(r), len(r), r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     9973,
+     50,
+     [
+      0,
+      407,
+      339,
+      271,
+      204,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      204,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      204,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      204,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      204,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      203,
+      136,
+      68,
+      0,
+      407,
+      339,
+      271,
+      203,
+      136,
+      68,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "types_are_int_float_weights",
+   "code": "r = sol.allocate_shares(10, [0.5, 0.25, 0.25])\nresult = ([type(x).__name__ for x in r], r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "int",
+      "int",
+      "int"
+     ],
+     [
+      5,
+      3,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "negative_total_large_raises",
+   "code": "result = sol.allocate_shares(-5, [1])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_weight_raises_with_positive_sum",
+   "code": "result = sol.allocate_shares(5, [3, -1, 2])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_float_weight_raises",
+   "code": "result = sol.allocate_shares(5, [1.0, -0.5])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "all_zero_single_raises",
+   "code": "result = sol.allocate_shares(5, [0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "zero_total_zero_sum_raises",
+   "code": "result = sol.allocate_shares(0, [0, 0, 0])",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "random_int_weights_00",
+   "code": "result = [sol.allocate_shares(*a) for a in [(0, [5, 0]), (0, [176, 0, 0, 279, 0, 115, 0, 0, 0]), (1, [0, 199, 194, 458]), (7041, [0, 0, 392, 0, 444, 485]), (25, [0, 2, 7]), (31023, [122, 9, 0, 0]), (0, [6, 86, 7, 8, 0, 0, 0, 0]), (0, [0, 6]), (79321, [41, 8, 5, 4]), (0, [4])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      1
+     ],
+     [
+      0,
+      0,
+      2089,
+      0,
+      2367,
+      2585
+     ],
+     [
+      0,
+      6,
+      19
+     ],
+     [
+      28892,
+      2131,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      56072,
+      10941,
+      6838,
+      5470
+     ],
+     [
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_01",
+   "code": "result = [sol.allocate_shares(*a) for a in [(1, [3, 118, 9, 5, 301, 384, 7, 74, 4]), (1, [324, 392, 4, 0, 4, 8]), (35, [3, 365, 2]), (4, [125, 0, 0, 18, 9, 3, 5]), (1, [6, 438, 320, 154, 9, 5, 0, 324, 184]), (7, [6, 204, 4, 0, 384, 7, 4, 0]), (1, [8]), (1, [460]), (62672, [5, 113, 2, 0, 8, 2, 472, 41]), (1, [0, 2, 0, 1, 77, 0, 442])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      35,
+      0
+     ],
+     [
+      3,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      2,
+      0,
+      0,
+      5,
+      0,
+      0,
+      0
+     ],
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      487,
+      11014,
+      195,
+      0,
+      780,
+      195,
+      46005,
+      3996
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_02",
+   "code": "result = [sol.allocate_shares(*a) for a in [(24, [2, 0, 2, 9, 0]), (0, [8, 476]), (0, [2, 493, 8, 3, 5, 0, 0]), (1, [3, 0, 9, 4, 4, 0]), (40974, [0, 7, 0, 4, 7, 0, 0]), (1, [4, 0, 3, 45, 0]), (0, [49, 0, 0, 6, 9, 27, 0]), (3157, [9, 385, 0, 0, 3, 0]), (1, [8, 454, 4, 0, 0]), (87206, [2, 0, 3])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      4,
+      0,
+      4,
+      16,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      15935,
+      0,
+      9105,
+      15934,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      71,
+      3062,
+      0,
+      0,
+      24,
+      0
+     ],
+     [
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      34882,
+      0,
+      52324
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_03",
+   "code": "result = [sol.allocate_shares(*a) for a in [(1, [6, 0, 6, 288, 7, 149, 4, 7, 0]), (1, [216, 1, 168, 0, 29, 4, 0, 0, 0]), (0, [7, 0]), (45462, [384]), (17, [0, 354, 0, 3, 0, 8, 3, 1, 8]), (0, [170, 1, 0, 7, 2]), (1, [0, 79, 95, 7, 5, 0]), (17318, [309, 143, 7, 0, 6, 0, 8]), (0, [0, 0, 178, 0, 0, 9, 3]), (26, [0, 42, 0, 327, 0, 6])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      45462
+     ],
+     [
+      0,
+      16,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      11313,
+      5236,
+      256,
+      0,
+      220,
+      0,
+      293
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      3,
+      0,
+      23,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_04",
+   "code": "result = [sol.allocate_shares(*a) for a in [(1, [492, 4, 5, 0]), (70064, [3, 253, 385, 5, 0, 4, 483, 0, 99]), (79943, [451, 11, 9]), (0, [1]), (40, [7, 27, 426, 417, 1]), (76996, [462, 0, 2, 7, 242]), (0, [9, 0, 156, 0, 0, 5, 9, 8, 42]), (19, [0, 161]), (0, [0, 5, 285]), (1, [4, 0, 5, 183, 0, 4])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      1,
+      0,
+      0,
+      0
+     ],
+     [
+      171,
+      14388,
+      21895,
+      284,
+      0,
+      228,
+      27468,
+      0,
+      5630
+     ],
+     [
+      76548,
+      1867,
+      1528
+     ],
+     [
+      0
+     ],
+     [
+      0,
+      1,
+      20,
+      19,
+      0
+     ],
+     [
+      49891,
+      0,
+      216,
+      756,
+      26133
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      19
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_05",
+   "code": "result = [sol.allocate_shares(*a) for a in [(1, [0, 0, 0, 242]), (39, [6]), (37543, [1, 88, 6, 95, 6, 1]), (1, [6, 398, 0, 0]), (50, [3, 351, 248, 74]), (20, [4]), (0, [0, 44, 441, 127, 146, 0, 0, 11]), (63693, [0, 0, 1, 8, 8]), (1, [7, 105, 180, 180, 14, 3, 362]), (46, [8, 42, 0, 6, 127, 4, 1])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      1
+     ],
+     [
+      39
+     ],
+     [
+      191,
+      16770,
+      1143,
+      18105,
+      1143,
+      191
+     ],
+     [
+      0,
+      1,
+      0,
+      0
+     ],
+     [
+      0,
+      26,
+      18,
+      6
+     ],
+     [
+      20
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      3747,
+      29973,
+      29973
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+     ],
+     [
+      2,
+      10,
+      0,
+      2,
+      31,
+      1,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_06",
+   "code": "result = [sol.allocate_shares(*a) for a in [(1, [0, 200, 0, 0, 0, 5, 346, 3, 1]), (40, [9, 196]), (0, [80, 0, 0, 340]), (35, [4, 151, 3, 6]), (48, [7, 0, 7, 0, 308, 0, 4, 4]), (43, [0, 0, 7, 85, 455, 5]), (0, [2, 2, 209]), (1, [4]), (65961, [8, 5, 7, 9, 307, 0]), (9, [0, 4, 8, 0, 139, 0, 0, 359, 0])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+     ],
+     [
+      2,
+      38
+     ],
+     [
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      32,
+      1,
+      1
+     ],
+     [
+      1,
+      0,
+      1,
+      0,
+      45,
+      0,
+      1,
+      0
+     ],
+     [
+      0,
+      0,
+      1,
+      7,
+      35,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1
+     ],
+     [
+      1570,
+      982,
+      1374,
+      1767,
+      60268,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      6,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_07",
+   "code": "result = [sol.allocate_shares(*a) for a in [(31, [1, 0]), (50, [0, 0, 58, 72, 11, 1, 2, 310]), (0, [7, 210, 0, 239, 3, 114, 136, 6, 0]), (24, [0, 0, 432, 0, 0, 8, 0, 3, 241]), (2, [4, 0, 193, 3, 157, 9]), (1, [403, 0, 4, 2, 137, 4, 0]), (29524, [4, 0, 189]), (1, [4]), (0, [46, 271, 0, 8, 0, 6]), (13, [323, 424, 8, 6, 0, 8, 8, 72])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      31,
+      0
+     ],
+     [
+      0,
+      0,
+      7,
+      8,
+      1,
+      0,
+      0,
+      34
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      15,
+      0,
+      0,
+      0,
+      0,
+      0,
+      9
+     ],
+     [
+      0,
+      0,
+      1,
+      0,
+      1,
+      0
+     ],
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      612,
+      0,
+      28912
+     ],
+     [
+      1
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      5,
+      7,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_08",
+   "code": "result = [sol.allocate_shares(*a) for a in [(87969, [0, 0, 0, 6, 5, 0, 6, 5, 4]), (0, [47, 5, 2, 9, 52, 40, 4, 0]), (6, [0, 451]), (0, [8, 6, 386, 2, 0, 411, 1]), (40478, [9, 168, 1]), (68099, [0, 9, 0, 271, 0]), (1, [462, 2, 0]), (16, [4]), (73195, [431, 0]), (0, [177, 7, 0, 0, 9, 238, 0])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      20301,
+      16917,
+      0,
+      20300,
+      16917,
+      13534
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      6
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      2047,
+      38204,
+      227
+     ],
+     [
+      0,
+      2189,
+      0,
+      65910,
+      0
+     ],
+     [
+      1,
+      0,
+      0
+     ],
+     [
+      16
+     ],
+     [
+      73195,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_int_weights_09",
+   "code": "result = [sol.allocate_shares(*a) for a in [(0, [7, 3, 0, 317, 7]), (5, [0, 4, 6, 0]), (1, [343, 0, 4, 301, 0, 1, 1]), (1, [0, 374, 0]), (83650, [8, 6, 0, 278, 0, 0, 3, 318, 9]), (1, [53, 0]), (83092, [0, 2, 117, 5, 0, 0, 1, 0, 138]), (14, [0, 341, 0, 236, 5]), (0, [0, 2, 46, 0]), (0, [7, 52, 127, 166])]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      2,
+      3,
+      0
+     ],
+     [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      1,
+      0
+     ],
+     [
+      1076,
+      807,
+      0,
+      37387,
+      0,
+      0,
+      404,
+      42766,
+      1210
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      0,
+      632,
+      36965,
+      1580,
+      0,
+      0,
+      316,
+      0,
+      43599
+     ],
+     [
+      0,
+      8,
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0,
+      0
+     ]
+    ]
+   }
+  }
+ ]
+}

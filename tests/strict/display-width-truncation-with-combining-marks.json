@@ -1,0 +1,427 @@
+{
+ "title": "Display-width truncation with combining marks",
+ "entry_point": "truncate_display",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "index scan: positions of unit starts (non-mark, or first char), slice at start index #width"
+ },
+ "cases": [
+  {
+   "name": "v4:accent_stays_with_base",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 4)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "café"
+   }
+  },
+  {
+   "name": "v4:two_marks_one_unit",
+   "code": "result = sol.truncate_display('a\\u0300\\u0316b', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "à̖"
+   }
+  },
+  {
+   "name": "v4:width_beyond_units",
+   "code": "result = sol.truncate_display('hello', 10)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "hello"
+   }
+  },
+  {
+   "name": "v4:width_equals_units",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 5)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "cafés"
+   }
+  },
+  {
+   "name": "v4:width_zero",
+   "code": "result = sol.truncate_display('cafe\\u0301s', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": ""
+   }
+  },
+  {
+   "name": "v4:empty_string",
+   "code": "result = (sol.truncate_display('', 5), sol.truncate_display('', 0))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "",
+     ""
+    ]
+   }
+  },
+  {
+   "name": "v4:negative_width_raises",
+   "code": "result = sol.truncate_display('abc', -1)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "v4:leading_combining_marks",
+   "code": "result = sol.truncate_display('\\u0301\\u0302abc', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "́̂a"
+   }
+  },
+  {
+   "name": "v4:astral_counts_one",
+   "code": "result = sol.truncate_display('a\\U0001F600b\\U0001F1E6', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "a😀"
+   }
+  },
+  {
+   "name": "v4:mc_and_me_categories",
+   "code": "result = (sol.truncate_display('\\u0915\\u093e\\u0916', 1), sol.truncate_display('a\\u0488b', 1))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "का",
+     "a҈"
+    ]
+   }
+  },
+  {
+   "name": "v4:larger_deterministic",
+   "code": "s = ''.join(c + '\\u0301\\u0308' for c in 'abcdefghijklmnopqrstuvwxyz')\nresult = (sol.truncate_display(s, 10), len(sol.truncate_display(s, 10)), sol.truncate_display(s, 26) == s)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "á̈b́̈ć̈d́̈é̈f́̈ǵ̈h́̈í̈j́̈",
+     30,
+     true
+    ]
+   }
+  },
+  {
+   "name": "single_base",
+   "code": "result = sol.truncate_display('x', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "x"
+   }
+  },
+  {
+   "name": "single_base_width_zero",
+   "code": "result = sol.truncate_display('x', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": ""
+   }
+  },
+  {
+   "name": "only_marks_is_one_unit",
+   "code": "result = sol.truncate_display('́̂̃', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "́̂̃"
+   }
+  },
+  {
+   "name": "only_marks_width_zero",
+   "code": "result = sol.truncate_display('́̂̃', 0)",
+   "timeout_s": 5,
+   "expected": {
+    "value": ""
+   }
+  },
+  {
+   "name": "leading_marks_then_base",
+   "code": "result = sol.truncate_display('́̂ab', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "́̂"
+   }
+  },
+  {
+   "name": "leading_marks_width_three",
+   "code": "result = sol.truncate_display('́̂ab', 3)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "́̂ab"
+   }
+  },
+  {
+   "name": "enclosing_mark_me",
+   "code": "result = sol.truncate_display('1⃣ 2⃣', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "1⃣ "
+   }
+  },
+  {
+   "name": "devanagari_mc_marks",
+   "code": "result = sol.truncate_display('काखिग', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "काखि"
+   }
+  },
+  {
+   "name": "many_marks_on_one_base",
+   "code": "result = sol.truncate_display('é́́́́́́́́́́́́́́́́́́́́́́́́́́́́́f', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "é́́́́́́́́́́́́́́́́́́́́́́́́́́́́́"
+   }
+  },
+  {
+   "name": "hebrew_points",
+   "code": "result = sol.truncate_display('שָׁלוֹם', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "שָׁל"
+   }
+  },
+  {
+   "name": "cjk_counts_one_each",
+   "code": "result = sol.truncate_display('中文字', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "中文"
+   }
+  },
+  {
+   "name": "emoji_with_variation_selector",
+   "code": "result = sol.truncate_display('❤️❤️', 1)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "❤️"
+   }
+  },
+  {
+   "name": "zwj_is_its_own_unit",
+   "code": "result = sol.truncate_display('👨\\u200d👩', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "👨‍"
+   }
+  },
+  {
+   "name": "regional_indicators_separate",
+   "code": "result = sol.truncate_display('🇨🇴🇺', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "🇨🇴"
+   }
+  },
+  {
+   "name": "precomposed_vs_decomposed",
+   "code": "result = sol.truncate_display('ééé', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "éé"
+   }
+  },
+  {
+   "name": "whitespace_and_newline",
+   "code": "result = sol.truncate_display(' \\n\\t', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": " \n"
+   }
+  },
+  {
+   "name": "width_huge",
+   "code": "result = sol.truncate_display('abć', 1000000000)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "abć"
+   }
+  },
+  {
+   "name": "width_exact_units_with_trailing_mark",
+   "code": "result = sol.truncate_display('ab́', 2)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "ab́"
+   }
+  },
+  {
+   "name": "negative_width_on_empty_raises",
+   "code": "result = sol.truncate_display('', -1)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "negative_width_large_raises",
+   "code": "result = sol.truncate_display('abc', -10**9)",
+   "timeout_s": 5,
+   "raises": "ValueError"
+  },
+  {
+   "name": "width_equal_units_returns_same",
+   "code": "s = 'x\\u0301y\\u0302'\nr = sol.truncate_display(s, 2)\nresult = (r == s, r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     "x́ŷ"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "result = [sol.truncate_display(*a) for a in [('Z中ः️😀', 2), ('', 0), ('b̈̀क', 4), ('̖b11ाaa️b̀', 2), ('का̀\\nZbZक🇦ַ⃝क̈Zַ️a', 14), (' 中ःा\\u200dַ中̈️ ', 5), ('éַः́️ébéा中⃝⃝⃝क', 9), (' ̖가aaééb️̀̈कb가ः̖\\u200d̖', 12), ('̖🇦🇦ַ̈̀ःाa҈ ̀Z', 12), ('️1bZा1中҈ाक\\u200déाा', 0)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "Z中ः️",
+     "",
+     "b̈̀क",
+     "̖b",
+     "का̀\nZbZक🇦ַ⃝क̈Zַ️a",
+     " 中ःा‍ַ中̈️ ",
+     "éַः́️ébéा中⃝⃝⃝क",
+     " ̖가aaééb️̀̈कb가ः̖‍̖",
+     "̖🇦🇦ַ̈̀ःाa҈ ̀Z",
+     ""
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "result = [sol.truncate_display(*a) for a in [(' 가🇦ַ̖a\\n\\u200d҈ा', 5), ('b\\n中️ 中😀', 6), ('🇦🇦가ַ́中\\u200daé̖́bb🇦😀 ', 2), ('ःַा가́ 中中ाéZकaः̖😀1 ः', 8), ('क̖̈', 1), ('̖ा̈️中 \\u200d', 3), ('1Z⃝ZaकZb́ा️ा̀\\n', 15), ('b̀҈🇦😀\\n⃝a😀\\n̖é', 4), ('️⃝  \\nZ̖中가é中😀\\u200d̈가가🇦', 2), ('bःक️ः🇦가️b\\ńa\\u200dé中\\u200d⃝́', 17)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     " 가🇦ַ̖a\n",
+     "b\n中️ 中😀",
+     "🇦🇦",
+     "ःַा가́ 中中ाéZक",
+     "क̖̈",
+     "̖ा̈️中 ",
+     "1Z⃝ZaकZb́ा️ा̀\n",
+     "b̀҈🇦😀\n⃝",
+     "️⃝ ",
+     "bःक️ः🇦가️b\ńa‍é中‍⃝́"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "result = [sol.truncate_display(*a) for a in [('가️中1', 2), ('क🇦b  ̖क\\n\\ǹ ́ा가', 13), ('', 1), ('\\u200dक\\n', 3), ('🇦ַ̖⃝😀̈ ⃝️가🇦', 2), ('中Z😀́éक11', 9), ('🇦Z̖҈aाःaַ🇦ा', 5), ('가 ҈1ַ', 5), ('中҈', 3), ('क🇦⃝中\\nַ҈Z', 1)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "가️中",
+     "क🇦b  ̖क\n\ǹ ́ा가",
+     "",
+     "‍क\n",
+     "🇦ַ̖⃝😀̈",
+     "中Z😀́éक11",
+     "🇦Z̖҈aाःaַ🇦ा",
+     "가 ҈1ַ",
+     "中҈",
+     "क"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "result = [sol.truncate_display(*a) for a in [('😀🇦ַकéZ', 4), ('̖⃝1가\\né\\n', 2), ('̀ \\u200dZַ中\\u200dकb̀̈️⃝', 6), ('\\n', 2), ('', 1), ('😀á가😀é', 7), ('́', 1), ('1ः️\\nः\\u200dाb1中éक҈Zé̖Z', 10), ('aa11', 1), ('😀가🇦\\u200dbक⃝a\\u200d\\u200dकः', 5)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "😀🇦ַकé",
+     "̖⃝1",
+     "̀ ‍Zַ中‍",
+     "\n",
+     "",
+     "😀á가😀é",
+     "́",
+     "1ः️\nः‍ाb1中éक҈Zé̖",
+     "a",
+     "😀가🇦‍b"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "result = [sol.truncate_display(*a) for a in [('️', 1), ('aा\\u200d⃝a가', 6), (' ̖b\\ń', 6), ('\\nַa\\n҈가🇦', 7), ('̀̈b🇦中中̀̈क中가\\u200dः҈', 15), ('🇦1b́1̈Zक\\u200dा 中가', 4), ('ַZ中́ःककःaé́́̈b', 3), ('क⃝क️ः\\u200d\\u200d😀가҈b̈̈1', 10), ('a中 ️🇦가\\n\\u200d\\nb⃝ क', 2), ('\\nַा́가Zb', 3)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "️",
+     "aा‍⃝a가",
+     " ̖b\ń",
+     "\nַa\n҈가🇦",
+     "̀̈b🇦中中̀̈क中가‍ः҈",
+     "🇦1b́1̈",
+     "ַZ中́ः",
+     "क⃝क️ः‍‍😀가҈b̈̈1",
+     "a中",
+     "\nַा́가Z"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "result = [sol.truncate_display(*a) for a in [('éक҈ba', 1), ('ा́ककb\\u200dZ가🇦é😀', 11), ('', 0), ('가1🇦\\u200dःַb11😀🇦⃝éाַ̀', 3), ('', 0), ('́⃝́क҈Za️b😀̈🇦҈́', 6), ('\\u200d1aकbक', 6), ('ः\\u200d中\\u200d\\nַ҈가कa️क\\u200d😀҈😀 ҈🇦', 5), ('가ा̀Ź\\u200dा̀Z⃝ा⃝', 5), ('😀\\nक', 2)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "é",
+     "ा́ककb‍Z가🇦é😀",
+     "",
+     "가1🇦",
+     "",
+     "́⃝́क҈Za️b😀̈",
+     "‍1aकbक",
+     "ः‍中‍\nַ҈",
+     "가ा̀Ź‍ा̀Z⃝ा⃝",
+     "😀\n"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "result = [sol.truncate_display(*a) for a in [('́가é҈Z\\u200d\\u200dZ̖̈̈àַा', 2), ('中क̀가҈中\\u200d\\u200d1\\n\\u200d́😀가bक', 12), ('\\u200d̀̈҈🇦̖', 2), (' ҈̀😀\\naa🇦😀Z1Zक\\n⃝😀 ', 12), ('̈中क\\u200d⃝🇦Z', 8), ('中🇦 \\nकb\\ńZ', 3), ('҈中̖ःb', 5), ('a', 1), ('🇦äa̖😀̖Zb', 10), ('⃝é中中가\\n⃝中⃝҈😀Z1 ', 1)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "́가",
+     "中क̀가҈中‍‍1\n‍́😀가b",
+     "‍̀̈҈🇦̖",
+     " ҈̀😀\naa🇦😀Z1Zक\n⃝",
+     "̈中क‍⃝🇦Z",
+     "中🇦 ",
+     "҈中̖ःb",
+     "a",
+     "🇦äa̖😀̖Zb",
+     "⃝"
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "result = [sol.truncate_display(*a) for a in [('\\ǹ가́ः\\u200dַक́1😀', 0), ('ककः́́ः\\u200dाé̈̈🇦ַ😀̖a가́क', 16), ('1 1️', 2), ('ा😀̖ ַ̀1bZ中\\n⃝̈가̀ ', 17), ('⃝️😀́̀😀̖ः1̀️ः́', 5), ('҈🇦', 1), ('̀Z🇦ा⃝\\n1 ⃝ः', 11), ('é\\nַ̈Z\\u200dabZ', 8), ('é1ַ😀̖⃝\\u200d\\u200dक🇦Zःé क가\\n🇦', 17), (' कéa️\\u200dַ̀1ŹַZ🇦', 9)]]",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "",
+     "ककः́́ः‍ाé̈̈🇦ַ😀̖a가́क",
+     "1 ",
+     "ा😀̖ ַ̀1bZ中\n⃝̈가̀ ",
+     "⃝️😀́̀😀̖ः1̀️ः́",
+     "҈",
+     "̀Z🇦ा⃝\n1 ⃝ः",
+     "é\nַ̈Z‍abZ",
+     "é1ַ😀̖⃝‍‍क🇦Zःé क가\n🇦",
+     " कéa️‍ַ̀1ŹַZ🇦"
+    ]
+   }
+  }
+ ]
+}

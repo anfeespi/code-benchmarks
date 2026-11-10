@@ -1,0 +1,1796 @@
+{
+ "title": "Recursive deep_get with loop ban",
+ "entry_point": "deep_get",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 1000,
+  "agree": 1000,
+  "reference": "reference from the prompt: iterative walk with up-front empty-segment check"
+ },
+ "cases": [
+  {
+   "name": "v4:worked_examples",
+   "code": "result = (sol.deep_get({'a': {'b': [10, 20]}}, 'a.b.1'),\n          sol.deep_get([{'x': 1}], '0.x'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     20,
+     1
+    ]
+   }
+  },
+  {
+   "name": "v4:index_forms",
+   "code": "data = {'l': [0, 1, 2, 3, 4, 5, 6, 7, 8]}\nresult = (sol.deep_get(data, 'l.3'), sol.deep_get(data, 'l.-1'), sol.deep_get(data, 'l.07'),\n          sol.deep_get(data, 'l.-9'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     3,
+     8,
+     7,
+     0
+    ]
+   }
+  },
+  {
+   "name": "v4:returns_any_value",
+   "code": "data = {'a': {'b': None, 'c': [], 'd': {'e': False}}}\nresult = (sol.deep_get(data, 'a.b'), sol.deep_get(data, 'a.c'), sol.deep_get(data, 'a.d'),\n          sol.deep_get(data, 'a.d.e'), sol.deep_get(data, 'a') is data['a'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     null,
+     [],
+     {
+      "__dict__": [
+       [
+        "e",
+        false
+       ]
+      ]
+     },
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "v4:path_type_and_empty",
+   "code": "out = []\nfor bad in [None, 5, ['a']]:\n    try:\n        sol.deep_get({'a': 1}, bad)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'path must be a string' in str(e)))\ntry:\n    sol.deep_get({'a': 1}, '')\n    out.append('no error')\nexcept Exception as e:\n    out.append((type(e).__name__, 'path must not be empty' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:empty_segment_up_front",
+   "code": "out = []\nfor data, path in [({'z': 1}, 'q..r'), ({'a': 1}, '.a'), ({'a': 1}, 'a.'), ({'a': 1}, '.'),\n                   ({'a': {'b': 1}}, 'a..b')]:\n    try:\n        sol.deep_get(data, path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'empty segment' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:missing_dict_key",
+   "code": "try:\n    sol.deep_get({'a': {'b': 1}}, 'a.zz')\n    result = 'no error'\nexcept Exception as e:\n    result = (type(e).__name__, 'zz' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "KeyError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "v4:invalid_list_index",
+   "code": "out = []\nfor path in ['0.+3', '0.x', '0.-', '0.1_0', '0. 1', '0.1e0']:\n    try:\n        sol.deep_get([[1, 2, 3]], path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'invalid index' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ],
+     [
+      "ValueError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:index_out_of_range",
+   "code": "out = []\nfor seg in ['5', '-4', '3']:\n    try:\n        sol.deep_get({'l': [1, 2, 3]}, 'l.' + seg)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, seg in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "IndexError",
+      true
+     ],
+     [
+      "IndexError",
+      true
+     ],
+     [
+      "IndexError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:cannot_descend",
+   "code": "out = []\nfor data, path in [({'a': 1}, 'a.b'), ({'a': 'str'}, 'a.b'), ({'a': (1, 2)}, 'a.0'),\n                   ({'a': None}, 'a.b')]:\n    try:\n        sol.deep_get(data, path)\n        out.append('no error')\n    except Exception as e:\n        out.append((type(e).__name__, 'cannot descend' in str(e)))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ],
+     [
+      "TypeError",
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:recursion_required_no_loops",
+   "code": "import ast\nsrc = open(sol.__file__).read()\ntree = ast.parse(src)\ndefs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]\nnames = set(d.name for d in defs)\ngraph = {}\nfor d in defs:\n    calls = set()\n    for x in ast.walk(d):\n        if isinstance(x, ast.Call) and isinstance(x.func, ast.Name) and x.func.id in names:\n            calls.add(x.func.id)\n    graph.setdefault(d.name, set()).update(calls)\ncyclic = False\nfor start in graph:\n    seen = set()\n    stack = [start]\n    while stack:\n        cur = stack.pop()\n        for nxt in graph.get(cur, ()):\n            if nxt == start:\n                cyclic = True\n            if nxt not in seen:\n                seen.add(nxt)\n                stack.append(nxt)\nloops = any(isinstance(n, (ast.For, ast.AsyncFor, ast.While)) for n in ast.walk(tree))\ncomps = any(isinstance(n, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp))\n            for n in ast.walk(tree))\nimports = any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in ast.walk(tree))\nresult = (cyclic, loops, comps, imports)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "v4:deep_path_deterministic",
+   "code": "data = 'leaf'\nfor i in range(100):\n    data = {'k%d' % i: data}\npath = '.'.join('k%d' % i for i in range(99, -1, -1))\nresult = sol.deep_get(data, path)",
+   "timeout_s": 5,
+   "expected": {
+    "value": "leaf"
+   }
+  },
+  {
+   "name": "v4:mixed_structure",
+   "code": "data = {'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}]}\nresult = (sol.deep_get(data, 'users.0.name'), sol.deep_get(data, 'users.-1.name'),\n          sol.deep_get(data, 'users.0.tags.1'), sol.deep_get(data, 'users.1.tags'))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "ana",
+     "bob",
+     "y",
+     []
+    ]
+   }
+  },
+  {
+   "name": "dict_keys_are_strings",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({0: 'int-key', '0': 'str-key'}, '0'), []), (({1: 'a'}, '1'), ['1']), (({True: 1}, 'True'), ['True'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "'str-key'"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "numeric_looking_dict_keys",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'n.1.-1'), []), (({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, '0'), []), (({'07': 7}, '07'), []), (({'-1': 'm'}, '-1'), [])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "'neg-key'"
+     ],
+     [
+      "ok",
+      "'zero'"
+     ],
+     [
+      "ok",
+      "7"
+     ],
+     [
+      "ok",
+      "'m'"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "negative_and_padded_indexes",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([[1, 2, 3]], '0.-3'), []), (([[1, 2, 3]], '0.-0'), []), (([[1, 2, 3]], '0.002'), []), (([[1, 2, 3]], '-1.-1'), []), (([[1, 2, 3]], '0.-03'), [])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "1"
+     ],
+     [
+      "ok",
+      "1"
+     ],
+     [
+      "ok",
+      "3"
+     ],
+     [
+      "ok",
+      "3"
+     ],
+     [
+      "ok",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "index_out_of_range_text",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([[1, 2, 3]], '0.3'), ['3']), (([[1, 2, 3]], '0.-4'), ['-4']), (([[]], '0.0'), ['0']), (([[]], '0.-1'), ['-1']), (([1], '10'), ['10']), (([1], '0010'), ['0010']), (([1], '-02'), ['-02'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "invalid_index_forms",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([1], '+1'), ['invalid index']), (([1], '1.0'), ['1']), (([1], '1_0'), ['invalid index']), (([1], '٣'), ['invalid index']), (([1], '１'), ['invalid index']), (([1], ' 1'), ['invalid index']), (([1], '-'), ['invalid index']), (([1], '--1'), ['invalid index']), (([1], 'a'), ['invalid index']), (([1], '1e0'), ['invalid index']), (([1], '-+1'), ['invalid index'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "cannot_descend_atoms",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 't.0'), ['cannot descend']), (({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 's.0'), ['cannot descend']), (({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'none.x'), ['cannot descend']), (({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'users.0.name.0'), ['cannot descend']), ((5, 'a'), ['cannot descend']), ((None, '0'), ['cannot descend']), (('abc', '0'), ['cannot descend']), (((1,), '0'), ['cannot descend']), ((b'ab', '0'), ['cannot descend']), ((1.5, 'x'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_segment_before_anything",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [((5, 'a..b'), ['empty segment']), (([], '.0'), ['empty segment']), (({}, 'a.'), ['empty segment']), ((None, '.'), ['empty segment']), (({'a': 1}, 'a.b..c'), ['empty segment']), (({'a': 1}, 'zz..'), ['empty segment']), ((5, '..'), ['empty segment'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "path_errors_order",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [((5, None), ['path must be a string']), (({}, 1), ['path must be a string']), (({}, b'a'), ['path must be a string']), (({}, ['a']), ['path must be a string']), (({}, ''), ['path must not be empty']), ((None, ''), ['path must not be empty'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "unicode_and_space_keys",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'x y.é.1.0'), []), (({'日本': {'語': 1}}, '日本.語'), []), (({' ': 1}, ' '), [])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "20"
+     ],
+     [
+      "ok",
+      "1"
+     ],
+     [
+      "ok",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "returns_none_and_falsy",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'a': None}, 'a'), []), (({'a': [0]}, 'a.0'), []), (({'a': ''}, 'a'), []), (({'a': {}}, 'a'), [])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "None"
+     ],
+     [
+      "ok",
+      "0"
+     ],
+     [
+      "ok",
+      "''"
+     ],
+     [
+      "ok",
+      "{}"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "missing_keys",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'users.0.age'), ['age']), (({'users': [{'name': 'ana', 'tags': ['x', 'y']}, {'name': 'bob', 'tags': []}], '0': 'zero', 'n': {'1': {'-1': 'neg-key'}}, 't': (1, 2), 's': 'str', 'none': None, 'x y': {'é': [10, [20, 30]]}}, 'nope'), ['nope']), (({'a': {'b': 1}}, 'a.B'), ['B']), (({}, 'x'), ['x'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "returns_same_object",
+   "code": "inner = {'k': [1, 2]}\ndata = {'a': [inner]}\nresult = (sol.deep_get(data, 'a.0') is inner, sol.deep_get(data, 'a.-1.k') is inner['k'])",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "key_error_type_and_segment",
+   "code": "try:\n    sol.deep_get({'a': {'b': 1}}, 'a.missing_seg')\n    result = 'no error'\nexcept KeyError as e:\n    result = ('KeyError', 'missing_seg' in str(e))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     "KeyError",
+     true
+    ]
+   }
+  },
+  {
+   "name": "path_120_segments_mixed",
+   "code": "data = 'leaf'\nsegs = []\nfor i in range(120):\n    if i % 2:\n        data = [None, data]\n        segs.append('1' if i % 4 == 1 else '-1')\n    else:\n        data = {'k%d' % i: data}\n        segs.append('k%d' % i)\nresult = sol.deep_get(data, '.'.join(reversed(segs)))",
+   "timeout_s": 5,
+   "expected": {
+    "value": "leaf"
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([[{'_': {'users': 0}, 'é': [0], 'users': b'b'}, [[b'b'], {'07': b'b', 'b': (1, 2)}, [True, 's', 0, True], {'0': 2.5, 'é': 's'}], '', ''], (1, 2)], '-1'), []), (([], '00.'), ['empty segment']), (({}, 'a'), ['a']), (([[[[b'b'], {'0': True}, [1, 1]], {'a': {'1': None, 'K': (1, 2), 'users': True}}, {'1': [None, (1, 2), 0, 's'], 'x y': b'b', '-1': 's'}], {'07': [], 'b': [(1, 2)]}], '0.1.-1'), ['-1']), (({'1': (1, 2), '_': [[{'07': 2.5}], [[(1, 2), True, (1, 2)], []], {'x y': ['s', True, True, 2.5], '日本': {'K': 2.5, 'users': 1, '1': 1}, '1': {'users': ''}, 'K': {'a': None, '1': 2.5, '日本': 's'}}, {'é': [0, 's', 0], '-1': {'x y': None}, '1': None}]}, '_.00.0.07'), []), (([{}, True, {}], '-2.00'), ['cannot descend']), (({'_': {'b': [[(1, 2), 0, b'b', True], [None, b'b', None]], '07': [[], [2.5], [True, None]], '_': 0, '日本': True}, '日本': b'b', '0': 's'}, '_._.5'), ['cannot descend']), (({}, '00'), ['00']), (({}, 'a'), ['a']), (((1, 2), 'a'), ['cannot descend']), (({'é': {'1': [True], '日本': 1, 'K': [{}, 1, {'1': '', 'users': None, 'x y': b'b'}], '0': {}}, '1': {'_': True, 'é': b'b', 'a': {'0': ['', '', 's'], 'K': [], 'b': 2.5}}, '_': 2.5, 'K': (1, 2)}, '1.+1'), ['+1']), (([], b'a'), ['path must be a string'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "(1, 2)"
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "2.5"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'日本': 's'}, '日本.1_0'), ['cannot descend']), (([{'07': {'users': True, '07': [''], '0': [1, (1, 2), (1, 2)]}, 'a': {'日本': [0, 0, b'b', 2.5], 'é': [1, 1, 's', 2.5], '0': b'b', 'x y': {'日本': True, '07': (1, 2), '_': b'b', '-1': (1, 2)}}}, b'b', 2.5, {}], '1.-9'), ['cannot descend']), ((None, '+1'), ['cannot descend']), (({'K': 2.5}, 'x'), ['x']), (({'_': [[True], {'é': {'x y': 0, 'b': b'b'}, '-1': [b'b', 1, (1, 2)], 'users': ['s'], 'x y': ''}, True], 'K': {'x y': [[True, '']], '0': [], '1': {'users': {'b': 1, '1': 1, 'users': 0, 'a': 1}, '07': {'-1': 2.5}}, '_': ['s', {'x y': '', '1': (1, 2), 'a': 1}, True, {'_': None, '日本': 's'}]}, 'b': [[]]}, 'b.00.zz'), ['invalid index']), (([None, [[{'users': b'b', '1': 's'}, {'x y': 's', 'K': (1, 2)}, {'K': b'b', 'a': 0, 'b': True}], {'0': {'-1': (1, 2), '0': None, '_': 's', 'K': 's'}, '-1': [0]}, {'é': ['', 0, 0, 2.5], '-1': {'users': 's'}, '_': ['', 2.5, None, b'b'], '0': True}, [[True]]], b'b'], '-2.-3'), []), (([[[], {'K': {}}, {'07': {'K': 1, '_': b'b', 'x y': 's', '1': b'b'}}, 0], (1, 2), [{'_': ['s'], 'K': {}, '日本': {'07': True, 'users': 1, 'x y': None}, 'x y': [2.5, 's']}, [{'-1': 2.5, '0': 2.5}, {}, {}, {'K': None}], (1, 2), [[], [], {'07': 0, '1': 's', '-1': ''}]]], '-2.٣'), ['cannot descend']), (({'1': [{'K': {'_': None, 'users': 0, '0': None}, '1': [], '07': 2.5, '日本': {'1': 's', '-1': True, '_': '', 'K': 2.5}}, '']}, '1'), []), (([], 'x'), ['invalid index']), ((None, '5'), ['cannot descend']), (({'0': [{'users': 2.5, 'x y': 2.5, '-1': {'07': ''}}], 'a': {'K': {'a': [], 'K': {'K': 1, '1': 's', '07': 1}}, '07': [[None, (1, 2), 1, None], 2.5, {'_': 1, '07': True, 'x y': None}, [b'b', 2.5, '', 1]], '-1': [{'1': (1, 2)}, {'日本': True}, 2.5], 'b': [[2.5, True, 0, 0], {}, {'b': b'b'}]}, '-1': {'_': {'1': '', '07': {'-1': 0, '07': 's', 'users': ''}, 'x y': {'users': True, 'é': None, '-1': 0, '日本': b'b'}, '-1': {'-1': 0, '日本': '', 'a': b'b'}}}}, '0.0.-1'), []), (([{'b': {'b': {'_': 0, 'é': '', 'K': 1, '1': ''}, 'é': [True, '', b'b', 2.5], 'K': {'users': (1, 2), '07': 's'}}, '1': [[0], {}], 'é': [], '07': {'é': True, 'b': '', 'a': {}, '_': None}}, {'K': [['', b'b', b'b', ''], []], 'a': [{'0': '', 'x y': 's', 'a': 1, '-1': (1, 2)}, []], 'b': [{'07': None, 'b': b'b', 'a': 1, '1': True}], '日本': b'b'}], '0.x'), ['x'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'0': {'-1': (1, 2), '0': None, '_': 's', 'K': 's'}, '-1': [0]}"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "[{'K': {'_': None, 'users': 0, '0': None}, '1': [], '07': 2.5, '日本': {'1': 's', '-1': True, '_': '', 'K': 2.5}}, '']"
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'07': ''}"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'日本': b'b'}, '日本..-9'), ['empty segment']), (({'07': {}}, '07'), []), (({'1': {'日本': b'b', 'a': {}, 'K': {'日本': [True, 0]}}, '日本': {}, '07': None}, '.07'), ['empty segment']), (({'0': [[{'0': (1, 2), '-1': 0}], 2.5]}, '0'), []), ((1, 'a'), ['cannot descend']), (([{'1': {'b': True, '_': {'1': 1}, '-1': {'K': b'b'}, '07': ['']}}, b'b', {'é': '', '_': [[b'b', 's'], {'é': b'b', 'K': 's', '07': 2.5, 'x y': 's'}, [True, True, (1, 2), b'b']], 'x y': {'users': [], 'é': {'x y': True, 'b': True, 'a': 1}}, '07': [[0, 2.5, '', ''], [1, None, 2.5], {'users': ''}, None]}, 's'], '03.+1'), ['cannot descend']), (({'x y': {'0': {}}, '_': [['s', ['', b'b', '', b'b'], {'a': 2.5, 'é': ''}, None]], '-1': '', 'K': [[(1, 2), [2.5]], [[None, (1, 2), True, 1], {}, True]]}, '-1.+1'), ['cannot descend']), (([{'0': {'-1': [0], '0': [], 'é': [None, 0], 'users': {'é': True, '1': True, '日本': True, 'x y': (1, 2)}}}], '0.0.é.-1'), []), ((None, 'zz'), ['cannot descend']), (({'K': {'-1': 's', 'users': [0, {}, [], (1, 2)]}, 'a': [{'_': {'日本': 's', '_': 1}, '1': [], '07': {'0': None}, 'é': [None, None, True, 0]}, [[], {'_': (1, 2)}, {'a': 0}, {}], [{'_': 0, 'a': True, 'é': b'b'}, [2.5, '', '', 1]]], 'b': 0, '0': 's'}, 'a.02.00.a.0'), ['cannot descend']), ((2.5, '00'), ['cannot descend']), ((True, '1.0'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{}"
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "[[{'0': (1, 2), '-1': 0}], 2.5]"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "0"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([], '00'), ['00']), (('', '-9'), ['cannot descend']), (({'users': {'K': [{}], 'b': {'_': '', 'é': [''], '0': {'07': ''}}}, 'x y': {'日本': [[''], {'a': 1}, {'b': 0, 'users': True, '_': (1, 2), '-1': 0}, {'07': 2.5, '_': None, 'b': True}], '0': {'K': {'-1': None, 'é': 's', '1': b'b'}}, 'K': [{'07': True, '日本': b'b', 'x y': 0, '_': b'b'}, [2.5, 0, True, 2.5]], '_': {'users': {'0': True, '_': True, '1': 1, 'users': None}}}, 'b': 1, 'a': {'K': {'日本': {'K': 0, '0': b'b', '日本': None, 'a': ''}, 'K': {'x y': None, '日本': None, '07': 0}, '-1': []}, '0': True}}, 'b'), []), (({'a': {'users': {'é': [(1, 2), b'b', 's']}}, '-1': [True], '0': {'日本': {'-1': 2.5}, '_': {'b': {'x y': '', '07': '', 'users': None}, 'users': 0}}, 'x y': True}, 'a'), []), (([], '00'), ['00']), (({'1': 2.5, 'b': '', 'K': (1, 2)}, '1.x'), ['cannot descend']), (([[], [[{'K': 's', 'é': '', '_': 2.5}, {}], {'x y': (1, 2)}, {'a': [b'b', 's', 0, (1, 2)], 'users': 1}]], '0.x'), ['invalid index']), (({'b': [], '0': []}, 'b.a'), ['invalid index']), ((True, 'zz'), ['cannot descend']), ((b'b', '٣'), ['cannot descend']), (({'users': {'07': {'日本': {'x y': (1, 2), 'b': b'b', '1': 2.5, 'users': True}, '0': [0], '_': ['', True, None, (1, 2)]}, 'b': [[None, True, 2.5]]}, '-1': [True], 'x y': (1, 2), '0': 2.5}, '0.-1'), ['cannot descend']), (([{'07': None, 'a': {'07': [0, 's'], '日本': [True]}, 'b': {}, '_': {}}, {'x y': {}, 'b': 1, '_': True}, 's'], 'a'), ['invalid index'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "1"
+     ],
+     [
+      "ok",
+      "{'users': {'é': [(1, 2), b'b', 's']}}"
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(('', '+1'), ['cannot descend']), (({'é': {}}, 'é.-0'), ['-0']), (((1, 2), '-9'), ['cannot descend']), ((b'b', 'a'), ['cannot descend']), (({'_': {}, '0': [(1, 2)]}, '0.0.0.'), ['empty segment']), (({'b': [{'07': []}], '_': [2.5, [{'_': '', '07': '', '1': None, 'K': (1, 2)}, [1, ''], ['', 1, 2.5, (1, 2)], {'日本': '', '0': b'b', '1': True, '-1': (1, 2)}]], '07': {'b': {'_': ['', (1, 2), True]}}}, '07.b._.zz'), ['invalid index']), ((b'b', '-..x'), ['empty segment']), (([None, 1, [(1, 2), True, [[]]], [{}, [{}, {}, None, {}], {'0': {'_': b'b', '07': 's', '1': (1, 2), 'b': 0}, 'users': ['s', (1, 2), 1, 2.5], '1': [0, (1, 2)]}, {'日本': [], '1': [], 'K': {'x y': 's', 'K': ''}, 'a': {}}]], '1_0'), ['invalid index']), (([[], True, [1, []]], '02.zz'), ['invalid index']), (('', '1_0'), ['cannot descend']), (({'日本': {}}, b'a'), ['path must be a string']), (({}, '-9'), ['-9'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'é': {}}, 'é'), []), (([[{}], {'a': [{}, '', [0, 0, '']], 'é': {'é': 's', 'users': [''], '-1': {'x y': (1, 2), '日本': 2.5, '0': 's'}, '1': 's'}}, {'07': [[], '', 's', (1, 2)]}, {'_': {'x y': [2.5, (1, 2), (1, 2), b'b'], 'b': 1, '07': 's', '-1': {'_': b'b', 'K': None, 'users': True}}}], '3.zz'), ['zz']), (([], '00'), ['00']), (([{'-1': [[(1, 2), '', None]], 'x y': ''}, [[{'1': 's'}, None, 0, 2.5]], (1, 2), [True, [], []]], b'a'), ['path must be a string']), (([[], {'_': 1, 'K': [{'0': None, '07': b'b', 'a': 's'}], 'a': [], 'x y': [None, ['s']]}], 'a'), ['invalid index']), (({'-1': {'x y': 2.5, '_': [0], '1': {'a': b'b', '日本': [True, 1], 'é': ['s', b'b', 2.5, (1, 2)], '-1': [(1, 2), 1, '']}}, '_': 1, 'é': {'a': {'b': None, 'users': {'K': None, '日本': 0}, '-1': {'users': 's', '-1': 2.5}}}, '日本': ['s']}, '-1._.-1.-'), ['cannot descend']), (([{'-1': [[], {'_': 2.5}], '0': []}, {'日本': [[], ''], 'K': {}, 'b': {}}, {'1': {'b': [], '-1': {'0': '', '日本': True, '_': b'b'}}}], '0.-1.-'), ['invalid index']), (({'07': 2.5}, '+1'), ['+1']), (([{}, {'07': {'_': 0, '-1': [2.5, 1, 's', None]}, '0': b'b', 'K': {'K': {}}, '_': [{'07': '', 'b': None, 'K': 's', '日本': 1}]}, [[]]], '0.-1'), ['-1']), (([{'a': [[True, 0, 1], ''], '0': 0, 'K': {'-1': [(1, 2), b'b'], 'é': [True, (1, 2)], '日本': ''}, 'x y': None}, ''], '.x'), ['empty segment']), ((None, 'zz'), ['cannot descend']), ((b'b', '-0'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "{}"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'K': [], '_': 0, '日本': {'é': 's', '0': (1, 2), 'users': b'b', 'x y': {}}, '-1': b'b'}, '日本.0.5'), ['cannot descend']), ((0, '٣'), ['cannot descend']), (({'日本': {'users': 's', '07': {'07': ['', 1, None, 2.5]}}, 'K': []}, 'K.-'), ['invalid index']), ((None, '-0'), ['cannot descend']), (([{}, 2.5, [{'x y': [0, 0, 1, None], 'a': '', 'b': 0, 'é': 1}]], '1.1.0'), ['cannot descend']), (((1, 2), '1_0'), ['cannot descend']), ((True, '+1'), ['cannot descend']), (([[{'0': [], 'a': {'1': None}, 'K': [None]}, [[]], 1, {'x y': ['', 0], '1': ['', 1, ''], 'K': {'0': '', '07': 2.5}}]], '0.0.a.1.00.'), ['empty segment']), (([True], '0'), []), (({'b': '', 'a': True, 'é': {'users': {'07': [2.5, 's'], '0': [True, None]}}, '-1': {'K': {}, 'b': {}, 'é': 2.5, '07': [{'x y': 1, 'b': 0, 'é': True}, True, [2.5], [None, 's']]}}, 'é'), []), (([{'_': {'1': {'x y': 's'}, '-1': [None, (1, 2)], 'é': [0, True, b'b'], 'a': {'1': (1, 2), 'x y': 2.5, 'b': b'b', '_': 1}}, 'users': [0, [b'b', True, 's', 2.5], [0, (1, 2)], ['']], 'a': {'a': [(1, 2), (1, 2), 's']}}, [True, (1, 2), None], {'b': 2.5}, 0], '2.b.x'), ['cannot descend']), (({'日本': [{'_': {'-1': 2.5, 'x y': 's'}, '1': [None, b'b'], 'x y': {'users': b'b', 'é': '', '-1': True, 'a': (1, 2)}, 'users': {'0': 2.5, '1': None}}], '-1': [{'_': 1}, [{'_': 2.5, 'x y': None, '1': 0}, {'07': None, 'users': None, 'b': ''}, {'1': 's'}, {'0': 2.5}], b'b'], '07': [[{'0': None, '-1': 's'}, []], (1, 2), {'0': [0, 0, True]}], 'x y': [{'é': ['', b'b', 2.5]}]}, '07.5'), ['5'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "True"
+     ],
+     [
+      "ok",
+      "{'users': {'07': [2.5, 's'], '0': [True, None]}}"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({}, '٣'), ['٣']), (((1, 2), '00'), ['cannot descend']), (([{}], '0.٣'), ['٣']), (({'0': {'-1': {'0': ['s'], 'b': ['s'], 'K': [None, '', '', 0], 'x y': []}}}, '0'), []), (([], '-1'), ['-1']), (([{}, {'-1': 1, '07': 1, '1': {'07': [None, 's', b'b', '']}, '日本': True}, {'users': True, '-1': {'x y': '', 'users': {'x y': 1, '日本': True, '1': 2.5}, 'K': [0, (1, 2), None], '0': {'0': 0}}}], '00.-1'), ['-1']), ((1, '-9'), ['cannot descend']), (([{'0': {'users': {}}, 'users': {'_': {'x y': 2.5, '1': True, 'b': True}, 'a': {}}, '1': {'日本': ['', None, '', True]}, 'K': {'0': {'日本': None}, 'users': None}}, {'x y': [[''], [1, (1, 2)], {}], '日本': [[0, True]], 'é': 0}], b'a'), ['path must be a string']), (([{'é': [], 'x y': '', '1': 2.5, '0': 1}, (1, 2), {'b': ''}, 2.5], '3.-'), ['cannot descend']), ((2.5, 'a.'), ['empty segment']), (([{'日本': {'0': 's'}, '07': [{'-1': b'b', '07': 0, '1': 's'}, {}, 2.5, [True, 1]], '_': {'K': {'日本': (1, 2), '_': ''}}, '-1': {'0': {}}}, {'a': [], '0': True, '日本': [['s', True, True, (1, 2)], '', {'b': (1, 2), 'é': 2.5, '0': b'b'}, {'é': True, '_': '', '07': None}]}, {'日本': {'users': 's', 'b': [b'b', b'b'], '-1': {}}, 'b': [{'_': None}, {'b': 0}, [(1, 2), True, '']]}, [[''], [{}, 2.5, [2.5, 2.5, 1]], 's']], '2'), []), ((2.5, '1.0'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'-1': {'0': ['s'], 'b': ['s'], 'K': [None, '', '', 0], 'x y': []}}"
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'日本': {'users': 's', 'b': [b'b', b'b'], '-1': {}}, 'b': [{'_': None}, {'b': 0}, [(1, 2), True, '']]}"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([], 'a'), ['invalid index']), (({'07': 2.5}, '07.5.'), ['empty segment']), (([True, [[['s', 1], {'07': 2.5, 'é': (1, 2), '-1': 's', '0': 0}], {'K': {'b': '', 'x y': 2.5, '1': 0, 'é': None}}, []], [{'users': {'日本': (1, 2), 'users': None}, '1': {}, 'a': {'a': '', '-1': 's', '07': 1}, '_': [None]}]], '01.0.-'), ['invalid index']), (({'x y': b'b', '1': ['s', [['', (1, 2), 2.5, b'b'], True]], '0': {'-1': {'07': True, '日本': [0, 1, '']}, 'b': ['', {'07': True}, 0, ['s', (1, 2), (1, 2)]]}, '-1': [[], [{'x y': 1, '日本': 1}, {'1': 2.5}, {'日本': b'b', '-1': True}], '', {'b': {'07': 2.5, '0': 1, 'users': None, 'a': ''}, '07': [], 'K': [1, 0]}]}, '0'), []), ((None, '0'), ['cannot descend']), (({}, '-1'), ['-1']), (([], '-9'), ['-9']), (([{'K': {'é': [True, '', 0], 'b': b'b'}, 'x y': b'b', '1': 0}], '-1'), []), (({}, 'zz'), ['zz']), (([0, True, {'日本': {'K': [b'b', True, 1], '07': (1, 2), 'x y': [b'b', 1, None], '1': [True, 0]}, 'K': True, 'users': {'é': []}, 'é': ''}], '2.users.é.1_0'), ['invalid index']), (({'0': 's', '-1': {'a': {'日本': []}}, '_': {}}, '-1.a.日本.1.0'), ['1']), ((['s'], '00.٣'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'-1': {'07': True, '日本': [0, 1, '']}, 'b': ['', {'07': True}, 0, ['s', (1, 2), (1, 2)]]}"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'K': {'é': [True, '', 0], 'b': b'b'}, 'x y': b'b', '1': 0}"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([], '-'), ['invalid index']), (({'users': {'07': [{}, {'b': 0, 'x y': True}, {'0': 2.5, 'b': b'b', 'K': b'b'}, 's']}, '_': [{'x y': [], '日本': {'1': 1}}, {'a': [], '-1': {}, 'users': (1, 2), '0': [(1, 2)]}]}, 'users.07.02.-'), ['-']), ((['', {'07': {}, '_': {'x y': [0]}}, {'-1': b'b', 'b': [2.5, [1, 1], 's', [0, '', (1, 2)]], 'K': {'a': {'K': '', 'users': (1, 2)}, '07': [True, 1, None, b'b'], 'x y': [None, 2.5]}, 'a': []}, 1], '3.+1'), ['cannot descend']), (([['', (1, 2)], [[{'a': 2.5, 'é': b'b'}, 's', [None, 's', 's'], {'1': 2.5}], '', [{'x y': True, '_': 0, '07': 0, 'users': b'b'}]], [], {'1': [{'日本': 2.5, 'K': 0, 'é': True}, [b'b'], [None, 2.5, b'b', '']], '日本': [[]], '07': {}}], '02.٣'), ['invalid index']), ((0, '+1'), ['cannot descend']), (([[{'_': '', '1': 's', 'x y': [2.5, 1], 'b': 2.5}, True, {'a': [True, True], '日本': [1, 1], '0': {'07': b'b', 'é': '', 'K': True}, 'b': {}}], {'b': ''}, b'b', []], '0.2.0'), []), (([{'1': {'x y': [b'b', 's', b'b'], 'K': [True, '']}, 'K': [{'b': 's', 'K': 2.5, '07': 0, '_': None}]}, {'_': '', 'K': {'_': [2.5, None], 'é': [2.5, '']}, 'b': True, '-1': [['', None], []]}, [0, 0, {'日本': {'1': (1, 2)}, 'a': [(1, 2), 0, 0, b'b']}]], '-1.2.x'), ['x']), (({'b': [], '_': [[[None, '', '', (1, 2)], 2.5, {'é': 's', '07': ''}]], '日本': True, '1': None}, '1.1_0'), ['cannot descend']), (({'K': [{'a': 2.5}, {'users': {'0': '', 'K': '', 'a': None, 'x y': 's'}, '0': {'_': None, 'users': 's'}, 'K': {}, 'b': []}, [{'-1': 0}], [[1, 's'], ['s', b'b'], [(1, 2), b'b', '', None], {'é': b'b', '-1': b'b', '1': None, '_': ''}]]}, 'K.0'), []), (({'日本': {'users': 1, '0': {'-1': {'é': True, '07': 2.5, 'a': b'b', 'K': 1}}, '1': {'users': [b'b', True, b'b', 1], 'b': {'1': None, 'users': True, 'a': True, '_': ''}, 'K': 's', '07': {'0': 2.5, 'a': None, 'b': (1, 2)}}}, 'a': {'日本': [], 'users': {'é': [], 'x y': {'K': None, 'é': True}, '-1': {'_': 2.5, '1': True}}, '1': {'1': 0, '-1': {}}}, 'users': {'users': {}}}, '日本.0'), []), (({'_': [None, (1, 2), [[True], {'1': '', 'é': (1, 2), '-1': 2.5}, 2.5], 1], 'a': [[{'07': 1, '-1': None, 'a': None, '日本': 0}, [], {}, [2.5, b'b', True]]], '日本': [[{'07': '', '-1': 0}, {'1': b'b', '-1': 1, '日本': (1, 2), '0': 's'}], [[None], 0, True], [[], ['', (1, 2)]], {'x y': {'日本': 2.5}, '1': [(1, 2), ''], '0': (1, 2)}]}, '日本'), []), (([''], '00.5'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'07': b'b', 'é': '', 'K': True}"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'a': 2.5}"
+     ],
+     [
+      "ok",
+      "{'-1': {'é': True, '07': 2.5, 'a': b'b', 'K': 1}}"
+     ],
+     [
+      "ok",
+      "[[{'07': '', '-1': 0}, {'1': b'b', '-1': 1, '日本': (1, 2), '0': 's'}], [[None], 0, True], [[], ['', (1, 2)]], {'x y': {'日本': 2.5}, '1': [(1, 2), ''], '0': (1, 2)}]"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_10",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [((None, '5'), ['cannot descend']), (({}, '5'), ['5']), (([{'K': {'1': {'0': None, 'a': 's', 'é': 's', 'x y': (1, 2)}, '-1': b'b', 'é': [b'b', b'b', '', b'b']}, 'é': {'07': ['', 1], 'x y': {}, '0': [b'b', 0, 1, b'b'], '_': []}, '0': {'b': [1, 1, 0, True], 'users': None, '1': ['s', (1, 2)], '_': {'07': 2.5}}, '_': {'1': {'07': ''}, '-1': [1, b'b'], 'a': {'0': b'b', 'é': 0, '07': '', '_': b'b'}, '07': {'-1': True, 'a': '', '_': True, '07': 2.5}}}, '', {'日本': [], '-1': ['', 0]}], 'zz'), ['invalid index']), (((1, 2), '٣'), ['cannot descend']), (([[{'users': {'a': (1, 2), '0': '', '-1': (1, 2), 'é': b'b'}}, [{'K': 2.5, '07': None}, True, {'_': (1, 2), '-1': (1, 2), 'x y': None}, 2.5], 0], {'b': True, '0': [{}, ['s', b'b', True, (1, 2)]]}], '0.2.0'), ['cannot descend']), (({'K': {}}, 'K.1_0'), ['1_0']), (({'b': True}, 'b.5'), ['cannot descend']), ((1, '-'), ['cannot descend']), (({'_': {}, 'a': ''}, '_.1_0'), ['1_0']), (([None, {'-1': ''}, [[{'b': 2.5, 'a': '', 'x y': b'b'}, [1, ''], 0], None], 's'], 'x'), ['invalid index']), (({'b': [{'a': b'b', 'é': [(1, 2), 1, True]}, [{'07': 1, '1': ''}, ['s', '']], {'-1': 's', '_': ['', True, 0, True]}, b'b'], 'K': (1, 2), '07': [b'b', 0]}, 'K.1_0'), ['cannot descend']), (([[[0, {}, 's', [(1, 2), 1, 1]], b'b'], {'b': {'x y': {'b': True, '1': 's'}}, 'a': [[(1, 2), 's'], [True, 0]], 'K': [True, [(1, 2), 's'], {}, ['', None, b'b']]}, 1, []], '-9'), ['-9'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_11",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(({'x y': [0, [{'b': 0, 'é': b'b', '0': 2.5}]], 'é': (1, 2), '0': {'K': {'a': [1, 1, (1, 2)]}}}, 'x y'), []), (([{'07': [(1, 2)], 'b': [], '日本': [{}]}, [b'b'], 2.5, [[], (1, 2)]], '0.日本.-1.-9'), ['-9']), ((2.5, '-'), ['cannot descend']), (([[], {'-1': {'é': [True, True], '_': {}}, 'K': b'b', '07': {'1': True}, 'x y': [None, [(1, 2)], [2.5, True, None]]}, 's', [[{'日本': 's', 'users': '', 'é': 0}, {'users': 1, 'K': 0}, 's'], '']], '1..x'), ['empty segment']), ((None, '-1'), ['cannot descend']), (({'0': [{'K': {'users': None, '07': 1, '1': 2.5, '0': 2.5}, '0': 2.5, '-1': {}}, 's', [[1, 2.5, 1, 1], [2.5], [0, (1, 2), 1], 0]], '07': True, 'x y': {}, '1': ''}, '1.-0'), ['cannot descend']), (({'_': {'07': b'b'}, '1': {'x y': {'1': [2.5, 1], 'K': ['', ''], 'users': {'07': 's', '0': (1, 2), '-1': 0, 'é': 2.5}}, '_': {'07': {'-1': 2.5}, 'b': 0, '0': 0, 'a': {'0': 's', '-1': 's', 'x y': 0}}, 'é': ['s'], 'b': b'b'}, 'é': [{'-1': 2.5}, 2.5, 's'], '0': {'-1': None, 'users': 1}}, '_.07.x'), ['cannot descend']), (({'users': {'-1': {'é': [2.5, 0], '0': 0, '1': {'07': True, 'users': '', 'x y': True}, 'b': [2.5]}}}, '00'), ['00']), (({'K': [[{'b': 's', '日本': 2.5}, [], {'x y': (1, 2), 'é': 2.5, '_': '', 'users': True}, {'b': b'b', '日本': 2.5, '0': 2.5, 'K': None}]]}, 'K'), []), ((2.5, 'zz'), ['cannot descend']), (([], 'zz'), ['invalid index']), (([], '-1'), ['-1'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ok",
+      "[0, [{'b': 0, 'é': b'b', '0': 2.5}]]"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "[[{'b': 's', '日本': 2.5}, [], {'x y': (1, 2), 'é': 2.5, '_': '', 'users': True}, {'b': b'b', '日本': 2.5, '0': 2.5, 'K': None}]]"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_12",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([{'x y': {}, 'é': (1, 2), '07': [None], 'b': [b'b', {}, {'K': 's'}]}], '00.é.-1'), ['cannot descend']), (([{'日本': 0, '-1': [{'0': 's', '1': (1, 2), '日本': 0}, {'é': ''}, {'users': None}], 'users': [0, [2.5, (1, 2)], {'日本': b'b'}], '0': [[True, 0, (1, 2)], {'x y': 2.5, 'é': 2.5, '0': True, '日本': 2.5}, [1], 1]}, {'a': [{'-1': b'b'}, {'0': 2.5, '_': b'b', 'a': 0}, [2.5]]}, {}, {'x y': [{}, '', {'é': 0}, ''], '0': [], 'K': [[1, 's', 2.5, ''], ['', None]], '_': []}], '1'), []), (({'1': [{'-1': {'users': '', '-1': b'b', '07': None, 'a': True}, '_': [2.5, 0, ''], 'é': {'a': (1, 2), '日本': None, 'users': 2.5}}, 's']}, '0'), ['0']), (({'1': 2.5}, '1.0'), ['cannot descend']), (((1, 2), '00'), ['cannot descend']), (([{}, [{}, [[(1, 2), (1, 2), 2.5], [b'b'], [1]]]], '0.00'), ['00']), ((2.5, '0'), ['cannot descend']), ((True, '-.'), ['empty segment']), ((1, 'a'), ['cannot descend']), (([], 'x'), ['invalid index']), ((['s', 0], '1.00'), ['cannot descend']), (([[], []], '1.+1'), ['invalid index'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "{'a': [{'-1': b'b'}, {'0': 2.5, '_': b'b', 'a': 0}, [2.5]]}"
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_13",
+   "code": "def _t(v):\n    if isinstance(v, (list, tuple)):\n        return [type(v).__name__, [_t(x) for x in v]]\n    return [type(v).__name__, v]\nout = []\nfor _a, _subs in [(([], '٣'), ['invalid index']), (([None, [{}], {'x y': {}, '1': {'x y': True, '日本': {'é': 1, '0': 2.5}, '-1': 1}, '_': (1, 2), 'K': {'a': 2.5, '日本': ['', None, 2.5], 'x y': [(1, 2), '', '', None]}}], '-9'), ['-9']), (([{'0': [], 'x y': {'-1': 1}}], '0.a'), ['a']), (({'x y': [{}, (1, 2)], '_': {}, 'users': []}, '._.1.0'), ['empty segment']), ((b'b', '-'), ['cannot descend']), (([{'日本': 2.5, 'x y': {'07': {'users': '', 'x y': b'b'}, '1': {}, 'é': {'K': 's'}, '0': 's'}}], '0.日本'), []), (([{'日本': '', 'b': [], '_': {'_': [(1, 2), True, (1, 2)]}, '0': [1]}, {'日本': 1, 'users': [[b'b', b'b']]}, {'users': b'b', 'é': {'_': [(1, 2), 0, '', ''], 'users': {}, '1': None, 'é': {'users': b'b'}}}, 2.5], '0.0'), []), ((True, 5), ['path must be a string']), (('s', '00'), ['cannot descend']), (([[[{'-1': 0, 'x y': b'b', '_': 2.5}, 1]], []], '1.-0'), ['-0']), ((0, 'zz'), ['cannot descend']), (('', 'a'), ['cannot descend'])]:\n    try:\n        _v = sol.deep_get(*_a)\n        _r = ['ok', repr(_v)]\n    except Exception as _e:\n        _r = [type(_e).__name__, [_s in str(_e) for _s in _subs]]\n    out.append(_r)\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "KeyError",
+      [
+       true
+      ]
+     ],
+     [
+      "ValueError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "ok",
+      "2.5"
+     ],
+     [
+      "ok",
+      "[1]"
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "IndexError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ],
+     [
+      "TypeError",
+      [
+       true
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

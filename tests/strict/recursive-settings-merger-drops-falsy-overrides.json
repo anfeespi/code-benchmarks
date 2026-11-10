@@ -1,0 +1,4220 @@
+{
+ "title": "Recursive settings merger drops falsy overrides",
+ "entry_point": "merge_settings",
+ "suite": "v4-strict",
+ "crosscheck": {
+  "n": 500,
+  "agree": 500,
+  "reference": "recursive two-pass merge (copy defaults, then apply overrides; dict+dict recurse)"
+ },
+ "cases": [
+  {
+   "name": "v4:falsy_override_wins",
+   "code": "result = sol.merge_settings({'a': True, 'b': 1}, {'a': False, 'b': 0})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       false
+      ],
+      [
+       "b",
+       0
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:nested_merge",
+   "code": "result = sol.merge_settings({'x': {'p': 1, 'q': 2}}, {'x': {'q': 3}})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "x",
+       {
+        "__dict__": [
+         [
+          "p",
+          1
+         ],
+         [
+          "q",
+          3
+         ]
+        ]
+       }
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:none_override",
+   "code": "result = sol.merge_settings({'a': 5}, {'a': None})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:dict_replaces_scalar",
+   "code": "result = sol.merge_settings({'a': 1}, {'a': {'z': 0}})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       {
+        "__dict__": [
+         [
+          "z",
+          0
+         ]
+        ]
+       }
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:scalar_replaces_dict",
+   "code": "result = sol.merge_settings({'a': {'z': 1}, 'b': {'y': 2}}, {'a': 7, 'b': None})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       7
+      ],
+      [
+       "b",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:inputs_untouched",
+   "code": "d={'a': {'b': 1}}; o={'a': {'c': 2}}; r=sol.merge_settings(d,o); result=(d, o, r)",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "c",
+           2
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ],
+          [
+           "c",
+           2
+          ]
+         ]
+        }
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "v4:empty",
+   "code": "result = (sol.merge_settings({}, {}), sol.merge_settings({'k': []}, {}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     {
+      "__dict__": []
+     },
+     {
+      "__dict__": [
+       [
+        "k",
+        []
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "v4:all_falsy_kinds_nested",
+   "code": "result = sol.merge_settings({'db': {'host': 'prod', 'pool': 5, 'opts': {'ssl': True, 'name': 'x'}}, 'keep': 1}, {'db': {'pool': 0, 'opts': {'ssl': False, 'name': ''}}})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "db",
+       {
+        "__dict__": [
+         [
+          "host",
+          "prod"
+         ],
+         [
+          "pool",
+          0
+         ],
+         [
+          "opts",
+          {
+           "__dict__": [
+            [
+             "ssl",
+             false
+            ],
+            [
+             "name",
+             ""
+            ]
+           ]
+          }
+         ]
+        ]
+       }
+      ],
+      [
+       "keep",
+       1
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:falsy_keys_only_in_overrides_are_added",
+   "code": "result = sol.merge_settings({'a': 1}, {'b': {'c': 2}, 'c': [], 'd': '', 'e': 0, 'f': False, 'g': None})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       {
+        "__dict__": [
+         [
+          "c",
+          2
+         ]
+        ]
+       }
+      ],
+      [
+       "c",
+       []
+      ],
+      [
+       "d",
+       ""
+      ],
+      [
+       "e",
+       0
+      ],
+      [
+       "f",
+       false
+      ],
+      [
+       "g",
+       null
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "v4:empty_dict_override_merges_recursively",
+   "code": "result = (sol.merge_settings({'a': {'b': 1}}, {'a': {}}), sol.merge_settings({'a': 1}, {'a': {}}), sol.merge_settings({'a': {'b': 1}}, {'a': []}))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": [
+          [
+           "b",
+           1
+          ]
+         ]
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        {
+         "__dict__": []
+        }
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "a",
+        []
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "v4:returns_new_dict_not_an_input",
+   "code": "d = {'a': 1}; o = {'b': 2}\nr = sol.merge_settings(d, o)\nr['zz'] = 9\nresult = (r is d, r is o, d, o, sorted(r))",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     false,
+     false,
+     {
+      "__dict__": [
+       [
+        "a",
+        1
+       ]
+      ]
+     },
+     {
+      "__dict__": [
+       [
+        "b",
+        2
+       ]
+      ]
+     },
+     [
+      "a",
+      "b",
+      "zz"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v4:deep_three_levels_and_list_replacement",
+   "code": "result = sol.merge_settings({'a': {'b': {'c': {'d': 1, 'e': 2}}}, 'l': [1, 2, 3]}, {'a': {'b': {'c': {'d': 0}}}, 'l': []})",
+   "timeout_s": 5,
+   "expected": {
+    "value": {
+     "__dict__": [
+      [
+       "a",
+       {
+        "__dict__": [
+         [
+          "b",
+          {
+           "__dict__": [
+            [
+             "c",
+             {
+              "__dict__": [
+               [
+                "d",
+                0
+               ],
+               [
+                "e",
+                2
+               ]
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        ]
+       }
+      ],
+      [
+       "l",
+       []
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "all_falsy_overrides",
+   "code": "import copy\nout = []\nfor d, o in [({'a': True, 'b': 1, 'c': 'x', 'd': [1], 'e': {'k': 1}, 'f': 2.5}, {'a': False, 'b': 0, 'c': '', 'd': [], 'f': 0.0, 'e': None})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         false
+        ],
+        [
+         "b",
+         0
+        ],
+        [
+         "c",
+         ""
+        ],
+        [
+         "d",
+         []
+        ],
+        [
+         "e",
+         null
+        ],
+        [
+         "f",
+         0.0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "falsy_new_keys_added",
+   "code": "import copy\nout = []\nfor d, o in [({}, {'a': False, 'b': 0, 'c': '', 'd': [], 'e': None, 'f': {}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         false
+        ],
+        [
+         "b",
+         0
+        ],
+        [
+         "c",
+         ""
+        ],
+        [
+         "d",
+         []
+        ],
+        [
+         "e",
+         null
+        ],
+        [
+         "f",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "empty_dict_override_merges",
+   "code": "import copy\nout = []\nfor d, o in [({'a': {'x': 1}}, {'a': {}}), ({'a': 1}, {'a': {}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "x",
+            1
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "dict_replaced_by_falsy_scalar",
+   "code": "import copy\nout = []\nfor d, o in [({'a': {'x': 1}}, {'a': 0}), ({'a': {'x': 1}}, {'a': False}), ({'a': {'x': 1}}, {'a': []})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         false
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         []
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "lists_replace_not_merge",
+   "code": "import copy\nout = []\nfor d, o in [({'l': [1, 2, 3]}, {'l': [9]}), ({'l': [{'a': 1}]}, {'l': [{'b': 2}]})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "l",
+         [
+          9
+         ]
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "l",
+         [
+          {
+           "__dict__": [
+            [
+             "b",
+             2
+            ]
+           ]
+          }
+         ]
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "deep_nested_falsy",
+   "code": "import copy\nout = []\nfor d, o in [({'a': {'b': {'c': {'d': True, 'e': 1}}}}, {'a': {'b': {'c': {'d': False}}}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  false
+                 ],
+                 [
+                  "e",
+                  1
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "override_only_keys_nested",
+   "code": "import copy\nout = []\nfor d, o in [({'a': 1}, {'b': {'c': {'d': None}}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         1
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "d",
+               null
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "both_empty_and_defaults_only",
+   "code": "import copy\nout = []\nfor d, o in [({}, {}), ({'a': {'b': 0}}, {}), ({}, {'a': 0})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": []
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            0
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "unicode_keys_and_values",
+   "code": "import copy\nout = []\nfor d, o in [({'clé': 'défaut', '名': {'x': 1}}, {'名': {'x': 0}, 'clé': ''})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "clé",
+         ""
+        ],
+        [
+         "名",
+         {
+          "__dict__": [
+           [
+            "x",
+            0
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "no_mutation_deep",
+   "code": "import copy\nout = []\nfor d, o in [({'db': {'opts': {'ssl': True}}, 'k': [1]}, {'db': {'opts': {'ssl': False, 'n': 0}}, 'k': []})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "db",
+         {
+          "__dict__": [
+           [
+            "opts",
+            {
+             "__dict__": [
+              [
+               "ssl",
+               false
+              ],
+              [
+               "n",
+               0
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "k",
+         []
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_00",
+   "code": "import copy\nout = []\nfor d, o in [({}, {'d': [1, 2], 'a': {}, 'c': 'x', 'b': 3.5}), ({'b': 'x'}, {}), ({'c': {'d': {'d': {'d': 's', 'c': 7}, 'a': {'a': 3.5}, 'b': [1, 2]}, 'b': {'b': {'a': [1, 2], 'd': 1}, 'c': 7, 'd': 3.5, 'a': 's'}}, 'b': {'a': 'x', 'b': 's', 'd': 3.5, 'c': {'c': {'d': [1, 2], 'a': 1, 'c': 3.5}}}}, {}), ({}, {'d': {}}), ({'a': 1, 'd': {'a': 'x', 'c': {'a': 3.5, 'b': True, 'c': {'a': 'x', 'd': True, 'c': True}, 'd': 's'}, 'd': [1, 2], 'b': {'d': 's', 'a': True, 'c': True}}}, {'d': {'d': 0.0}, 'c': {}, 'a': {}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "c",
+         "x"
+        ],
+        [
+         "b",
+         3.5
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         "x"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  "s"
+                 ],
+                 [
+                  "c",
+                  7
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  3.5
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               [
+                1,
+                2
+               ]
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "d",
+                  1
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               7
+              ],
+              [
+               "d",
+               3.5
+              ],
+              [
+               "a",
+               "s"
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "a",
+            "x"
+           ],
+           [
+            "b",
+            "s"
+           ],
+           [
+            "d",
+            3.5
+           ],
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "a",
+                  1
+                 ],
+                 [
+                  "c",
+                  3.5
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "a",
+            "x"
+           ],
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "a",
+               3.5
+              ],
+              [
+               "b",
+               true
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  "x"
+                 ],
+                 [
+                  "d",
+                  true
+                 ],
+                 [
+                  "c",
+                  true
+                 ]
+                ]
+               }
+              ],
+              [
+               "d",
+               "s"
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            0.0
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "d",
+               "s"
+              ],
+              [
+               "a",
+               true
+              ],
+              [
+               "c",
+               true
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_01",
+   "code": "import copy\nout = []\nfor d, o in [({'c': 's', 'a': 3.5, 'd': 3.5}, {}), ({}, {'a': {'a': {'c': 'x'}, 'c': 's', 'd': 0.0}, 'd': ''}), ({'c': {}}, {'c': {'b': '', 'd': False, 'c': None}, 'd': [], 'b': 0.0, 'a': {'d': {'b': {}, 'a': {'c': []}}, 'c': 3.5, 'a': [1, 2]}}), ({'d': 'x', 'b': 1, 'c': {'c': [1, 2], 'a': True, 'd': {'b': 3.5, 'a': {'b': 1, 'a': 1, 'c': 3.5}, 'c': {'c': True, 'b': 1, 'a': 3.5}}, 'b': 7}, 'a': True}, {'a': {'c': [], 'b': {'c': {'b': [], 'a': 0}}}, 'c': {}, 'b': 0.0}), ({}, {})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         "s"
+        ],
+        [
+         "a",
+         3.5
+        ],
+        [
+         "d",
+         3.5
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "c",
+               "x"
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            "s"
+           ],
+           [
+            "d",
+            0.0
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         ""
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "b",
+            ""
+           ],
+           [
+            "d",
+            false
+           ],
+           [
+            "c",
+            null
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         []
+        ],
+        [
+         "b",
+         0.0
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "b",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  []
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            3.5
+           ],
+           [
+            "a",
+            [
+             1,
+             2
+            ]
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         "x"
+        ],
+        [
+         "b",
+         0.0
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "c",
+            [
+             1,
+             2
+            ]
+           ],
+           [
+            "a",
+            true
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "b",
+               3.5
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  1
+                 ],
+                 [
+                  "a",
+                  1
+                 ],
+                 [
+                  "c",
+                  3.5
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  true
+                 ],
+                 [
+                  "b",
+                  1
+                 ],
+                 [
+                  "a",
+                  3.5
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            7
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "c",
+            []
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  []
+                 ],
+                 [
+                  "a",
+                  0
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": []
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_02",
+   "code": "import copy\nout = []\nfor d, o in [({'b': 'x', 'd': {'b': {'a': 3.5, 'd': 's', 'b': True}, 'a': {'a': True, 'd': {'a': [1, 2]}, 'b': {}, 'c': {'d': 3.5, 'c': 7}}, 'c': {'d': 7, 'a': True, 'c': 's'}}}, {'a': '', 'd': {}, 'c': 0.0, 'b': 0.0}), ({}, {'b': 0, 'a': {'b': '', 'd': 's', 'a': True}, 'c': {}, 'd': 0}), ({'d': 3.5, 'b': 's', 'c': 3.5}, {'d': {}, 'a': {'a': {'c': {'d': ''}, 'b': {'a': 'x'}, 'a': {'d': False, 'c': [], 'a': 0.0}, 'd': {}}, 'd': [1, 2], 'b': [], 'c': False}, 'b': False}), ({}, {'a': 7, 'b': {}, 'c': 7}), ({'b': 3.5, 'a': True, 'c': [1, 2], 'd': 'x'}, {})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         0.0
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "a",
+               3.5
+              ],
+              [
+               "d",
+               "s"
+              ],
+              [
+               "b",
+               true
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "a",
+               true
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  [
+                   1,
+                   2
+                  ]
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  3.5
+                 ],
+                 [
+                  "c",
+                  7
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "d",
+               7
+              ],
+              [
+               "a",
+               true
+              ],
+              [
+               "c",
+               "s"
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         ""
+        ],
+        [
+         "c",
+         0.0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         0
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            ""
+           ],
+           [
+            "d",
+            "s"
+           ],
+           [
+            "a",
+            true
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "d",
+         0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "b",
+         false
+        ],
+        [
+         "c",
+         3.5
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  ""
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  "x"
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  false
+                 ],
+                 [
+                  "c",
+                  []
+                 ],
+                 [
+                  "a",
+                  0.0
+                 ]
+                ]
+               }
+              ],
+              [
+               "d",
+               {
+                "__dict__": []
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            [
+             1,
+             2
+            ]
+           ],
+           [
+            "b",
+            []
+           ],
+           [
+            "c",
+            false
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         7
+        ],
+        [
+         "b",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "c",
+         7
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         3.5
+        ],
+        [
+         "a",
+         true
+        ],
+        [
+         "c",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "d",
+         "x"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_03",
+   "code": "import copy\nout = []\nfor d, o in [({}, {'a': True, 'd': {'a': {'b': 0, 'a': []}}, 'c': False, 'b': False}), ({'b': [1, 2], 'c': [1, 2]}, {'b': 'x'}), ({'a': {'a': 1}, 'd': {'a': {'b': True, 'd': 3.5}}}, {'b': False, 'd': {}, 'a': {'b': 's', 'a': '', 'c': {}, 'd': 7}}), ({'a': {}, 'b': 3.5, 'd': 's', 'c': {}}, {'a': {'b': 3.5, 'd': [], 'c': {'b': 'x', 'c': [], 'a': 1}, 'a': ''}, 'b': []}), ({'b': {'d': 7, 'a': {'b': {'a': 1}, 'c': [1, 2], 'd': {'c': 'x'}, 'a': 1}, 'c': {}, 'b': [1, 2]}, 'c': [1, 2]}, {'c': 7, 'd': {'d': 'x'}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         true
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "b",
+               0
+              ],
+              [
+               "a",
+               []
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         false
+        ],
+        [
+         "b",
+         false
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         "x"
+        ],
+        [
+         "c",
+         [
+          1,
+          2
+         ]
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "a",
+            ""
+           ],
+           [
+            "b",
+            "s"
+           ],
+           [
+            "c",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "d",
+            7
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "b",
+               true
+              ],
+              [
+               "d",
+               3.5
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         false
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            3.5
+           ],
+           [
+            "d",
+            []
+           ],
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "b",
+               "x"
+              ],
+              [
+               "c",
+               []
+              ],
+              [
+               "a",
+               1
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            ""
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         []
+        ],
+        [
+         "d",
+         "s"
+        ],
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "d",
+            7
+           ],
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  1
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               [
+                1,
+                2
+               ]
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  "x"
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               1
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "b",
+            [
+             1,
+             2
+            ]
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         7
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "d",
+            "x"
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_04",
+   "code": "import copy\nout = []\nfor d, o in [({'d': {'c': 7}, 'b': 1, 'c': 'x', 'a': 1}, {}), ({}, {'c': {}, 'd': '', 'b': []}), ({'b': True, 'd': True}, {'d': None}), ({'b': True, 'd': {'a': {'a': 3.5}, 'c': True, 'b': True}, 'c': {'a': {'c': 1, 'd': {'d': 's'}, 'b': {'a': 7}}, 'c': [1, 2]}, 'a': 7}, {'d': False, 'a': 0}), ({}, {'a': 's'})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "c",
+            7
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         1
+        ],
+        [
+         "c",
+         "x"
+        ],
+        [
+         "a",
+         1
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "d",
+         ""
+        ],
+        [
+         "b",
+         []
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         true
+        ],
+        [
+         "d",
+         null
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         true
+        ],
+        [
+         "d",
+         false
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "c",
+               1
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  "s"
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  7
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            [
+             1,
+             2
+            ]
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         "s"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_05",
+   "code": "import copy\nout = []\nfor d, o in [({'b': 3.5, 'd': 3.5, 'c': {'b': 7, 'c': 's'}}, {'a': 'x', 'c': True, 'b': {'b': False, 'c': {}, 'd': False}}), ({'a': 7}, {'c': {'c': {'a': {}, 'c': {}}, 'd': {'d': {}, 'a': {}}, 'a': [1, 2], 'b': {'b': '', 'a': {'a': [1, 2], 'c': None, 'd': []}}}, 'd': {'b': [1, 2], 'a': {'b': {'b': 0, 'd': None, 'c': []}, 'a': [], 'c': {}, 'd': 'x'}, 'd': 'x'}}), ({}, {'c': {'a': {'c': 1, 'b': {'a': {}, 'd': []}, 'a': 7}, 'd': {'a': {'a': [1, 2]}, 'c': 's', 'd': 1}, 'b': 1, 'c': 1}, 'd': {'b': {}, 'a': 'x', 'd': {'b': 0, 'a': 3.5, 'c': 0}}, 'a': {'b': 's', 'c': None}}), ({}, {}), ({}, {})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "b",
+            false
+           ],
+           [
+            "c",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "d",
+            false
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         3.5
+        ],
+        [
+         "c",
+         true
+        ],
+        [
+         "a",
+         "x"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         7
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "a",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "c",
+               {
+                "__dict__": []
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "d",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "a",
+               {
+                "__dict__": []
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            [
+             1,
+             2
+            ]
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "b",
+               ""
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "c",
+                  null
+                 ],
+                 [
+                  "d",
+                  []
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            [
+             1,
+             2
+            ]
+           ],
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  0
+                 ],
+                 [
+                  "d",
+                  null
+                 ],
+                 [
+                  "c",
+                  []
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               []
+              ],
+              [
+               "c",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "d",
+               "x"
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            "x"
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "c",
+               1
+              ],
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  {
+                   "__dict__": []
+                  }
+                 ],
+                 [
+                  "d",
+                  []
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               7
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  [
+                   1,
+                   2
+                  ]
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               "s"
+              ],
+              [
+               "d",
+               1
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            1
+           ],
+           [
+            "c",
+            1
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "a",
+            "x"
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "b",
+               0
+              ],
+              [
+               "a",
+               3.5
+              ],
+              [
+               "c",
+               0
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            "s"
+           ],
+           [
+            "c",
+            null
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": []
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": []
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_06",
+   "code": "import copy\nout = []\nfor d, o in [({'a': {'c': {'a': {}, 'c': {'a': 1}, 'b': 3.5}}, 'b': 3.5, 'd': 7, 'c': 1}, {'a': {'b': {'b': [], 'a': 0, 'c': 7}, 'a': None, 'c': {}, 'd': {'d': 7}}}), ({'b': [1, 2], 'a': 's', 'c': 7, 'd': [1, 2]}, {'a': {'a': {'d': {'c': 0, 'a': {}, 'b': [], 'd': 7}}, 'd': 0.0, 'b': 0, 'c': None}, 'd': ''}), ({'d': 1, 'a': {'a': True, 'd': 1, 'b': 7, 'c': 'x'}, 'b': {'b': [1, 2], 'a': 3.5, 'c': 3.5}, 'c': {'d': 1, 'b': 'x', 'c': 'x', 'a': 'x'}}, {'b': {'d': 'x', 'b': ''}, 'd': {}}), ({'d': {'c': 3.5, 'd': {}}, 'a': True}, {'c': {'c': 's'}, 'd': None, 'b': 'x'}), ({'c': 1, 'd': {'a': 3.5}, 'a': {'c': 3.5, 'b': {'b': {'c': 7, 'b': 's', 'a': 'x'}, 'd': {'c': 's'}, 'a': 1}, 'a': 7}, 'b': {'b': 1, 'd': [1, 2]}}, {'c': {}, 'd': False, 'a': False, 'b': 0})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "a",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  1
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               3.5
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "b",
+               []
+              ],
+              [
+               "a",
+               0
+              ],
+              [
+               "c",
+               7
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            null
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "d",
+               7
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         3.5
+        ],
+        [
+         "d",
+         7
+        ],
+        [
+         "c",
+         1
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  0
+                 ],
+                 [
+                  "a",
+                  {
+                   "__dict__": []
+                  }
+                 ],
+                 [
+                  "b",
+                  []
+                 ],
+                 [
+                  "d",
+                  7
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            0.0
+           ],
+           [
+            "b",
+            0
+           ],
+           [
+            "c",
+            null
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         7
+        ],
+        [
+         "d",
+         ""
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "a",
+            true
+           ],
+           [
+            "d",
+            1
+           ],
+           [
+            "b",
+            7
+           ],
+           [
+            "c",
+            "x"
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "b",
+            ""
+           ],
+           [
+            "a",
+            3.5
+           ],
+           [
+            "c",
+            3.5
+           ],
+           [
+            "d",
+            "x"
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "d",
+            1
+           ],
+           [
+            "b",
+            "x"
+           ],
+           [
+            "c",
+            "x"
+           ],
+           [
+            "a",
+            "x"
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         null
+        ],
+        [
+         "a",
+         true
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "c",
+            "s"
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         "x"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "d",
+         false
+        ],
+        [
+         "a",
+         false
+        ],
+        [
+         "b",
+         0
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_07",
+   "code": "import copy\nout = []\nfor d, o in [({'d': 1, 'b': True, 'a': 's', 'c': {'a': 1, 'd': 7, 'b': {'d': {}, 'a': 'x', 'b': [1, 2], 'c': {'b': [1, 2]}}, 'c': True}}, {}), ({'c': 3.5, 'b': [1, 2], 'a': {'b': {'d': {'d': 7}, 'c': {'a': 'x', 'd': True, 'b': True, 'c': 's'}}, 'a': 'x', 'c': 1}, 'd': {'b': {'c': [1, 2], 'a': 3.5}, 'a': 7, 'd': 1}}, {'b': [], 'd': {}, 'c': {}, 'a': {'b': []}}), ({'a': {'b': 'x', 'a': {}, 'c': 1, 'd': True}, 'c': True}, {'a': 0.0, 'c': {}}), ({'b': {}, 'd': {'b': [1, 2]}, 'c': {'b': 1, 'a': True, 'c': 3.5, 'd': 3.5}}, {'c': 0, 'b': 'x', 'd': {}, 'a': 3.5}), ({'d': {'d': {'a': 1}}, 'a': 'x', 'c': {'d': True}, 'b': True}, {'a': 3.5, 'b': False})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         1
+        ],
+        [
+         "b",
+         true
+        ],
+        [
+         "a",
+         "s"
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "a",
+            1
+           ],
+           [
+            "d",
+            7
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "d",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "a",
+               "x"
+              ],
+              [
+               "b",
+               [
+                1,
+                2
+               ]
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  [
+                   1,
+                   2
+                  ]
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            true
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "b",
+         []
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            []
+           ],
+           [
+            "a",
+            "x"
+           ],
+           [
+            "c",
+            1
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "c",
+               [
+                1,
+                2
+               ]
+              ],
+              [
+               "a",
+               3.5
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            7
+           ],
+           [
+            "d",
+            1
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         0.0
+        ],
+        [
+         "c",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         "x"
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            [
+             1,
+             2
+            ]
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         0
+        ],
+        [
+         "a",
+         3.5
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "a",
+               1
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         3.5
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "d",
+            true
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         false
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_08",
+   "code": "import copy\nout = []\nfor d, o in [({'d': 3.5, 'b': 7}, {}), ({'c': 'x', 'd': 7}, {'a': {'d': {}}}), ({'b': {'a': 7, 'b': 7, 'd': {'b': {}, 'd': {'d': 'x', 'c': 3.5, 'a': 3.5}}}, 'd': {}, 'a': True}, {'d': 0.0, 'b': 0.0, 'c': {'c': {'d': None, 'a': False, 'c': {}}}}), ({'a': {}}, {}), ({'a': 3.5, 'b': 'x', 'c': 1}, {'d': {'c': {'c': 'x'}}, 'c': 1, 'b': {'b': {'a': {'a': 0.0}, 'b': 0, 'c': {}}}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         3.5
+        ],
+        [
+         "b",
+         7
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         "x"
+        ],
+        [
+         "d",
+         7
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": []
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         0.0
+        ],
+        [
+         "d",
+         0.0
+        ],
+        [
+         "a",
+         true
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "d",
+               null
+              ],
+              [
+               "a",
+               false
+              ],
+              [
+               "c",
+               {
+                "__dict__": []
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         3.5
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  0.0
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               0
+              ],
+              [
+               "c",
+               {
+                "__dict__": []
+               }
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "c",
+         1
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "c",
+               "x"
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_09",
+   "code": "import copy\nout = []\nfor d, o in [({'c': {'c': {'a': [1, 2], 'd': 'x'}, 'b': 's', 'a': {'c': True, 'a': {}, 'd': {}, 'b': 3.5}, 'd': 3.5}}, {'d': False, 'c': 0.0, 'b': [1, 2], 'a': 's'}), ({'d': 'x', 'b': 1}, {}), ({}, {'d': {}, 'a': 7, 'b': False, 'c': 1}), ({'b': 1, 'd': [1, 2]}, {'c': {'d': {'a': 7, 'b': 'x', 'c': 'x', 'd': {'b': 3.5, 'a': 'x'}}, 'a': {}}, 'd': {}}), ({'c': True, 'a': {'b': 1, 'c': {'c': {}, 'd': 7, 'b': [1, 2]}}}, {'d': {'a': {}, 'b': {'a': 3.5, 'c': {'a': [], 'b': 0, 'c': [], 'd': 0.0}, 'b': '', 'd': {'b': False, 'a': 's', 'd': [1, 2], 'c': 's'}}, 'd': ''}})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         0.0
+        ],
+        [
+         "d",
+         false
+        ],
+        [
+         "b",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         "s"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         "x"
+        ],
+        [
+         "b",
+         1
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "a",
+         7
+        ],
+        [
+         "b",
+         false
+        ],
+        [
+         "c",
+         1
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         1
+        ],
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "a",
+               7
+              ],
+              [
+               "b",
+               "x"
+              ],
+              [
+               "c",
+               "x"
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  3.5
+                 ],
+                 [
+                  "a",
+                  "x"
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            {
+             "__dict__": []
+            }
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         true
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "b",
+            1
+           ],
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "c",
+               {
+                "__dict__": []
+               }
+              ],
+              [
+               "d",
+               7
+              ],
+              [
+               "b",
+               [
+                1,
+                2
+               ]
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "a",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "a",
+               3.5
+              ],
+              [
+               "c",
+               {
+                "__dict__": [
+                 [
+                  "a",
+                  []
+                 ],
+                 [
+                  "b",
+                  0
+                 ],
+                 [
+                  "c",
+                  []
+                 ],
+                 [
+                  "d",
+                  0.0
+                 ]
+                ]
+               }
+              ],
+              [
+               "b",
+               ""
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  false
+                 ],
+                 [
+                  "a",
+                  "s"
+                 ],
+                 [
+                  "d",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "c",
+                  "s"
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "d",
+            ""
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_10",
+   "code": "import copy\nout = []\nfor d, o in [({'a': 3.5, 'c': 1, 'b': {'d': {'d': {'b': 's', 'd': 1, 'c': [1, 2], 'a': 3.5}, 'c': 3.5, 'b': {'c': [1, 2], 'a': 1, 'b': 1}, 'a': True}, 'a': 1}}, {'d': {'d': {'b': {'c': {}, 'd': 0.0, 'b': '', 'a': 0}}, 'b': 's', 'c': 1, 'a': 0}, 'c': {'a': 'x', 'd': {'a': [], 'b': {'b': 0, 'd': 0.0}}, 'b': 0, 'c': ''}}), ({'d': {'c': 's', 'b': 's', 'a': 7}, 'c': 7, 'a': 's'}, {'d': 0.0}), ({'d': 'x', 'a': True, 'b': 's', 'c': [1, 2]}, {'d': {}}), ({'c': True, 'a': 'x', 'd': 'x'}, {'c': {'c': {'a': 1}}, 'b': {}}), ({'c': 3.5, 'a': 'x', 'd': [1, 2]}, {'b': {}, 'd': 's', 'a': False, 'c': [1, 2]})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         3.5
+        ],
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "a",
+            "x"
+           ],
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "a",
+               []
+              ],
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  0
+                 ],
+                 [
+                  "d",
+                  0.0
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            0
+           ],
+           [
+            "c",
+            ""
+           ]
+          ]
+         }
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "b",
+                  "s"
+                 ],
+                 [
+                  "d",
+                  1
+                 ],
+                 [
+                  "c",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "a",
+                  3.5
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               3.5
+              ],
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  [
+                   1,
+                   2
+                  ]
+                 ],
+                 [
+                  "a",
+                  1
+                 ],
+                 [
+                  "b",
+                  1
+                 ]
+                ]
+               }
+              ],
+              [
+               "a",
+               true
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            1
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "b",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  {
+                   "__dict__": []
+                  }
+                 ],
+                 [
+                  "d",
+                  0.0
+                 ],
+                 [
+                  "b",
+                  ""
+                 ],
+                 [
+                  "a",
+                  0
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "b",
+            "s"
+           ],
+           [
+            "c",
+            1
+           ],
+           [
+            "a",
+            0
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         0.0
+        ],
+        [
+         "c",
+         7
+        ],
+        [
+         "a",
+         "s"
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "d",
+         {
+          "__dict__": []
+         }
+        ],
+        [
+         "a",
+         true
+        ],
+        [
+         "b",
+         "s"
+        ],
+        [
+         "c",
+         [
+          1,
+          2
+         ]
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         {
+          "__dict__": [
+           [
+            "c",
+            {
+             "__dict__": [
+              [
+               "a",
+               1
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         "x"
+        ],
+        [
+         "d",
+         "x"
+        ],
+        [
+         "b",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         false
+        ],
+        [
+         "d",
+         "s"
+        ],
+        [
+         "b",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "random_batch_11",
+   "code": "import copy\nout = []\nfor d, o in [({'a': 1, 'c': {}}, {'c': ''}), ({'c': [1, 2], 'a': True, 'd': 3.5}, {'b': {'c': 1, 'a': '', 'b': 'x'}, 'd': 's', 'a': {'d': {}, 'c': 0.0, 'b': {'a': True}, 'a': None}}), ({'c': 3.5, 'b': {'c': {}}, 'a': 7}, {'b': [1, 2], 'c': 0}), ({}, {'a': {}}), ({}, {'b': {'d': {'d': [1, 2], 'a': {'d': False, 'a': {}}, 'c': ''}, 'c': [], 'b': {'b': 7, 'a': 'x', 'c': 0.0, 'd': {'c': 3.5}}, 'a': 0}, 'd': {'b': 0, 'c': 's', 'a': {'d': 0.0, 'b': 's'}}, 'a': []})]:\n    dc, oc = copy.deepcopy(d), copy.deepcopy(o)\n    r = sol.merge_settings(d, o)\n    out.append((r, type(r).__name__, r is not d and r is not o, d == dc, o == oc))\nresult = out",
+   "timeout_s": 5,
+   "expected": {
+    "value": [
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         1
+        ],
+        [
+         "c",
+         ""
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": []
+            }
+           ],
+           [
+            "c",
+            0.0
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "a",
+               true
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            null
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         "s"
+        ],
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "c",
+            1
+           ],
+           [
+            "a",
+            ""
+           ],
+           [
+            "b",
+            "x"
+           ]
+          ]
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "c",
+         0
+        ],
+        [
+         "b",
+         [
+          1,
+          2
+         ]
+        ],
+        [
+         "a",
+         7
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "a",
+         {
+          "__dict__": []
+         }
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ],
+     [
+      {
+       "__dict__": [
+        [
+         "b",
+         {
+          "__dict__": [
+           [
+            "d",
+            {
+             "__dict__": [
+              [
+               "d",
+               [
+                1,
+                2
+               ]
+              ],
+              [
+               "a",
+               {
+                "__dict__": [
+                 [
+                  "d",
+                  false
+                 ],
+                 [
+                  "a",
+                  {
+                   "__dict__": []
+                  }
+                 ]
+                ]
+               }
+              ],
+              [
+               "c",
+               ""
+              ]
+             ]
+            }
+           ],
+           [
+            "c",
+            []
+           ],
+           [
+            "b",
+            {
+             "__dict__": [
+              [
+               "b",
+               7
+              ],
+              [
+               "a",
+               "x"
+              ],
+              [
+               "c",
+               0.0
+              ],
+              [
+               "d",
+               {
+                "__dict__": [
+                 [
+                  "c",
+                  3.5
+                 ]
+                ]
+               }
+              ]
+             ]
+            }
+           ],
+           [
+            "a",
+            0
+           ]
+          ]
+         }
+        ],
+        [
+         "d",
+         {
+          "__dict__": [
+           [
+            "b",
+            0
+           ],
+           [
+            "c",
+            "s"
+           ],
+           [
+            "a",
+            {
+             "__dict__": [
+              [
+               "d",
+               0.0
+              ],
+              [
+               "b",
+               "s"
+              ]
+             ]
+            }
+           ]
+          ]
+         }
+        ],
+        [
+         "a",
+         []
+        ]
+       ]
+      },
+      "dict",
+      true,
+      true,
+      true
+     ]
+    ]
+   }
+  }
+ ]
+}

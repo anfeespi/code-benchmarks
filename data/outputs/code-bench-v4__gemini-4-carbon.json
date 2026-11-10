@@ -1,0 +1,1250 @@
+[
+ {
+  "title": "Cheapest walk with color-switch surcharge",
+  "category": "algorithms",
+  "entry_point": "min_cost_route",
+  "code": "import heapq\nimport math\n\n\ndef min_cost_route(n: int, edges: list[tuple[int, int, int, str]], s: int, t: int, switch_cost: int) -> int:\n    if s == t:\n        return 0\n\n    # Build an expanded graph:\n    # - States 0 .. n-1 act as \"hub\" states at each node (ready to take any color).\n    # - States >= n represent (node, color) pairs for incident edges of that color.\n    # Transitions:\n    # - hub(u) -> (u, c) costs 0\n    # - (u, c) -> hub(u) costs switch_cost\n    # - (u, c) <-> (v, c) costs w for each edge (u, v, w, c)\n    adj: list[list[tuple[int, int]]] = [[] for _ in range(n)]\n    node_of: list[int] = list(range(n))\n\n    color_ids: dict[str, int] = {}\n    state_ids: dict[tuple[int, int], int] = {}\n\n    def get_state(u: int, cid: int) -> int:\n        key = (u, cid)\n        sid = state_ids.get(key)\n        if sid is None:\n            sid = len(adj)\n            state_ids[key] = sid\n            adj.append([(u, switch_cost)])\n            node_of.append(u)\n            adj[u].append((sid, 0))\n        return sid\n\n    for u, v, w, color in edges:\n        if u == v:\n            continue\n        cid = color_ids.get(color)\n        if cid is None:\n            cid = len(color_ids)\n            color_ids[color] = cid\n\n        su = get_state(u, cid)\n        sv = get_state(v, cid)\n        adj[su].append((sv, w))\n        adj[sv].append((su, w))\n\n    # If t has no incident edges (and s != t), t cannot be reached.\n    if not adj[t]:\n        return -1\n\n    dist = [math.inf] * len(adj)\n    dist[s] = 0\n    pq: list[tuple[int, int]] = [(0, s)]\n\n    while pq:\n        d, u_state = heapq.heappop(pq)\n        if d > dist[u_state]:\n            continue\n        if node_of[u_state] == t:\n            return d\n\n        for v_state, weight in adj[u_state]:\n            nd = d + weight\n            if nd < dist[v_state]:\n                dist[v_state] = nd\n                heapq.heappush(pq, (nd, v_state))\n\n    return -1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest walk with color-switch surcharge",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 75.44,
+   "tokens_in": 500,
+   "tokens_out": 4724,
+   "cost_usd": 0.0477576,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exactly-k non-adjacent picks on a circle",
+  "category": "algorithms",
+  "entry_point": "best_circular_selection",
+  "code": "def best_circular_selection(values: list[int], k: int) -> int:\n    \"\"\"\n    Return the maximum sum of `k` non-adjacent elements chosen from a circular list `values`.\n    Raises ValueError if no valid selection of size `k` exists.\n    \"\"\"\n    if k < 0:\n        raise ValueError(\"k must be non-negative\")\n    if k == 0:\n        return 0\n\n    n = len(values)\n    if n == 1:\n        if k == 1:\n            return values[0]\n        raise ValueError(\"Cannot select more than 1 element from a list of length 1\")\n\n    if k > n // 2:\n        raise ValueError(f\"Cannot select {k} non-adjacent elements from a circle of length {n}\")\n\n    neg_inf = -10**15\n\n    def best_linear(arr: list[int], count: int) -> int:\n        if count == 0:\n            return 0\n        m = len(arr)\n        if count > (m + 1) // 2:\n            return neg_inf\n\n        prev2 = [0] + [neg_inf] * count\n        prev1 = [0] + [neg_inf] * count\n\n        for i, val in enumerate(arr):\n            limit = min(count, (i + 2) // 2)\n            curr = prev1[:]\n            for j in range(1, limit + 1):\n                candidate = prev2[j - 1] + val\n                if candidate > curr[j]:\n                    curr[j] = candidate\n            prev2, prev1 = prev1, curr\n\n        return prev1[count]\n\n    # Case 1: Element at index 0 is NOT chosen -> choose k elements from values[1:]\n    option_exclude_first = best_linear(values[1:], k)\n\n    # Case 2: Element at index 0 IS chosen -> indices 1 and n-1 cannot be chosen\n    option_include_first = values[0] + best_linear(values[2 : n - 1], k - 1)\n\n    return max(option_exclude_first, option_include_first)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Exactly-k non-adjacent picks on a circle",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 41.87,
+   "tokens_in": 402,
+   "tokens_out": 2530,
+   "cost_usd": 0.02584296,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Grid shortest path with one same-label teleport",
+  "category": "algorithms",
+  "entry_point": "min_steps",
+  "code": "from collections import deque\nimport math\n\n\ndef min_steps(grid: list[list[int]], c: int) -> int:\n  rows = len(grid)\n  cols = len(grid[0])\n\n  if grid[0][0] == -1 or grid[rows - 1][cols - 1] == -1:\n    return -1\n  if rows == 1 and cols == 1:\n    return 0\n\n  # Flatten the grid with a -1 sentinel border (top row, bottom row, and 1 column\n  # on the right) so 4-neighbor lookups need no bounds or wrap-around checks.\n  stride = cols + 1\n  flat = [-1] * stride\n  for row in grid:\n    flat.extend(row)\n    flat.append(-1)\n  flat.extend([-1] * stride)\n\n  start = stride\n  target = rows * stride + cols - 1\n\n  # BFS 1 from (0, 0): find the direct walk distance to target and, for each\n  # reachable label, the minimum walk distance from (0, 0).\n  vis1 = flat[:]\n  min_from_start = {vis1[start]: 0}\n  vis1[start] = -1\n  ans = math.inf\n\n  q = deque([(start, 0)])\n  while q:\n    u, d = q.popleft()\n    nd = d + 1\n    for nb in (u - stride, u + stride, u - 1, u + 1):\n      val = vis1[nb]\n      if val >= 0:\n        vis1[nb] = -1\n        if nb == target:\n          ans = nd\n        if val not in min_from_start:\n          min_from_start[val] = nd\n        q.append((nb, nd))\n\n  # BFS 2 from (R-1, C-1): the first time we see a label, its distance from\n  # target is minimal. Note that matching the same cell u == v yields cost\n  # dist_start[u] + dist_end[u] + c >= ans (direct walk), so it never produces\n  # a false improvement over walking without teleporting.\n  val = flat[target]\n  flat[target] = -1\n  d1 = min_from_start.pop(val, None)\n  if d1 is not None and d1 + c < ans:\n    ans = d1 + c\n\n  if min_from_start and c < ans:\n    q = deque([(target, 0)])\n    while q and min_from_start:\n      u, d = q.popleft()\n      nd = d + 1\n      if nd + c >= ans:\n        break\n      for nb in (u - stride, u + stride, u - 1, u + 1):\n        val = flat[nb]\n        if val >= 0:\n          flat[nb] = -1\n          d1 = min_from_start.pop(val, None)\n          if d1 is not None:\n            cand = d1 + nd + c\n            if cand < ans:\n              ans = cand\n          q.append((nb, nd))\n\n  return -1 if ans is math.inf else ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Grid shortest path with one same-label teleport",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 127.25,
+   "tokens_in": 492,
+   "tokens_out": 11040,
+   "cost_usd": 0.11027016,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Interval scheduling with mandatory cooldown gap",
+  "category": "algorithms",
+  "entry_point": "max_sessions",
+  "code": "from operator import itemgetter\nfrom typing import Iterable, Tuple\n\n\ndef max_sessions(intervals: Iterable[Tuple[int, int]], gap: int) -> int:\n    \"\"\"Return the maximum number of sessions that can be scheduled with a mandatory gap.\n\n    Uses a greedy O(n log n) interval scheduling approach: sorting intervals by their\n    end time (equivalent to sorting by `end + gap`) always leaves the maximum possible\n    time for subsequent sessions.\n    \"\"\"\n    sorted_intervals = sorted(intervals, key=itemgetter(1))\n    if not sorted_intervals:\n        return 0\n\n    count = 0\n    next_available_time = -1\n\n    for start, end in sorted_intervals:\n        if start >= next_available_time:\n            count += 1\n            next_available_time = end + gap\n\n    return count",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Interval scheduling with mandatory cooldown gap",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 14.12,
+   "tokens_in": 419,
+   "tokens_out": 603,
+   "cost_usd": 0.00679932,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lexicographically smallest balanced bracket completion",
+  "category": "algorithms",
+  "entry_point": "smallest_balanced",
+  "code": "def smallest_balanced(s: str) -> str:\n    \"\"\"Return the lexicographically smallest balanced string formed by replacing '?'\n    with '(' or ')'. Raises ValueError if no valid replacement exists.\n    \"\"\"\n    n = len(s)\n    if n % 2 != 0:\n        raise ValueError(\"Odd-length strings cannot be balanced.\")\n\n    half = n // 2\n    open_needed = half - s.count('(')\n    close_needed = half - s.count(')')\n\n    if open_needed < 0 or close_needed < 0:\n        raise ValueError(\"Too many fixed '(' or ')' characters to balance.\")\n\n    result = []\n    balance = 0\n\n    for ch in s:\n        if ch == '?':\n            if open_needed > 0:\n                ch = '('\n                open_needed -= 1\n            else:\n                ch = ')'\n\n        if ch == '(':\n            balance += 1\n        else:\n            balance -= 1\n            if balance < 0:\n                raise ValueError(\"No balanced replacement exists.\")\n\n        result.append(ch)\n\n    return \"\".join(result)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Lexicographically smallest balanced bracket completion",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 40.29,
+   "tokens_in": 240,
+   "tokens_out": 2066,
+   "cost_usd": 0.0209286,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest repeated substring with enforced spacing",
+  "category": "algorithms",
+  "entry_point": "longest_spaced_repeat",
+  "code": "def longest_spaced_repeat(s: str, gap: int) -> int:\n    \"\"\"Return the length of the longest substring of `s` that appears at least\n    twice with at least `gap` characters strictly between the two occurrences,\n    or 0 if no such substring exists.\n    \"\"\"\n    n = len(s)\n    if n < gap + 2:\n        return 0\n\n    best = 0\n    # Let d = q - p be the offset between the two starting positions (p < q).\n    # Non-overlap with `gap` separating characters requires L <= d - gap,\n    # and staying in bounds requires L <= n - d.\n    offsets = sorted(\n        range(gap + 1, n),\n        key=lambda d: min(d - gap, n - d),\n        reverse=True,\n    )\n\n    for d in offsets:\n        upper = min(d - gap, n - d)\n        if upper <= best:\n            break  # Remaining offsets have an even smaller upper bound\n\n        run = 0\n        for i in range(n - d):\n            if s[i] == s[i + d]:\n                run += 1\n                if run > best:\n                    best = run\n                    if best == upper:\n                        # Reached the maximum valid length for this offset\n                        # (also guarantees run never exceeds d - gap)\n                        break\n            else:\n                run = 0\n\n    return best",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Longest repeated substring with enforced spacing",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 63.85,
+   "tokens_in": 362,
+   "tokens_out": 4447,
+   "cost_usd": 0.04474206,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Palindrome insertions from a restricted alphabet",
+  "category": "algorithms",
+  "entry_point": "min_insertions",
+  "code": "from typing import Iterable\n\n\ndef min_insertions(s: str, allowed: Iterable[str]) -> int:\n    \"\"\"Return the minimum number of insertions of characters from `allowed`\n    needed to make `s` a palindrome, or -1 if it is impossible.\n    \"\"\"\n    n = len(s)\n    if n <= 1:\n        return 0\n\n    allowed_set = set(allowed)\n    can_insert = [ch in allowed_set for ch in s]\n\n    # Any achievable solution requires at most n - 1 insertions.\n    inf = n + 1\n\n    # 1D interval DP: at outer iteration i, dp[j] holds the minimum insertions\n    # needed to turn s[i..j] into a palindrome.\n    dp = [0] * n\n\n    for i in range(n - 2, -1, -1):\n        prev_diag = 0  # Represents dp[i + 1][j - 1]; starts at dp[i + 1][i] == 0\n        si = s[i]\n        si_ok = can_insert[i]\n\n        for j in range(i + 1, n):\n            up = dp[j]  # Save dp[i + 1][j] to serve as prev_diag for j + 1\n            if si == s[j]:\n                dp[j] = prev_diag\n            else:\n                best = inf\n                if si_ok and up < best:\n                    best = up + 1\n                if can_insert[j] and dp[j - 1] < best:\n                    best = dp[j - 1] + 1\n                dp[j] = best\n            prev_diag = up\n\n    return dp[n - 1] if dp[n - 1] < inf else -1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Palindrome insertions from a restricted alphabet",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 109.4,
+   "tokens_in": 313,
+   "tokens_out": 7806,
+   "cost_usd": 0.07789914,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Smallest solution of congruences with non-coprime moduli",
+  "category": "algorithms",
+  "entry_point": "solve_congruences",
+  "code": "from typing import Iterable\n\n\ndef _extended_gcd(a: int, b: int) -> tuple[int, int, int]:\n    \"\"\"Return (g, x, y) such that a*x + b*y = g = gcd(a, b).\"\"\"\n    x0, x1, y0, y1 = 1, 0, 0, 1\n    while b:\n        q, a, b = a // b, b, a % b\n        x0, x1 = x1, x0 - q * x1\n        y0, y1 = y1, y0 - q * y1\n    return a, x0, y0\n\n\ndef solve_congruences(pairs: Iterable[tuple[int, int]]) -> int:\n    \"\"\"\n    Solve a system of congruences x ≡ r (mod m) for all (r, m) in pairs.\n\n    Returns the smallest non-negative integer solution x (0 if pairs is empty),\n    or raises ValueError if the system is inconsistent.\n    \"\"\"\n    r1, m1 = 0, 1\n\n    for r2, m2 in pairs:\n        if m2 < 1:\n            raise ValueError(\"Moduli must be >= 1\")\n\n        r2 %= m2\n        g, x, _ = _extended_gcd(m1, m2)\n\n        diff = r2 - r1\n        if diff % g != 0:\n            raise ValueError(\"The system of congruences has no solution\")\n\n        step = m2 // g\n        k = (diff // g * x) % step\n\n        r1 += k * m1\n        m1 *= step\n\n    return r1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Smallest solution of congruences with non-coprime moduli",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 45.59,
+   "tokens_in": 308,
+   "tokens_out": 2828,
+   "cost_usd": 0.02860704,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Build-order resolver reports phantom dependency cycles",
+  "category": "bug_fixing",
+  "entry_point": "resolve_build_order",
+  "code": "def resolve_build_order(deps):\n    graph = {}\n    for pkg, ds in deps.items():\n        graph.setdefault(pkg, set())\n        for d in ds:\n            graph.setdefault(d, set())\n            graph[pkg].add(d)\n\n    order = []\n    visiting = set()  # Gray nodes: currently on the active DFS path\n    visited = set()   # Black nodes: completely resolved\n\n    def visit(node):\n        if node in visited:\n            return\n        if node in visiting:\n            raise ValueError(\"dependency cycle detected at \" + node)\n        visiting.add(node)\n        for dep in sorted(graph[node]):\n            visit(dep)\n        visiting.remove(node)\n        visited.add(node)\n        order.append(node)\n\n    for node in sorted(graph):\n        if node not in visited:\n            visit(node)\n    return order",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Build-order resolver reports phantom dependency cycles",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 23.78,
+   "tokens_in": 583,
+   "tokens_out": 1245,
+   "cost_usd": 0.01347984,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Ledger balances drift by one cent",
+  "category": "bug_fixing",
+  "entry_point": "compute_balances",
+  "code": "import re\n\n_AMOUNT_RE = re.compile(r\"([0-9]+)(?:\\.([0-9]{1,2}))?\")\n\n\ndef compute_balances(transactions):\n    balances = {}\n    for tx in transactions:\n        amount = tx[\"amount\"]\n        if not isinstance(amount, str):\n            raise ValueError(f\"amount must be a string, got {type(amount).__name__}\")\n\n        match = _AMOUNT_RE.fullmatch(amount)\n        if match is None:\n            raise ValueError(f\"invalid amount format: {amount!r}\")\n\n        whole, frac = match.groups()\n        cents = int(whole) * 100 + (int(frac.ljust(2, \"0\")) if frac else 0)\n        if cents <= 0:\n            raise ValueError(\"amount must be positive\")\n\n        sender = tx[\"from\"]\n        receiver = tx[\"to\"]\n        balances[sender] = balances.get(sender, 0) - cents\n        balances[receiver] = balances.get(receiver, 0) + cents\n\n    return balances",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Ledger balances drift by one cent",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 35.43,
+   "tokens_in": 623,
+   "tokens_out": 1783,
+   "cost_usd": 0.01888524,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Memoization decorator returns results for the wrong keyword arguments",
+  "category": "bug_fixing",
+  "entry_point": "memoize",
+  "code": "def memoize(func):\n    cache = {}\n    def wrapper(*args, **kwargs):\n        key = (args, frozenset(kwargs.items()))\n        if key in cache:\n            wrapper.hits += 1\n            return cache[key]\n        wrapper.misses += 1\n        result = func(*args, **kwargs)\n        cache[key] = result\n        return result\n    wrapper.hits = 0\n    wrapper.misses = 0\n    return wrapper",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Memoization decorator returns results for the wrong keyword arguments",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 24.56,
+   "tokens_in": 557,
+   "tokens_out": 1354,
+   "cost_usd": 0.01450746,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Patch applier lands hunks on the wrong lines",
+  "category": "bug_fixing",
+  "entry_point": "apply_hunks",
+  "code": "def apply_hunks(lines, hunks):\n    n = len(lines)\n    for start, delete, _ in hunks:\n        if start < 0 or delete < 0 or start + delete > n:\n            raise ValueError(\"hunk out of range\")\n\n    ordered = sorted(hunks, key=lambda h: h[0])\n    for i in range(1, len(ordered)):\n        prev = ordered[i - 1]\n        curr = ordered[i]\n        if curr[0] == prev[0] or curr[0] < prev[0] + prev[1]:\n            raise ValueError(\"conflicting hunks\")\n\n    result = list(lines)\n    for start, delete, insert in reversed(ordered):\n        result[start:start + delete] = list(insert)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Patch applier lands hunks on the wrong lines",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 38.49,
+   "tokens_in": 704,
+   "tokens_out": 1989,
+   "cost_usd": 0.02108502,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive settings merger drops falsy overrides",
+  "category": "bug_fixing",
+  "entry_point": "merge_settings",
+  "code": "import copy\n\n\ndef merge_settings(defaults, overrides):\n    result = copy.deepcopy(defaults)\n    for key, value in overrides.items():\n        if isinstance(value, dict) and isinstance(result.get(key), dict):\n            result[key] = merge_settings(result[key], value)\n        else:\n            result[key] = copy.deepcopy(value)\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Recursive settings merger drops falsy overrides",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 26.58,
+   "tokens_in": 462,
+   "tokens_out": 1421,
+   "cost_usd": 0.01498266,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking insert wrongly merges back-to-back reservations",
+  "category": "bug_fixing",
+  "entry_point": "insert_booking",
+  "code": "def insert_booking(bookings, new):\n    start, end = new\n    if start >= end:\n        raise ValueError(\"empty booking\")\n    result = []\n    i = 0\n    while i < len(bookings) and bookings[i][1] <= start:\n        result.append(bookings[i])\n        i += 1\n    while i < len(bookings) and bookings[i][0] < end:\n        start = min(start, bookings[i][0])\n        end = max(end, bookings[i][1])\n        i += 1\n    result.append((start, end))\n    result.extend(bookings[i:])\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Room booking insert wrongly merges back-to-back reservations",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 22.82,
+   "tokens_in": 584,
+   "tokens_out": 1215,
+   "cost_usd": 0.01318482,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Session purge crashes and keeps just-expired sessions",
+  "category": "bug_fixing",
+  "entry_point": "purge_expired",
+  "code": "def purge_expired(sessions, now):\n    purged = [sid for sid, expiry in sessions.items() if expiry <= now]\n    for sid in purged:\n        del sessions[sid]\n    return purged",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Session purge crashes and keeps just-expired sessions",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 10.03,
+   "tokens_in": 379,
+   "tokens_out": 442,
+   "cost_usd": 0.00512622,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Sliding-window rate limiter admits one extra call",
+  "category": "bug_fixing",
+  "entry_point": "RateLimiter",
+  "code": "class RateLimiter:\n    def __init__(self, max_calls, window_seconds):\n        self.max_calls = max_calls\n        self.window = window_seconds\n        self.calls = []\n\n    def allow(self, timestamp):\n        self.calls = [t for t in self.calls if timestamp - t < self.window]\n        if len(self.calls) < self.max_calls:\n            self.calls.append(timestamp)\n            return True\n        return False",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Sliding-window rate limiter admits one extra call",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 25.47,
+   "tokens_in": 575,
+   "tokens_out": 1406,
+   "cost_usd": 0.0150579,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Counting bag with deterministic most-common ordering",
+  "category": "data_structures",
+  "entry_point": "CountingBag",
+  "code": "from __future__ import annotations\n\nimport heapq\nfrom collections.abc import Hashable\nfrom typing import TypeVar\n\nT = TypeVar(\"T\", bound=Hashable)\n\n\nclass CountingBag:\n    \"\"\"A multiset (bag) of hashable items with deterministic frequency ordering.\"\"\"\n\n    def __init__(self) -> None:\n        self._counts: dict[Hashable, int] = {}\n        self._entry: dict[Hashable, tuple[int, Hashable]] = {}\n        self._ver: dict[Hashable, int] = {}\n        self._total: int = 0\n        self._next_eid: int = 0\n        self._next_ver: int = 0\n        self._heap: list[tuple[int, int, int, Hashable]] | None = None\n\n    def add(self, item: Hashable) -> int:\n        \"\"\"Add one occurrence of `item` and return its new count.\"\"\"\n        current = self._counts.get(item, 0)\n        ver = self._next_ver\n        self._next_ver += 1\n\n        if current == 0:\n            eid = self._next_eid\n            self._next_eid += 1\n            canonical = item\n            new_count = 1\n            self._counts[item] = 1\n            self._entry[item] = (eid, canonical)\n            self._ver[item] = ver\n        else:\n            new_count = current + 1\n            eid, canonical = self._entry[item]\n            self._counts[item] = new_count\n            self._ver[item] = ver\n\n        self._total += 1\n\n        if self._heap is not None:\n            heapq.heappush(self._heap, (-new_count, eid, ver, canonical))\n            self._maybe_compact_heap()\n\n        return new_count\n\n    def discard(self, item: Hashable) -> bool:\n        \"\"\"Remove one occurrence of `item`; return True if removed, False if absent.\"\"\"\n        current = self._counts.get(item, 0)\n        if current == 0:\n            return False\n\n        self._total -= 1\n\n        if current == 1:\n            del self._counts[item]\n            del self._entry[item]\n            del self._ver[item]\n            if self._heap is not None:\n                self._maybe_compact_heap()\n        else:\n            new_count = current - 1\n            ver = self._next_ver\n            self._next_ver += 1\n            eid, canonical = self._entry[item]\n            self._counts[item] = new_count\n            self._ver[item] = ver\n            if self._heap is not None:\n                heapq.heappush(self._heap, (-new_count, eid, ver, canonical))\n                self._maybe_compact_heap()\n\n        return True\n\n    def count(self, item: Hashable) -> int:\n        \"\"\"Return the current count of `item` (0 if absent).\"\"\"\n        return self._counts.get(item, 0)\n\n    def __len__(self) -> int:\n        \"\"\"Return the total number of occurrences across all items.\"\"\"\n        return self._total\n\n    def distinct(self) -> int:\n        \"\"\"Return the number of distinct items currently present.\"\"\"\n        return len(self._counts)\n\n    def most_common(self, k: int) -> list[tuple[Hashable, int]]:\n        \"\"\"Return up to `k` `(item, count)` pairs ordered by count desc, then entry time asc.\"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        if k == 0 or not self._counts:\n            return []\n\n        n = len(self._counts)\n        if k >= n:\n            return sorted(self._counts.items(), key=lambda kv: -kv[1])\n        if n <= 64 or k * 4 >= n:\n            return sorted(self._counts.items(), key=lambda kv: -kv[1])[:k]\n\n        if self._heap is None:\n            self._build_heap()\n            assert self._heap is not None\n\n        popped: list[tuple[int, int, int, Hashable]] = []\n        result: list[tuple[Hashable, int]] = []\n\n        while len(result) < k and self._heap:\n            entry = heapq.heappop(self._heap)\n            neg_count, _, ver, canonical = entry\n            if self._ver.get(canonical) == ver:\n                popped.append(entry)\n                result.append((canonical, -neg_count))\n\n        for entry in popped:\n            heapq.heappush(self._heap, entry)\n\n        return result\n\n    def _build_heap(self) -> None:\n        self._heap = [\n            (-count, self._entry[item][0], self._ver[item], item)\n            for item, count in self._counts.items()\n        ]\n        heapq.heapify(self._heap)\n\n    def _maybe_compact_heap(self) -> None:\n        if self._heap is not None and len(self._heap) > 2 * len(self._counts) + 1024:\n            self._build_heap()",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Counting bag with deterministic most-common ordering",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 133.37,
+   "tokens_in": 595,
+   "tokens_out": 8941,
+   "cost_usd": 0.089694,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "LRU cache with TTL and stats",
+  "category": "data_structures",
+  "entry_point": "TTLCache",
+  "code": "from collections import OrderedDict\nimport heapq\nfrom typing import Any\n\n\nclass TTLCache:\n    \"\"\"Fixed-capacity LRU cache with optional per-entry TTL and explicit clock.\"\"\"\n\n    def __init__(self, capacity: int) -> None:\n        if not isinstance(capacity, int) or isinstance(capacity, bool) or capacity < 1:\n            raise ValueError(\"capacity must be an integer >= 1\")\n        self._capacity: int = capacity\n        # Maps key -> (value, expires_at, seq) ordered from LRU to MRU\n        self._data: OrderedDict[Any, tuple[Any, int | float | None, int]] = OrderedDict()\n        # Min-heap of (expires_at, seq, key); seq breaks ties without comparing keys\n        self._heap: list[tuple[int | float, int, Any]] = []\n        self._seq: int = 0\n\n        self._hits: int = 0\n        self._misses: int = 0\n        self._evictions: int = 0\n        self._expirations: int = 0\n\n    def _purge(self, now: int | float) -> None:\n        \"\"\"Remove all entries whose expiration time is <= now.\"\"\"\n        while self._heap and self._heap[0][0] <= now:\n            _, seq, key = heapq.heappop(self._heap)\n            entry = self._data.get(key)\n            if entry is not None and entry[2] == seq:\n                del self._data[key]\n                self._expirations += 1\n\n    def _compact_heap_if_needed(self) -> None:\n        \"\"\"Rebuild the expiration heap if stale entries accumulate.\"\"\"\n        if len(self._heap) > 2 * self._capacity + 64:\n            self._heap = [\n                (expires_at, seq, key)\n                for key, (_, expires_at, seq) in self._data.items()\n                if expires_at is not None\n            ]\n            heapq.heapify(self._heap)\n\n    def put(\n        self,\n        key: Any,\n        value: Any,\n        now: int | float,\n        ttl: int | float | None = None,\n    ) -> None:\n        if ttl is not None:\n            if isinstance(ttl, bool) or not isinstance(ttl, (int, float)) or ttl <= 0:\n                raise ValueError(\"ttl must be a positive number or None\")\n\n        self._purge(now)\n\n        if key in self._data:\n            self._data.move_to_end(key)\n        elif len(self._data) >= self._capacity:\n            self._data.popitem(last=False)\n            self._evictions += 1\n\n        self._seq += 1\n        expires_at = None if ttl is None else now + ttl\n        self._data[key] = (value, expires_at, self._seq)\n\n        if expires_at is not None:\n            heapq.heappush(self._heap, (expires_at, self._seq, key))\n            self._compact_heap_if_needed()\n\n    def get(self, key: Any, now: int | float) -> Any:\n        self._purge(now)\n\n        if key in self._data:\n            self._hits += 1\n            self._data.move_to_end(key)\n            return self._data[key][0]\n\n        self._misses += 1\n        return None\n\n    def stats(self) -> dict[str, int]:\n        return {\n            \"hits\": self._hits,\n            \"misses\": self._misses,\n            \"evictions\": self._evictions,\n            \"expirations\": self._expirations,\n        }\n\n    def __len__(self) -> int:\n        return len(self._data)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "LRU cache with TTL and stats",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 53.57,
+   "tokens_in": 900,
+   "tokens_out": 3388,
+   "cost_usd": 0.0353232,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard with competition ranks and stable ties",
+  "category": "data_structures",
+  "entry_point": "Leaderboard",
+  "code": "from bisect import bisect_left, insort\nfrom typing import Hashable\n\n\nclass Leaderboard:\n    \"\"\"Tracks players' best scores and standard competition rankings.\"\"\"\n\n    def __init__(self) -> None:\n        # Maps player -> (best_score, sequence_number)\n        self._players: dict[Hashable, tuple[int, int]] = {}\n        # Maintained sorted by (-score, sequence_number, player)\n        self._sorted: list[tuple[int, int, Hashable]] = []\n        self._seq: int = 0\n\n    def submit(self, player: Hashable, score: int) -> bool:\n        \"\"\"Record a score attempt; return True iff it sets a new personal best.\"\"\"\n        if player in self._players:\n            old_score, old_seq = self._players[player]\n            if score <= old_score:\n                return False\n            # Unique (old_score, old_seq) locates the exact entry without comparing `player`\n            idx = bisect_left(self._sorted, (-old_score, old_seq))\n            self._sorted.pop(idx)\n\n        seq = self._seq\n        self._seq += 1\n        self._players[player] = (score, seq)\n        insort(self._sorted, (-score, seq, player))\n        return True\n\n    def best(self, player: Hashable) -> int:\n        \"\"\"Return the player's highest submitted score, or raise KeyError.\"\"\"\n        if player not in self._players:\n            raise KeyError(player)\n        return self._players[player][0]\n\n    def rank(self, player: Hashable) -> int:\n        \"\"\"Return 1 + count of players with a strictly higher best score.\"\"\"\n        if player not in self._players:\n            raise KeyError(player)\n        score = self._players[player][0]\n        # Since all sequence numbers are >= 0, (-score, -1) lands right before\n        # the earliest player with `score`, giving the exact count of higher scores.\n        return bisect_left(self._sorted, (-score, -1)) + 1\n\n    def top(self, k: int) -> list[tuple[Hashable, int]]:\n        \"\"\"Return up to `k` top (player, best) pairs ordered by rank and tie-breaker.\"\"\"\n        if k < 0:\n            raise ValueError(\"k must be non-negative\")\n        if k == 0:\n            return []\n        return [(player, -neg_score) for neg_score, _, player in self._sorted[:k]]\n\n    def player_count(self) -> int:\n        \"\"\"Return the total number of distinct players seen.\"\"\"\n        return len(self._players)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Leaderboard with competition ranks and stable ties",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 52.84,
+   "tokens_in": 540,
+   "tokens_out": 2652,
+   "cost_usd": 0.027324,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Mergeable component ledger with undo",
+  "category": "data_structures",
+  "entry_point": "MergeLedger",
+  "code": "from collections.abc import Hashable\nfrom typing import Any\n\n\nclass MergeLedger:\n    \"\"\"Disjoint-set collection with per-component value sums and merge rollback.\"\"\"\n\n    __slots__ = (\n        \"_id\",\n        \"_parent\",\n        \"_size\",\n        \"_sub_val\",\n        \"_history\",\n        \"_num_components\",\n    )\n\n    def __init__(self) -> None:\n        self._id: dict[Hashable, int] = {}\n        self._parent: list[int] = []\n        self._size: list[int] = []\n        self._sub_val: list[Any] = []\n        self._history: list[tuple[int, int]] = []\n        self._num_components: int = 0\n\n    def _find(self, u: int) -> int:\n        parent = self._parent\n        while parent[u] != u:\n            u = parent[u]\n        return u\n\n    def add(self, x: Hashable, value: Any = 0) -> None:\n        if x in self._id:\n            raise ValueError(f\"Element {x!r} already exists\")\n        u = len(self._parent)\n        self._id[x] = u\n        self._parent.append(u)\n        self._size.append(1)\n        self._sub_val.append(value)\n        self._num_components += 1\n\n    def merge(self, a: Hashable, b: Hashable) -> bool:\n        ua = self._id[a]\n        ub = self._id[b]\n        ra = self._find(ua)\n        rb = self._find(ub)\n        if ra == rb:\n            return False\n\n        # Union by size without path compression keeps tree height O(log n)\n        # while preserving subtree structure for LIFO rollbacks.\n        if self._size[ra] < self._size[rb]:\n            ra, rb = rb, ra\n\n        self._parent[rb] = ra\n        self._size[ra] += self._size[rb]\n        self._sub_val[ra] = self._sub_val[ra] + self._sub_val[rb]\n        self._history.append((ra, rb))\n        self._num_components -= 1\n        return True\n\n    def same(self, a: Hashable, b: Hashable) -> bool:\n        ua = self._id[a]\n        ub = self._id[b]\n        return self._find(ua) == self._find(ub)\n\n    def component_size(self, x: Hashable) -> int:\n        u = self._id[x]\n        return self._size[self._find(u)]\n\n    def component_value(self, x: Hashable) -> Any:\n        u = self._id[x]\n        return self._sub_val[self._find(u)]\n\n    def add_value(self, x: Hashable, delta: Any) -> None:\n        curr = self._id[x]\n        parent = self._parent\n        sub_val = self._sub_val\n        while True:\n            sub_val[curr] = sub_val[curr] + delta\n            p = parent[curr]\n            if p == curr:\n                break\n            curr = p\n\n    def components(self) -> int:\n        return self._num_components\n\n    def undo(self) -> None:\n        if not self._history:\n            raise RuntimeError(\"No merge to undo\")\n        ra, rb = self._history.pop()\n        self._parent[rb] = rb\n        self._size[ra] -= self._size[rb]\n        self._sub_val[ra] = self._sub_val[ra] - self._sub_val[rb]\n        self._num_components += 1",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Mergeable component ledger with undo",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 220.51,
+   "tokens_in": 875,
+   "tokens_out": 15075,
+   "cost_usd": 0.150975,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Normalized integer interval set",
+  "category": "data_structures",
+  "entry_point": "IntervalSet",
+  "code": "from bisect import bisect_left, bisect_right\n\n\nclass IntervalSet:\n    \"\"\"A normalized set of integers represented as disjoint, non-adjacent half-open intervals [lo, hi).\"\"\"\n\n    def __init__(self) -> None:\n        # Flat sorted list of endpoints [lo_0, hi_0, lo_1, hi_1, ...]\n        # Invariant: _pts[0] < _pts[1] < _pts[2] < ... and len(_pts) is even.\n        self._pts: list[int] = []\n        self._total: int = 0\n\n    @staticmethod\n    def _validate_interval(lo: int, hi: int) -> None:\n        if (\n            isinstance(lo, bool)\n            or isinstance(hi, bool)\n            or not (isinstance(lo, int) and isinstance(hi, int))\n        ):\n            raise TypeError(\"Interval endpoints must be integers\")\n        if lo >= hi:\n            raise ValueError(f\"Expected lo < hi, got [{lo}, {hi})\")\n\n    @staticmethod\n    def _slice_contribution(seq: list[int], start_idx: int) -> int:\n        if start_idx % 2 == 0:\n            return sum(seq[1::2]) - sum(seq[0::2])\n        return sum(seq[0::2]) - sum(seq[1::2])\n\n    def _replace(self, i: int, j: int, new_pts: list[int]) -> None:\n        old_pts = self._pts[i:j]\n        self._total += self._slice_contribution(new_pts, i) - self._slice_contribution(old_pts, i)\n        self._pts[i:j] = new_pts\n\n    def add(self, lo: int, hi: int) -> None:\n        \"\"\"Cover every integer in [lo, hi), coalescing overlapping and adjacent intervals.\"\"\"\n        self._validate_interval(lo, hi)\n        i = bisect_left(self._pts, lo)\n        j = bisect_right(self._pts, hi)\n\n        new_pts: list[int] = []\n        if i % 2 == 0:\n            new_pts.append(lo)\n        if j % 2 == 0:\n            new_pts.append(hi)\n\n        self._replace(i, j, new_pts)\n\n    def remove(self, lo: int, hi: int) -> None:\n        \"\"\"Uncover every integer in [lo, hi).\"\"\"\n        self._validate_interval(lo, hi)\n        i = bisect_left(self._pts, lo)\n        j = bisect_right(self._pts, hi)\n\n        new_pts: list[int] = []\n        if i % 2 == 1:\n            new_pts.append(lo)\n        if j % 2 == 1:\n            new_pts.append(hi)\n\n        self._replace(i, j, new_pts)\n\n    def contains(self, x: int) -> bool:\n        \"\"\"Return whether the integer x is covered.\"\"\"\n        if isinstance(x, bool) or not isinstance(x, int):\n            raise TypeError(\"x must be an integer\")\n        return bisect_right(self._pts, x) % 2 == 1\n\n    def total(self) -> int:\n        \"\"\"Return the total number of covered integers.\"\"\"\n        return self._total\n\n    def intervals(self) -> list[tuple[int, int]]:\n        \"\"\"Return the covered set as a normalized sorted list of (lo, hi) tuples.\"\"\"\n        pts = self._pts\n        return [(pts[k], pts[k + 1]) for k in range(0, len(pts), 2)]\n\n    def gaps(self, lo: int, hi: int) -> list[tuple[int, int]]:\n        \"\"\"Return the maximal uncovered sub-intervals of [lo, hi) as sorted (a, b) tuples.\"\"\"\n        self._validate_interval(lo, hi)\n        i = bisect_right(self._pts, lo)\n        j = bisect_left(self._pts, hi)\n\n        gap_pts: list[int] = []\n        if i % 2 == 0:\n            gap_pts.append(lo)\n        gap_pts.extend(self._pts[i:j])\n        if j % 2 == 0:\n            gap_pts.append(hi)\n\n        return [(gap_pts[k], gap_pts[k + 1]) for k in range(0, len(gap_pts), 2)]\n\n    def __contains__(self, x: int) -> bool:\n        return self.contains(x)\n\n    def __repr__(self) -> str:\n        return f\"IntervalSet({self.intervals()!r})\"",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Normalized integer interval set",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 193.67,
+   "tokens_in": 494,
+   "tokens_out": 13205,
+   "cost_usd": 0.13170762,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Reprioritizable task scheduler with FIFO ties",
+  "category": "data_structures",
+  "entry_point": "TaskScheduler",
+  "code": "import heapq\nfrom typing import Any, Hashable\n\n_REMOVED = object()\n\n\nclass TaskScheduler:\n    \"\"\"Priority queue of unique task IDs supporting reprioritization and cancellation.\n\n    Higher integer priorities are served first. Ties in priority are broken in\n    FIFO order of original submission (preserved across reprioritizations).\n    \"\"\"\n\n    def __init__(self) -> None:\n        # Heap entries are lists: [-priority, submit_seq, push_seq, task_id_or_REMOVED].\n        # Because (submit_seq, push_seq) is strictly unique across all heap pushes,\n        # comparisons never reach index 3 (so task_ids need not be comparable).\n        self._heap: list[list[Any]] = []\n        self._active: dict[Hashable, list[Any]] = {}\n        self._submit_seq: int = 0\n        self._push_seq: int = 0\n\n    def submit(self, task_id: Hashable, priority: int) -> None:\n        \"\"\"Add a new active task. Raise ValueError if task_id is already active.\"\"\"\n        if task_id in self._active:\n            raise ValueError(f\"Task {task_id!r} is already active\")\n\n        entry = [-priority, self._submit_seq, self._push_seq, task_id]\n        self._submit_seq += 1\n        self._push_seq += 1\n\n        self._active[task_id] = entry\n        heapq.heappush(self._heap, entry)\n\n    def reprioritize(self, task_id: Hashable, priority: int) -> None:\n        \"\"\"Update an active task's priority while preserving its original FIFO order.\"\"\"\n        if task_id not in self._active:\n            raise KeyError(task_id)\n\n        old_entry = self._active[task_id]\n        if -old_entry[0] == priority:\n            return\n\n        submit_seq = old_entry[1]\n        old_entry[3] = _REMOVED\n\n        new_entry = [-priority, submit_seq, self._push_seq, task_id]\n        self._push_seq += 1\n\n        self._active[task_id] = new_entry\n        heapq.heappush(self._heap, new_entry)\n        self._maybe_compact()\n\n    def cancel(self, task_id: Hashable) -> None:\n        \"\"\"Remove an active task without serving it. Raise KeyError if not active.\"\"\"\n        entry = self._active.pop(task_id)  # Raises KeyError if not active\n        entry[3] = _REMOVED\n        self._maybe_compact()\n\n    def pop(self) -> Hashable:\n        \"\"\"Remove and return the highest-priority active task. Raise IndexError if empty.\"\"\"\n        if not self._active:\n            raise IndexError(\"pop from an empty TaskScheduler\")\n\n        self._discard_stale_top()\n        entry = heapq.heappop(self._heap)\n        task_id = entry[3]\n        del self._active[task_id]\n        self._maybe_compact()\n        return task_id\n\n    def peek(self) -> Hashable:\n        \"\"\"Return the highest-priority active task without removing it. Raise IndexError if empty.\"\"\"\n        if not self._active:\n            raise IndexError(\"peek from an empty TaskScheduler\")\n\n        self._discard_stale_top()\n        return self._heap[0][3]\n\n    def priority_of(self, task_id: Hashable) -> int:\n        \"\"\"Return the current priority of an active task. Raise KeyError if not active.\"\"\"\n        return -self._active[task_id][0]\n\n    def __len__(self) -> int:\n        \"\"\"Return the number of active tasks.\"\"\"\n        return len(self._active)\n\n    def _discard_stale_top(self) -> None:\n        while self._heap and self._heap[0][3] is _REMOVED:\n            heapq.heappop(self._heap)\n\n    def _maybe_compact(self) -> None:\n        # Keep total heap size linear in the number of active tasks so memory\n        # and heap depth stay O(n) even under heavy reprioritize/cancel churn.\n        if len(self._heap) > 64 and len(self._heap) > 4 * len(self._active):\n            self._heap = list(self._active.values())\n            heapq.heapify(self._heap)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Reprioritizable task scheduler with FIFO ties",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 62.65,
+   "tokens_in": 636,
+   "tokens_out": 4033,
+   "cost_usd": 0.04118598,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Undoable stack",
+  "category": "data_structures",
+  "entry_point": "UndoStack",
+  "code": "from typing import Any\n\n\nclass UndoStack:\n    \"\"\"A LIFO stack supporting undo of mutating operations (push and pop).\"\"\"\n\n    def __init__(self) -> None:\n        self._stack: list[Any] = []\n        # History entries are either (\"push\",) or (\"pop\", value)\n        self._history: list[tuple[Any, ...]] = []\n\n    def push(self, x: Any) -> None:\n        \"\"\"Push x onto the top of the stack.\"\"\"\n        self._stack.append(x)\n        self._history.append((\"push\",))\n\n    def pop(self) -> Any:\n        \"\"\"Remove and return the top value. Raises IndexError if empty.\"\"\"\n        if not self._stack:\n            raise IndexError(\"pop from empty UndoStack\")\n        val = self._stack.pop()\n        self._history.append((\"pop\", val))\n        return val\n\n    def peek(self) -> Any:\n        \"\"\"Return the top value without removing it. Raises IndexError if empty.\"\"\"\n        if not self._stack:\n            raise IndexError(\"peek from empty UndoStack\")\n        return self._stack[-1]\n\n    def undo(self) -> None:\n        \"\"\"Reverse the most recent un-undone push or pop. Raises RuntimeError if none.\"\"\"\n        if not self._history:\n            raise RuntimeError(\"nothing left to undo\")\n        entry = self._history.pop()\n        if entry[0] == \"push\":\n            self._stack.pop()\n        else:\n            self._stack.append(entry[1])\n\n    def __len__(self) -> int:\n        \"\"\"Return the number of values currently on the stack.\"\"\"\n        return len(self._stack)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Undoable stack",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 36.37,
+   "tokens_in": 540,
+   "tokens_out": 1543,
+   "cost_usd": 0.0163449,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Versioned key-value store with rollback",
+  "category": "data_structures",
+  "entry_point": "VersionedKV",
+  "code": "from typing import Any, Optional\n\n_MISSING = object()\n_HASH_MASK = (1 << 64) - 1\n_POPCOUNT = int.bit_count if hasattr(int, \"bit_count\") else lambda x: bin(x).count(\"1\")\n\n\nclass _Leaf:\n    __slots__ = (\"h\", \"pairs\")\n\n    def __init__(self, h: int, pairs: tuple[tuple[Any, Any], ...]) -> None:\n        self.h = h\n        self.pairs = pairs\n\n\nclass _Branch:\n    __slots__ = (\"bitmap\", \"children\")\n\n    def __init__(self, bitmap: int, children: tuple[Any, ...]) -> None:\n        self.bitmap = bitmap\n        self.children = children\n\n\n_Node = Optional[_Leaf | _Branch]\n\n\ndef _lookup(node: _Node, h: int, key: Any) -> Any:\n    shift = 0\n    while isinstance(node, _Branch):\n        bit = 1 << ((h >> shift) & 0x1F)\n        if not (node.bitmap & bit):\n            return _MISSING\n        idx = _POPCOUNT(node.bitmap & (bit - 1))\n        node = node.children[idx]\n        shift += 5\n\n    if node is None or node.h != h:\n        return _MISSING\n\n    for k, v in node.pairs:\n        if k == key:\n            return v\n    return _MISSING\n\n\ndef _merge_leaves(leaf1: _Leaf, leaf2: _Leaf, shift: int) -> _Branch:\n    b1 = (leaf1.h >> shift) & 0x1F\n    b2 = (leaf2.h >> shift) & 0x1F\n    if b1 == b2:\n        child = _merge_leaves(leaf1, leaf2, shift + 5)\n        return _Branch(1 << b1, (child,))\n    children = (leaf1, leaf2) if b1 < b2 else (leaf2, leaf1)\n    return _Branch((1 << b1) | (1 << b2), children)\n\n\ndef _insert(node: _Node, h: int, key: Any, value: Any, shift: int) -> _Leaf | _Branch:\n    if node is None:\n        return _Leaf(h, ((key, value),))\n\n    if isinstance(node, _Leaf):\n        if node.h == h:\n            for i, (k, v) in enumerate(node.pairs):\n                if k == key:\n                    if v is value:\n                        return node\n                    new_pairs = node.pairs[:i] + ((k, value),) + node.pairs[i + 1 :]\n                    return _Leaf(h, new_pairs)\n            return _Leaf(h, node.pairs + ((key, value),))\n        return _merge_leaves(node, _Leaf(h, ((key, value),)), shift)\n\n    bit = 1 << ((h >> shift) & 0x1F)\n    idx = _POPCOUNT(node.bitmap & (bit - 1))\n    if node.bitmap & bit:\n        child = node.children[idx]\n        new_child = _insert(child, h, key, value, shift + 5)\n        if new_child is child:\n            return node\n        new_children = node.children[:idx] + (new_child,) + node.children[idx + 1 :]\n        return _Branch(node.bitmap, new_children)\n\n    new_child = _Leaf(h, ((key, value),))\n    new_children = node.children[:idx] + (new_child,) + node.children[idx:]\n    return _Branch(node.bitmap | bit, new_children)\n\n\ndef _remove(node: _Node, h: int, key: Any, shift: int) -> _Node:\n    if node is None:\n        raise KeyError(key)\n\n    if isinstance(node, _Leaf):\n        if node.h != h:\n            raise KeyError(key)\n        for i, (k, _) in enumerate(node.pairs):\n            if k == key:\n                if len(node.pairs) == 1:\n                    return None\n                return _Leaf(h, node.pairs[:i] + node.pairs[i + 1 :])\n        raise KeyError(key)\n\n    bit = 1 << ((h >> shift) & 0x1F)\n    if not (node.bitmap & bit):\n        raise KeyError(key)\n\n    idx = _POPCOUNT(node.bitmap & (bit - 1))\n    new_child = _remove(node.children[idx], h, key, shift + 5)\n\n    if new_child is None:\n        new_bitmap = node.bitmap ^ bit\n        if new_bitmap == 0:\n            return None\n        new_children = node.children[:idx] + node.children[idx + 1 :]\n        if len(new_children) == 1 and isinstance(new_children[0], _Leaf):\n            return new_children[0]\n        return _Branch(new_bitmap, new_children)\n\n    if len(node.children) == 1 and isinstance(new_child, _Leaf):\n        return new_child\n\n    new_children = node.children[:idx] + (new_child,) + node.children[idx + 1 :]\n    return _Branch(node.bitmap, new_children)\n\n\nclass VersionedKV:\n    \"\"\"A key-value store supporting immutable commit snapshots, point-in-time reads, and rollback.\"\"\"\n\n    def __init__(self) -> None:\n        self._working: _Node = None\n        self._snapshots: list[_Node] = []\n\n    def set(self, key: Any, value: Any) -> None:\n        \"\"\"Write key/value to the working state.\"\"\"\n        h = hash(key) & _HASH_MASK\n        self._working = _insert(self._working, h, key, value, 0)\n\n    def delete(self, key: Any) -> None:\n        \"\"\"Remove key from the working state, raising KeyError if absent.\"\"\"\n        h = hash(key) & _HASH_MASK\n        self._working = _remove(self._working, h, key, 0)\n\n    def get(self, key: Any) -> Any:\n        \"\"\"Read key from the working state, raising KeyError if absent.\"\"\"\n        h = hash(key) & _HASH_MASK\n        val = _lookup(self._working, h, key)\n        if val is _MISSING:\n            raise KeyError(key)\n        return val\n\n    def has(self, key: Any) -> bool:\n        \"\"\"Return True if key is present in the working state.\"\"\"\n        h = hash(key) & _HASH_MASK\n        return _lookup(self._working, h, key) is not _MISSING\n\n    def commit(self) -> int:\n        \"\"\"Snapshot the current working state and return the new version number.\"\"\"\n        self._snapshots.append(self._working)\n        return len(self._snapshots)\n\n    def latest(self) -> int:\n        \"\"\"Return the number of commits made so far.\"\"\"\n        return len(self._snapshots)\n\n    def get_at(self, key: Any, version: int) -> Any:\n        \"\"\"Read key from snapshot `version`.\"\"\"\n        if (\n            isinstance(version, bool)\n            or not isinstance(version, int)\n            or not (1 <= version <= len(self._snapshots))\n        ):\n            raise ValueError(f\"Version must be an integer in 1..{len(self._snapshots)}, got {version!r}\")\n\n        h = hash(key) & _HASH_MASK\n        val = _lookup(self._snapshots[version - 1], h, key)\n        if val is _MISSING:\n            raise KeyError(key)\n        return val\n\n    def rollback(self, version: int) -> None:\n        \"\"\"Replace the working state with snapshot `version` (0 = empty state).\"\"\"\n        if (\n            isinstance(version, bool)\n            or not isinstance(version, int)\n            or not (0 <= version <= len(self._snapshots))\n        ):\n            raise ValueError(f\"Version must be an integer in 0..{len(self._snapshots)}, got {version!r}\")\n\n        self._working = None if version == 0 else self._snapshots[version - 1]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Versioned key-value store with rollback",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 131.74,
+   "tokens_in": 637,
+   "tokens_out": 8779,
+   "cost_usd": 0.08817336,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Competition ranks with ties and NaN guard",
+  "category": "edge_cases",
+  "entry_point": "rank_scores",
+  "code": "def rank_scores(scores: list) -> list[int]:\n    \"\"\"Assign standard competition ranks (\"1224\" ranking) to numeric scores.\n\n    Higher scores receive better (smaller) ranks, starting at 1. Equal scores\n    receive the same rank, and subsequent ranks skip accordingly.\n    \"\"\"\n    for score in scores:\n        if score != score:  # NaN check that also handles arbitrarily large ints\n            raise ValueError(\"Scores must not contain NaN\")\n\n    if not scores:\n        return []\n\n    indexed_scores = sorted(enumerate(scores), key=lambda pair: pair[1], reverse=True)\n    ranks = [0] * len(scores)\n    current_rank = 1\n\n    for pos, (orig_idx, score) in enumerate(indexed_scores):\n        if pos > 0 and score != indexed_scores[pos - 1][1]:\n            current_rank = pos + 1\n        ranks[orig_idx] = current_rank\n\n    return ranks",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Competition ranks with ties and NaN guard",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 31.37,
+   "tokens_in": 397,
+   "tokens_out": 1789,
+   "cost_usd": 0.01849716,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Display-width truncation with combining marks",
+  "category": "edge_cases",
+  "entry_point": "truncate_display",
+  "code": "import unicodedata\n\nCOMBINING_CATEGORIES = frozenset((\"Mn\", \"Mc\", \"Me\"))\n\n\ndef truncate_display(s: str, width: int) -> str:\n    \"\"\"Truncate a string to a maximum number of user-perceived character units.\n\n    Combining marks ('Mn', 'Mc', 'Me') attach to the preceding character unit\n    and add zero width, unless they appear at the very start of the string, in\n    which case the first mark begins an initial unit and consecutive marks join it.\n    \"\"\"\n    if width < 0:\n        raise ValueError(f\"width must be non-negative, got {width}\")\n    if width == 0 or not s:\n        return \"\"\n\n    units = 0\n    for i, ch in enumerate(s):\n        is_combining = unicodedata.category(ch) in COMBINING_CATEGORIES\n        if i == 0 or not is_combining:\n            if units == width:\n                return s[:i]\n            units += 1\n\n    return s",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Display-width truncation with combining marks",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 25.7,
+   "tokens_in": 477,
+   "tokens_out": 1332,
+   "cost_usd": 0.01413126,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Even chunking of arbitrary iterables",
+  "category": "edge_cases",
+  "entry_point": "chunk_evenly",
+  "code": "def chunk_evenly(items, n: int) -> list[list]:\n    \"\"\"Split an iterable into n contiguous chunks whose lengths differ by at most 1.\"\"\"\n    if n < 1:\n        raise ValueError(f\"n must be at least 1, got {n}\")\n\n    elements = list(items)\n    quotient, remainder = divmod(len(elements), n)\n\n    return [\n        elements[\n            i * quotient + min(i, remainder)\n            : (i + 1) * quotient + min(i + 1, remainder)\n        ]\n        for i in range(n)\n    ]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Even chunking of arbitrary iterables",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 34.58,
+   "tokens_in": 374,
+   "tokens_out": 2024,
+   "cost_usd": 0.02077812,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact integer k-th root floor",
+  "category": "edge_cases",
+  "entry_point": "kth_root_floor",
+  "code": "import math\n\n\ndef kth_root_floor(n: int, k: int) -> int:\n    \"\"\"Return the largest integer r >= 0 such that r ** k <= n.\"\"\"\n    if n < 0:\n        raise ValueError(\"n must be >= 0\")\n    if k < 1:\n        raise ValueError(\"k must be >= 1\")\n\n    if n <= 1 or k == 1:\n        return n\n    if k == 2:\n        return math.isqrt(n)\n\n    bit_len = n.bit_length()\n    # Since n < 2**bit_len, if k >= bit_len then 2**k >= 2**bit_len > n,\n    # so the floor of the k-th root must be 1.\n    if k >= bit_len:\n        return 1\n\n    # From 2**(bit_len - 1) <= n < 2**bit_len, we get tight power-of-two bounds:\n    # low**k <= 2**(bit_len - 1) <= n < 2**bit_len <= high**k\n    low = 1 << ((bit_len - 1) // k)\n    high = low << 1\n\n    while low + 1 < high:\n        mid = (low + high) >> 1\n        if mid**k <= n:\n            low = mid\n        else:\n            high = mid\n\n    return low",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Exact integer k-th root floor",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 38.03,
+   "tokens_in": 397,
+   "tokens_out": 2342,
+   "cost_usd": 0.02397186,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Largest-remainder integer allocation",
+  "category": "edge_cases",
+  "entry_point": "allocate_shares",
+  "code": "from fractions import Fraction\nimport math\nfrom numbers import Integral\n\n\ndef allocate_shares(total: int, weights: list) -> list[int]:\n    \"\"\"Split an integer total into nonnegative integer shares proportional to weights.\n\n    Uses the largest-remainder (Hamilton) method with exact rational arithmetic,\n    breaking remainder ties in favor of the lower party index.\n    \"\"\"\n    if isinstance(total, bool) or not isinstance(total, Integral) or total < 0:\n        raise ValueError(\"total must be an integer >= 0\")\n    total = int(total)\n\n    weights_list = list(weights)\n    if not weights_list:\n        raise ValueError(\"weights must not be empty\")\n\n    frac_weights: list[Fraction] = []\n    for w in weights_list:\n        if isinstance(w, bool):\n            raise ValueError(\"weights must be numeric values >= 0\")\n        try:\n            if math.isnan(w) or math.isinf(w):\n                raise ValueError(\"weights must be finite numbers\")\n            fw = Fraction(w)\n        except (TypeError, ValueError, OverflowError) as exc:\n            raise ValueError(\"weights must contain finite real numbers\") from exc\n        if fw < 0:\n            raise ValueError(\"weights must all be >= 0\")\n        frac_weights.append(fw)\n\n    weight_sum = sum(frac_weights, Fraction(0))\n    if weight_sum <= 0:\n        raise ValueError(\"sum of weights must be > 0\")\n\n    if total == 0:\n        return [0] * len(frac_weights)\n\n    floors: list[int] = []\n    remainders: list[Fraction] = []\n    for fw in frac_weights:\n        quota = (total * fw) / weight_sum\n        floor_q = quota.numerator // quota.denominator\n        floors.append(floor_q)\n        remainders.append(quota - floor_q)\n\n    shortfall = total - sum(floors)\n    if shortfall > 0:\n        ranked_indices = sorted(\n            range(len(frac_weights)),\n            key=lambda i: (-remainders[i], i),\n        )\n        for i in ranked_indices[:shortfall]:\n            floors[i] += 1\n\n    return floors",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Largest-remainder integer allocation",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 71.12,
+   "tokens_in": 454,
+   "tokens_out": 4565,
+   "cost_usd": 0.04609242,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lazy round-robin interleaver",
+  "category": "edge_cases",
+  "entry_point": "round_robin",
+  "code": "from collections import deque\nfrom typing import Iterator\n\n\ndef round_robin(iterables: list) -> Iterator:\n    \"\"\"Lazily interleave values from a list of iterables in round-robin order.\"\"\"\n    active = deque(iter(it) for it in iterables)\n    while active:\n        it = active.popleft()\n        try:\n            value = next(it)\n        except StopIteration:\n            continue\n        active.append(it)\n        yield value",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lazy round-robin interleaver",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 40.65,
+   "tokens_in": 525,
+   "tokens_out": 2482,
+   "cost_usd": 0.0256113,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Lower weighted median with tolerance",
+  "category": "edge_cases",
+  "entry_point": "weighted_median",
+  "code": "def weighted_median(values: list, weights: list) -> float:\n    \"\"\"Return the lower weighted median of values with corresponding weights.\"\"\"\n    if len(values) != len(weights):\n        raise ValueError(\"values and weights must have the same length.\")\n    if not values:\n        raise ValueError(\"values and weights must not be empty.\")\n\n    pairs = []\n    total_weight = 0.0\n    for v, w in zip(values, weights):\n        if w < 0:\n            raise ValueError(\"All weights must be non-negative.\")\n        if w > 0:\n            pairs.append((v, w))\n            total_weight += w\n\n    if total_weight <= 0 or not pairs:\n        raise ValueError(\"Sum of weights must be greater than zero.\")\n\n    pairs.sort(key=lambda pair: pair[0])\n\n    threshold = total_weight / 2.0 - 1e-9\n    cumulative_weight = 0.0\n    for v, w in pairs:\n        cumulative_weight += w\n        if cumulative_weight >= threshold:\n            return v\n\n    return pairs[-1][0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Lower weighted median with tolerance",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 39.8,
+   "tokens_in": 453,
+   "tokens_out": 2434,
+   "cost_usd": 0.02499354,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Overflow-safe Euclidean norm",
+  "category": "edge_cases",
+  "entry_point": "vector_norm",
+  "code": "import math\n\n\ndef vector_norm(v: list[float]) -> float:\n    \"\"\"Compute the Euclidean (L2) norm of a vector of floats.\"\"\"\n    max_abs = 0.0\n    for x in v:\n        if not math.isfinite(x):\n            raise ValueError(f\"Vector entries must be finite numbers, got {x!r}\")\n        ax = abs(x)\n        if ax > max_abs:\n            max_abs = ax\n\n    if max_abs == 0.0:\n        return 0.0\n\n    # Scale by an exact power of two so the largest magnitude lies in [0.5, 1.0).\n    # ldexp adjusts only the exponent, introducing zero rounding error.\n    _, exp = math.frexp(max_abs)\n    scaled_sq_sum = math.fsum((s := math.ldexp(x, -exp)) * s for x in v)\n\n    try:\n        return math.ldexp(math.sqrt(scaled_sq_sum), exp)\n    except OverflowError:\n        return math.inf",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "edge_cases",
+   "title": "Overflow-safe Euclidean norm",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 84.69,
+   "tokens_in": 407,
+   "tokens_out": 7089,
+   "cost_usd": 0.07098696,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Bounty scheduling with slot capacity",
+  "category": "optimization",
+  "entry_point": "max_bounty",
+  "code": "from heapq import heapify, heappush, heapreplace\n\n\ndef max_bounty(jobs: list[tuple[int, int]], cap: int) -> int:\n    \"\"\"Return the maximum total bounty of unit-time jobs schedulable with slot capacity `cap`.\"\"\"\n    if cap < 1:\n        raise ValueError(\"cap must be at least 1\")\n\n    n = len(jobs)\n    if n == 0:\n        return 0\n\n    # Because m * cap >= n, any job with deadline d >= m can always be placed\n    # alongside any valid subset of jobs with earlier deadlines.\n    m = (n + cap - 1) // cap\n    buckets: list[list[int] | None] = [None] * m\n    unconditional_total = 0\n\n    for d, p in jobs:\n        if d >= m:\n            unconditional_total += p\n        else:\n            b = buckets[d]\n            if b is None:\n                buckets[d] = [p]\n            else:\n                b.append(p)\n\n    # Process deadlines 1 .. m - 1 in ascending order. A subset of jobs is valid\n    # iff for every deadline d, at most d * cap jobs have deadline <= d.\n    h: list[int] = []\n    is_heap = False\n    limit = -cap\n\n    for bucket in buckets:\n        limit += cap\n        if bucket is None:\n            continue\n\n        if not is_heap:\n            if len(h) + len(bucket) <= limit:\n                h.extend(bucket)\n                continue\n\n            need = limit - len(h)\n            if need > 0:\n                h.extend(bucket[:need])\n                rest = bucket[need:]\n            else:\n                rest = bucket\n\n            heapify(h)\n            is_heap = True\n            min_p = h[0]\n            for p in rest:\n                if p > min_p:\n                    heapreplace(h, p)\n                    min_p = h[0]\n        else:\n            free = limit - len(h)\n            if free >= len(bucket):\n                for p in bucket:\n                    heappush(h, p)\n            else:\n                if free > 0:\n                    for p in bucket[:free]:\n                        heappush(h, p)\n                    rest = bucket[free:]\n                else:\n                    rest = bucket\n\n                min_p = h[0]\n                for p in rest:\n                    if p > min_p:\n                        heapreplace(h, p)\n                        min_p = h[0]\n\n    return unconditional_total + sum(h)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Bounty scheduling with slot capacity",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 151.9,
+   "tokens_in": 507,
+   "tokens_out": 10237,
+   "cost_usd": 0.10235016,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Divisible pulse windows with bounded length",
+  "category": "optimization",
+  "entry_point": "count_pulses",
+  "code": "from itertools import accumulate, islice\nimport operator\n\n\ndef count_pulses(deltas: list[int], k: int, lo: int, hi: int) -> int:\n    \"\"\"Count contiguous subarrays of `deltas` with length in [lo, hi] and sum divisible by `k`.\"\"\"\n    n = len(deltas)\n    if not (1 <= lo <= hi <= n):\n        raise ValueError(\n            f\"Expected 1 <= lo <= hi <= len(deltas), got lo={lo}, hi={hi}, len={n}\"\n        )\n\n    if k == 1:\n        return (hi - lo + 1) * (2 * n + 2 - lo - hi) // 2\n\n    rem = [s % k for s in accumulate(deltas, initial=0)]\n\n    if lo == hi:\n        return sum(map(operator.eq, rem, islice(rem, lo, None)))\n\n    ans = 0\n    if k <= 2_000_000:\n        freq_list = [0] * k\n        for r_add, r_q in zip(rem, islice(rem, lo, hi + 1)):\n            freq_list[r_add] += 1\n            ans += freq_list[r_q]\n        for r_rem, r_add, r_q in zip(\n            rem, islice(rem, hi - lo + 1, None), islice(rem, hi + 1, None)\n        ):\n            freq_list[r_rem] -= 1\n            freq_list[r_add] += 1\n            ans += freq_list[r_q]\n    else:\n        freq_dict: dict[int, int] = {}\n        get = freq_dict.get\n        for r_add, r_q in zip(rem, islice(rem, lo, hi + 1)):\n            freq_dict[r_add] = get(r_add, 0) + 1\n            ans += get(r_q, 0)\n        for r_rem, r_add, r_q in zip(\n            rem, islice(rem, hi - lo + 1, None), islice(rem, hi + 1, None)\n        ):\n            freq_dict[r_rem] -= 1\n            freq_dict[r_add] = get(r_add, 0) + 1\n            ans += get(r_q, 0)\n\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Divisible pulse windows with bounded length",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 102.0,
+   "tokens_in": 552,
+   "tokens_out": 6743,
+   "cost_usd": 0.06784866,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Longest echoed slice",
+  "category": "optimization",
+  "entry_point": "longest_echo",
+  "code": "from itertools import islice\nimport random\n\n\ndef longest_echo(s: str) -> int:\n    \"\"\"Return the length of the longest substring occurring at least twice in s.\"\"\"\n    n = len(s)\n    distinct = len(set(s))\n    if distinct == n:\n        return 0\n    if distinct == 1:\n        return n - 1\n\n    # Since 1 < distinct < n (so n >= 3):\n    # - At least one single character repeats, so answer >= 1.\n    # - A repeat of length n - 1 would force s[0:n-1] == s[1:n], implying all\n    #   characters are equal (distinct == 1), so answer < n - 1.\n    lo = 1\n    hi = n - 1\n    if hi - lo == 1:\n        return 1\n\n    mod = (1 << 61) - 1  # Mersenne prime 2^61 - 1\n    base = random.randrange(257, mod)\n\n    prefix_hash = [0] * (n + 1)\n    h = 0\n    for i, byte in enumerate(s.encode(\"ascii\"), 1):\n        h = (h * base + byte) % mod\n        prefix_hash[i] = h\n\n    def has_repeat(length: int) -> bool:\n        base_l = pow(base, length, mod)\n        vals = [\n            (b - a * base_l) % mod\n            for a, b in zip(prefix_hash, islice(prefix_hash, length, None))\n        ]\n        if len(set(vals)) == len(vals):\n            return False\n\n        # Verify exact substring match to eliminate any hash collision risk.\n        seen: dict[int, int | list[int]] = {}\n        for i, v in enumerate(vals):\n            prev = seen.get(v)\n            if prev is None:\n                seen[v] = i\n            elif isinstance(prev, int):\n                if s[prev : prev + length] == s[i : i + length]:\n                    return True\n                seen[v] = [prev, i]\n            else:\n                for p in prev:\n                    if s[p : p + length] == s[i : i + length]:\n                        return True\n                prev.append(i)\n        return False\n\n    while hi - lo > 1:\n        mid = (lo + hi) // 2\n        if has_repeat(mid):\n            lo = mid\n        else:\n            hi = mid\n\n    return lo",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Longest echoed slice",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 111.18,
+   "tokens_in": 313,
+   "tokens_out": 8234,
+   "cost_usd": 0.08213634,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Parity-locked divisible pairs",
+  "category": "optimization",
+  "entry_point": "count_locked_pairs",
+  "code": "from collections import defaultdict\nfrom operator import mul\n\n\ndef count_locked_pairs(values: list[int], m: int) -> int:\n    \"\"\"Count pairs (i, j) with i < j such that values[i] + values[j] is a\n    multiple of m and values[i], values[j] have the same parity.\n    \"\"\"\n    if m < 1:\n        raise ValueError(f\"m must be >= 1, got {m}\")\n\n    n = len(values)\n    if n < 2:\n        return 0\n\n    # Same parity <=> 2 | (a + b). Combined with m | (a + b), a pair qualifies\n    # iff lcm(m, 2) | (a + b). Note that mod is always even and >= 2.\n    mod = m if (m & 1) == 0 else (m << 1)\n\n    if mod == 2:\n        odds = sum(v & 1 for v in values)\n        evens = n - odds\n        return (evens * (evens - 1) + odds * (odds - 1)) >> 1\n\n    half = mod >> 1\n\n    # Avoid O(mod) allocation when values is sparse relative to mod.\n    if (n << 4) < mod:\n        sparse_counts: dict[int, int] = defaultdict(int)\n        for v in values:\n            sparse_counts[v % mod] += 1\n\n        c0 = sparse_counts.pop(0, 0)\n        ch = sparse_counts.pop(half, 0)\n        total = (c0 * (c0 - 1) + ch * (ch - 1)) >> 1\n\n        get = sparse_counts.get\n        cross = 0\n        for r, c in sparse_counts.items():\n            if r < half:\n                cross += c * get(mod - r, 0)\n        return total + cross\n\n    counts = [0] * mod\n    for v in values:\n        counts[v % mod] += 1\n\n    c0 = counts[0]\n    ch = counts[half]\n    self_pairs = (c0 * (c0 - 1) + ch * (ch - 1)) >> 1\n    cross_pairs = sum(map(mul, counts[1:half], counts[:half:-1]))\n    return self_pairs + cross_pairs",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Parity-locked divisible pairs",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 107.28,
+   "tokens_in": 513,
+   "tokens_out": 7150,
+   "cost_usd": 0.07180074,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Peak concurrency and its first instant",
+  "category": "optimization",
+  "entry_point": "peak_load",
+  "code": "def peak_load(intervals: list[tuple[int, int]]) -> tuple[int, int]:\n    \"\"\"Return (max_load, earliest_t) for half-open integer intervals [s, e).\"\"\"\n    starts = [iv[0] for iv in intervals]\n    ends = [iv[1] for iv in intervals]\n    starts.sort()\n    ends.sort()\n\n    # Let j = i - max_load before step i.\n    # Because every interval satisfies s < e, the load can only increase at\n    # start times, and by at most 1 per start event. At index i (s = starts[i]),\n    # the load among the first i + 1 starts exceeds max_load iff at most j\n    # intervals have ended at or before s, which (since ends is sorted) holds\n    # iff s < ends[j].\n    j = 0\n    best_t = 0\n    for s in starts:\n        if s < ends[j]:\n            best_t = s\n        else:\n            j += 1\n\n    return len(starts) - j, best_t",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Peak concurrency and its first instant",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 116.95,
+   "tokens_in": 485,
+   "tokens_out": 7769,
+   "cost_usd": 0.0778734,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recurring values over many windows",
+  "category": "optimization",
+  "entry_point": "recurring_counts",
+  "code": "def recurring_counts(data: list[int], queries: list[tuple[int, int]]) -> list[int]:\n    \"\"\"Count distinct values occurring at least twice in each query slice data[l:r].\"\"\"\n    n = len(data)\n    m = len(queries)\n    ans = [0] * m\n    if n < 2 or m == 0:\n        return ans\n\n    # Group valid queries (length >= 2) by inclusive right endpoint i = r - 1\n    # using flat arrays as singly linked lists to avoid per-index list overhead.\n    head = [-1] * n\n    nxt = [-1] * m\n    ql = [0] * m\n    has_valid = False\n\n    for qi, (l, r) in enumerate(queries):\n        if r - l >= 2:\n            i = r - 1\n            ql[qi] = l\n            nxt[qi] = head[i]\n            head[i] = qi\n            has_valid = True\n\n    if not has_valid:\n        return ans\n\n    # Sweep i = 0 .. n - 1.\n    # For each distinct value seen >= 2 times in data[0 : i + 1], maintain +1\n    # in a 1-based Fenwick tree at its second-to-last occurrence index (+ 1).\n    # A value occurs >= 2 times in data[l : i + 1] iff its second-to-last\n    # occurrence up to i is >= l.\n    bit = [0] * (n + 1)\n    prev = [-1] * n\n    last_pos: dict[int, int] = {}\n    active = 0  # Total distinct values occurring >= 2 times in data[0 : i + 1]\n\n    for i, v in enumerate(data):\n        p1 = last_pos.get(v, -1)\n        last_pos[v] = i\n        if p1 != -1:\n            prev[i] = p1\n            p2 = prev[p1]\n            if p2 != -1:\n                idx = p2 + 1\n                while idx <= n:\n                    bit[idx] -= 1\n                    idx += idx & -idx\n            else:\n                active += 1\n\n            idx = p1 + 1\n            while idx <= n:\n                bit[idx] += 1\n                idx += idx & -idx\n\n        qi = head[i]\n        while qi != -1:\n            # Count active values whose second-to-last occurrence is >= l,\n            # i.e. total active minus those strictly before l (1-based <= l).\n            idx = ql[qi]\n            before_l = 0\n            while idx > 0:\n                before_l += bit[idx]\n                idx &= idx - 1\n            ans[qi] = active - before_l\n            qi = nxt[qi]\n\n    return ans",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Recurring values over many windows",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 94.57,
+   "tokens_in": 546,
+   "tokens_out": 6171,
+   "cost_usd": 0.06217398,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Stable sensor stretches",
+  "category": "optimization",
+  "entry_point": "count_stable_windows",
+  "code": "from collections import deque\nfrom itertools import islice\n\n\ndef count_stable_windows(readings: list[int], tol: int) -> int:\n    \"\"\"Count non-empty contiguous subarrays where max(window) - min(window) <= tol.\"\"\"\n    n = len(readings)\n    if n <= 1:\n        return n\n\n    # Fast path when the entire array already qualifies.\n    if max(readings) - min(readings) <= tol:\n        return n * (n + 1) // 2\n\n    first = readings[0]\n    max_dq = deque([first])  # Non-increasing suffix maxima of current window\n    min_dq = deque([first])  # Non-decreasing suffix minima of current window\n\n    max_append = max_dq.append\n    max_pop = max_dq.pop\n    max_popleft = max_dq.popleft\n    max_clear = max_dq.clear\n\n    min_append = min_dq.append\n    min_pop = min_dq.pop\n    min_popleft = min_dq.popleft\n    min_clear = min_dq.clear\n\n    cur_max = first\n    cur_min = first\n    left = 0\n    left_sum = 0\n\n    for x in islice(readings, 1, None):\n        if x > cur_max:\n            # All elements in the previous window are <= cur_max < x.\n            max_clear()\n            max_append(x)\n            cur_max = x\n            min_append(x)\n\n            if x - cur_min > tol:\n                limit = x - tol\n                while cur_min < limit:\n                    if readings[left] == cur_min:\n                        min_popleft()\n                        cur_min = min_dq[0]\n                    left += 1\n        elif x < cur_min:\n            # All elements in the previous window are >= cur_min > x.\n            min_clear()\n            min_append(x)\n            cur_min = x\n            max_append(x)\n\n            if cur_max - x > tol:\n                limit = x + tol\n                while cur_max > limit:\n                    if readings[left] == cur_max:\n                        max_popleft()\n                        cur_max = max_dq[0]\n                    left += 1\n        else:\n            # cur_min <= x <= cur_max: window bounds (and validity) do not change.\n            if max_dq[-1] < x:\n                while max_dq[-1] < x:\n                    max_pop()\n            max_append(x)\n\n            if min_dq[-1] > x:\n                while min_dq[-1] > x:\n                    min_pop()\n            min_append(x)\n\n        left_sum += left\n\n    # Sum over right=0..n-1 of (right - left + 1) == n*(n+1)//2 - sum(left).\n    return n * (n + 1) // 2 - left_sum",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Stable sensor stretches",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 153.99,
+   "tokens_in": 385,
+   "tokens_out": 10388,
+   "cost_usd": 0.1036035,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Triple-dominance pair counting",
+  "category": "optimization",
+  "entry_point": "count_dominant_pairs",
+  "code": "from bisect import bisect_right\n\n\ndef count_dominant_pairs(seq: list[int]) -> int:\n    \"\"\"Count index pairs (i, j) with i < j such that seq[i] > 3 * seq[j].\"\"\"\n    if len(seq) < 2:\n        return 0\n\n    # Coordinate-compress unique values for 1-based Fenwick tree indexing.\n    vals = sorted(set(seq))\n    m = len(vals)\n    rank = {v: i for i, v in enumerate(vals, 1)}\n    bit = [0] * (m + 1)\n\n    total = 0\n    seen = 0\n\n    for x in seq:\n        if seen:\n            # Count how many previously seen values are <= 3 * x.\n            idx = bisect_right(vals, 3 * x)\n            if idx < m:\n                le_count = 0\n                while idx:\n                    le_count += bit[idx]\n                    idx &= idx - 1\n                total += seen - le_count\n\n        pos = rank[x]\n        while pos <= m:\n            bit[pos] += 1\n            pos += pos & -pos\n        seen += 1\n\n    return total",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "optimization",
+   "title": "Triple-dominance pair counting",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 54.97,
+   "tokens_in": 382,
+   "tokens_out": 3432,
+   "cost_usd": 0.03473316,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Category summarizer with indexed validation errors",
+  "category": "spec_compliance",
+  "entry_point": "summarize_by_category",
+  "code": "def summarize_by_category(rows):\n    if not isinstance(rows, list):\n        raise TypeError(\"rows must be a list\")\n\n    summary = {}\n\n    for i, row in enumerate(rows):\n        if not isinstance(row, tuple) or len(row) != 3:\n            raise TypeError(f\"Expected a 3-element tuple at row {i}\")\n\n        category, amount, refunded = row\n\n        if not isinstance(category, str) or len(category) == 0:\n            raise ValueError(f\"Category must be a non-empty str at row {i}\")\n\n        if isinstance(amount, bool) or not isinstance(amount, (int, float)):\n            raise TypeError(f\"Amount must be an int or float at row {i}\")\n\n        if not (amount >= 0):\n            raise ValueError(f\"Amount must be >= 0 at row {i}\")\n\n        if not isinstance(refunded, bool):\n            raise TypeError(f\"Refunded must be a bool at row {i}\")\n\n        amt_float = float(amount)\n\n        if category not in summary:\n            summary[category] = {\n                \"count\": 1,\n                \"gross\": amt_float,\n                \"net\": 0.0 if refunded else amt_float,\n                \"largest\": amt_float,\n            }\n        else:\n            cat_data = summary[category]\n            cat_data[\"count\"] += 1\n            cat_data[\"gross\"] += amt_float\n            if not refunded:\n                cat_data[\"net\"] += amt_float\n            if amt_float > cat_data[\"largest\"]:\n                cat_data[\"largest\"] = amt_float\n\n    return summary",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Category summarizer with indexed validation errors",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 19.84,
+   "tokens_in": 711,
+   "tokens_out": 999,
+   "cost_usd": 0.01129788,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Clamp list values without min/max",
+  "category": "spec_compliance",
+  "entry_point": "clamp_values",
+  "code": "def clamp_values(values, low, high):\n    if not isinstance(values, list):\n        raise TypeError(\"values must be a list\")\n\n    if (\n        isinstance(low, bool)\n        or not isinstance(low, (int, float))\n        or isinstance(high, bool)\n        or not isinstance(high, (int, float))\n    ):\n        raise TypeError(\"bounds must be numbers\")\n\n    if low > high:\n        raise ValueError(\"low must not exceed high\")\n\n    result = []\n    for i, item in enumerate(values):\n        if isinstance(item, bool) or not isinstance(item, (int, float)):\n            raise TypeError(f\"element at index {i} must be a number\")\n        if item < low:\n            result.append(low)\n        elif item > high:\n            result.append(high)\n        else:\n            result.append(item)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Clamp list values without min/max",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 23.55,
+   "tokens_in": 501,
+   "tokens_out": 1240,
+   "cost_usd": 0.01326798,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Depth-limited flatten, iteration only",
+  "category": "spec_compliance",
+  "entry_point": "flatten_depth",
+  "code": "def flatten_depth(nested, max_depth):\n    if not isinstance(nested, list):\n        raise TypeError(\"nested must be a list\")\n    if isinstance(max_depth, bool) or not isinstance(max_depth, int):\n        raise TypeError(\"max_depth must be an int\")\n    if max_depth < 0:\n        raise ValueError(\"max_depth must be >= 0\")\n\n    if max_depth == 0:\n        return list(nested)\n\n    result = []\n    stack = [(iter(nested), 0)]\n\n    while stack:\n        current_iter, depth = stack[-1]\n        for item in current_iter:\n            if isinstance(item, list) and depth < max_depth:\n                stack.append((iter(item), depth + 1))\n                break\n            result.append(item)\n        else:\n            stack.pop()\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Depth-limited flatten, iteration only",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 32.27,
+   "tokens_in": 506,
+   "tokens_out": 1926,
+   "cost_usd": 0.02006928,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Duration string parser under a no-import contract",
+  "category": "spec_compliance",
+  "entry_point": "parse_duration",
+  "code": "def parse_duration(text):\n    if not isinstance(text, str):\n        raise TypeError(\"expected str\")\n\n    if not text or text.isspace():\n        raise ValueError(\"empty duration\")\n\n    units = {\n        \"h\": (0, 3600),\n        \"m\": (1, 60),\n        \"s\": (2, 1),\n    }\n\n    total_seconds = 0\n    last_unit_order = -1\n    digit_start = 0\n\n    for i, ch in enumerate(text):\n        if \"0\" <= ch <= \"9\":\n            continue\n        if ch in units:\n            if i == digit_start:\n                raise ValueError(\"malformed duration: missing digits before unit\")\n            order, multiplier = units[ch]\n            if order <= last_unit_order:\n                raise ValueError(\"malformed duration: invalid unit order or duplicate unit\")\n            total_seconds += int(text[digit_start:i]) * multiplier\n            last_unit_order = order\n            digit_start = i + 1\n        else:\n            raise ValueError(\"malformed duration: unexpected character\")\n\n    if digit_start != len(text) or last_unit_order == -1:\n        raise ValueError(\"malformed duration: trailing digits without unit\")\n\n    return total_seconds",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Duration string parser under a no-import contract",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 32.11,
+   "tokens_in": 479,
+   "tokens_out": 1903,
+   "cost_usd": 0.01978812,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Placeholder template renderer with exact error positions",
+  "category": "spec_compliance",
+  "entry_point": "render_template",
+  "code": "def render_template(template, context):\n    if not isinstance(template, str):\n        raise TypeError(\"template must be a string\")\n    if not isinstance(context, dict):\n        raise TypeError(\"context must be a dict\")\n\n    out = []\n    n = len(template)\n    i = 0\n\n    while i < n:\n        ch = template[i]\n        if ch == \"{\":\n            if i + 1 < n and template[i + 1] == \"{\":\n                out.append(\"{\")\n                i += 2\n                continue\n\n            start = i\n            j = i + 1\n            while j < n and template[j] != \"}\":\n                c = template[j]\n                if not (\n                    (\"A\" <= c <= \"Z\")\n                    or (\"a\" <= c <= \"z\")\n                    or (\"0\" <= c <= \"9\")\n                    or c == \"_\"\n                ):\n                    raise ValueError(\n                        \"invalid placeholder at position \" + str(start)\n                    )\n                j += 1\n\n            if j == n:\n                raise ValueError(\n                    \"unclosed placeholder at position \" + str(start)\n                )\n\n            if j == start + 1:\n                raise ValueError(\n                    \"empty placeholder at position \" + str(start)\n                )\n\n            name = template[start + 1 : j]\n            if name not in context:\n                raise KeyError(name)\n\n            out.append(str(context[name]))\n            i = j + 1\n\n        elif ch == \"}\":\n            if i + 1 < n and template[i + 1] == \"}\":\n                out.append(\"}\")\n                i += 2\n            else:\n                raise ValueError(\"stray '}' at position \" + str(i))\n        else:\n            out.append(ch)\n            i += 1\n\n    return \"\".join(out)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Placeholder template renderer with exact error positions",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 20.72,
+   "tokens_in": 614,
+   "tokens_out": 1004,
+   "cost_usd": 0.01115532,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "RPN evaluator with truncating division and indexed errors",
+  "category": "spec_compliance",
+  "entry_point": "eval_rpn",
+  "code": "def eval_rpn(tokens):\n    if not isinstance(tokens, list):\n        raise TypeError(\"tokens must be a list\")\n    if len(tokens) == 0:\n        raise ValueError(\"empty expression\")\n\n    stack = []\n\n    for i, token in enumerate(tokens):\n        if not isinstance(token, str):\n            raise TypeError(f\"expected str at token {i}\")\n\n        if token in (\"+\", \"-\", \"*\", \"/\"):\n            if len(stack) < 2:\n                raise ValueError(f\"stack underflow at token {i}\")\n            right = stack.pop()\n            left = stack.pop()\n\n            if token == \"+\":\n                stack.append(left + right)\n            elif token == \"-\":\n                stack.append(left - right)\n            elif token == \"*\":\n                stack.append(left * right)\n            else:\n                if right == 0:\n                    raise ZeroDivisionError(f\"division by zero at token {i}\")\n                quotient = abs(left) // abs(right)\n                if (left < 0) ^ (right < 0):\n                    quotient = -quotient\n                stack.append(quotient)\n        else:\n            if not token:\n                raise ValueError(f\"unknown token at token {i}\")\n\n            start = 1 if token[0] in (\"+\", \"-\") else 0\n            if start == len(token):\n                raise ValueError(f\"unknown token at token {i}\")\n\n            digits = token[start:]\n            for ch in digits:\n                if not (\"0\" <= ch <= \"9\"):\n                    raise ValueError(f\"unknown token at token {i}\")\n\n            if len(digits) <= 4000:\n                value = int(token)\n            else:\n                value = 0\n                for j in range(0, len(digits), 1000):\n                    chunk = digits[j : j + 1000]\n                    value = value * (10 ** len(chunk)) + int(chunk)\n                if token[0] == \"-\":\n                    value = -value\n\n            stack.append(value)\n\n    if len(stack) > 1:\n        raise ValueError(\"leftover operands\")\n\n    return stack[0]",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "RPN evaluator with truncating division and indexed errors",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 45.73,
+   "tokens_in": 605,
+   "tokens_out": 2745,
+   "cost_usd": 0.0283734,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Recursive deep_get with loop ban",
+  "category": "spec_compliance",
+  "entry_point": "deep_get",
+  "code": "_ASCII_DIGITS = frozenset(\"0123456789\")\n\n\ndef _is_int_literal(segment):\n    digits = segment[1:] if segment.startswith(\"-\") else segment\n    return bool(digits) and set(digits) <= _ASCII_DIGITS\n\n\ndef _descend(node, segments, pos):\n    if pos == len(segments):\n        return node\n\n    seg = segments[pos]\n\n    if isinstance(node, dict):\n        if seg not in node:\n            raise KeyError(seg)\n        return _descend(node[seg], segments, pos + 1)\n\n    if isinstance(node, list):\n        if not _is_int_literal(seg):\n            raise ValueError(f\"invalid index: {seg}\")\n        idx = int(seg)\n        if idx < -len(node) or idx >= len(node):\n            raise IndexError(f\"list index out of range: {seg}\")\n        return _descend(node[idx], segments, pos + 1)\n\n    raise TypeError(f\"cannot descend into {type(node).__name__}\")\n\n\ndef deep_get(data, path):\n    if not isinstance(path, str):\n        raise TypeError(\"path must be a string\")\n    if path == \"\":\n        raise ValueError(\"path must not be empty\")\n\n    segments = path.split(\".\")\n    if \"\" in segments:\n        raise ValueError(\"path contains an empty segment\")\n\n    return _descend(data, segments, 0)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Recursive deep_get with loop ban",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 66.49,
+   "tokens_in": 568,
+   "tokens_out": 4279,
+   "cost_usd": 0.04348674,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ },
+ {
+  "title": "Top-k frequent without sorting builtins",
+  "category": "spec_compliance",
+  "entry_point": "top_k_frequent",
+  "code": "def top_k_frequent(items, k):\n    if not isinstance(items, list):\n        raise TypeError(\"items must be a list\")\n    if isinstance(k, bool) or not isinstance(k, int):\n        raise TypeError(\"k must be an int\")\n    if k < 0:\n        raise ValueError(\"k must be >= 0\")\n\n    if k == 0 or len(items) == 0:\n        return []\n\n    counts = {}\n    for item in items:\n        if item in counts:\n            counts[item] += 1\n        else:\n            counts[item] = 1\n\n    n = len(items)\n    buckets = [[] for _ in range(n + 1)]\n    for val, cnt in counts.items():\n        buckets[cnt].append((val, cnt))\n\n    result = []\n    for cnt in range(n, 0, -1):\n        for pair in buckets[cnt]:\n            result.append(pair)\n            if len(result) == k:\n                return result\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Top-k frequent without sorting builtins",
+   "model": "google/gemini-4-carbon",
+   "provider": "openrouter",
+   "latency_s": 30.85,
+   "tokens_in": 462,
+   "tokens_out": 1799,
+   "cost_usd": 0.01872486,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null
+  },
+  "detail": []
+ }
+]

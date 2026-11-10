@@ -2,14 +2,12 @@
 
 Usage:
   python -m codebench.score data/outputs/code-bench-v4__fable-5.1.json [--write] [--verbose]
-  python -m codebench.score --all-v3            # re-score the five stored July v3 runs (the v4 baseline)
   python -m codebench.score data/outputs/code-bench-v4__*.json --tests strict   # v4-strict suite
 --tests picks the suite: v4 (default, tests/<slug>.json) or strict (tests/strict/<slug>.json).
 --jobs N scores N problems concurrently (default 1).
   python -m codebench.score data/outputs/code-bench-hard-v1__<tag>.json   # hard tier (suite inferred from the name)
 --suite forces a suite (default: inferred from the filename; anything not code-bench-hard-v1__* is v4).
---write stores the new scores back into the file under "scores" (keeping any stored July
-scores under "scores_july").
+--write stores the new scores back into the file under "scores".
 """
 import argparse
 import collections
@@ -46,8 +44,6 @@ def score_file(path, write=False, verbose=False, suite="v4", jobs=1):
             r.setdefault("scores_by_suite", {})[suite] = {"checker": s["checker"], "tests_ratio": s["tests_ratio"], "pass": s["pass"]}
             r.setdefault("detail_by_suite", {})[suite] = s["detail"]
         elif write:
-            if r.get("scores") and "scores_july" not in r:
-                r["scores_july"] = r["scores"]
             r["scores"] = {"checker": s["checker"], "tests_ratio": s["tests_ratio"], "pass": s["pass"]}
             r["detail"] = s["detail"]
         by_cat[p["category"]][2] += 1
@@ -71,7 +67,6 @@ def score_file(path, write=False, verbose=False, suite="v4", jobs=1):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("files", nargs="*")
-    ap.add_argument("--all-v3", action="store_true")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--tests", choices=["v4", "strict"], default="v4", help="test suite (default v4)")
@@ -79,8 +74,6 @@ def main():
     ap.add_argument("--suite", choices=sorted(harness.SUITES), help="default: inferred from each filename")
     a = ap.parse_args()
     files = list(a.files)
-    if a.all_v3:
-        files += sorted(str(p) for p in OUT.glob("code-bench-v3__*.json"))
     for f in files:
         harness.use_suite(a.suite or harness.suite_for_output(f))
         score_file(f, a.write, a.verbose, suite=a.tests, jobs=a.jobs)

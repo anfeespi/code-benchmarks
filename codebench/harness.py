@@ -75,9 +75,16 @@ MEM_LIMIT_MB = 1024
 def _pick_python():
     """Interpreter for the sandboxed child. The prompts never pin a Python version, so
     candidates are run on a modern interpreter (3.10+ syntax such as `int | None` and
-    `bisect(key=)` must not count as failures). Override with CODEBENCH_PYTHON."""
+    `bisect(key=)` must not count as failures). Override with CODEBENCH_PYTHON.
+
+    The grader environment `.venv-grader` is preferred when it exists. It carries numpy:
+    the prompts never say "standard library only", and answers that import numpy used to
+    fail at import and be counted as wrong (two of Sonnet 5.5's hard-suite problems)."""
     if os.environ.get("CODEBENCH_PYTHON"):
         return os.environ["CODEBENCH_PYTHON"]
+    grader = ROOT / ".venv-grader" / "bin" / "python"
+    if grader.exists():
+        return str(grader)
     for cand in ("python3.13", "python3.12", "python3.11", "python3.10"):
         for d in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"):
             p = Path(d) / cand

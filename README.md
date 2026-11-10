@@ -20,11 +20,12 @@ counts as a failure. `v4 strict` is the same 48 problems under a larger test set
 | Model | v4 | v4 strict | hard-v1 | agentic-go-v1 |
 |---|---|---|---|---|
 | Claude Fable 5.2 | 48/48 | 48/48 | 32/32 | 18/18 |
-| Claude Sonnet 5.5 | 48/48 | 48/48 | 30/32 | 18/18 |
+| Claude Sonnet 5.5 | 48/48 | 48/48 | 32/32 | 18/18 |
+| Gemini 4 Carbon | 48/48 | 48/48 | 31/32 | 18/18 |
 | Grok 4.5 | 48/48 | 48/48 | 25/32 | 18/18 |
 | Gemini 3.8 Flash | 48/48 | 48/48 | 14/32 | 17/18 |
 | GPT 6.1 Sol | 47/48 | 46/48 | 32/32 | 18/18 |
-| Claude Opus 5.5 | 46/48 | 46/48 | 30/32 | 18/18 |
+| Claude Opus 5.5 | 46/48 | 46/48 | 31/32 | 18/18 |
 | Gemini 4 Argon | 46/48 | 46/48 | 27/32 | 18/18 |
 | Claude Fable 5.1 | 40/48 | 39/48 | 31/32 | 18/18 |
 | Kimi K3 | 40/48 | 40/48 | 24/32 | 18/18 |
@@ -35,19 +36,33 @@ counts as a failure. `v4 strict` is the same 48 problems under a larger test set
 Reading notes:
 
 - Most `v4` failures of Claude Fable 5.1, Fable 5 and Opus 5 are refusals (8, 13 and 13), not wrong code.
+- Gemini 4 Carbon's only miss is one refusal on `hard-v1`. It is slow: a median of 224 s per hard problem.
 - Kimi K3 and GLM 5.2 lose problems to empty or truncated answers at the provider's output limit.
   The same happens to Gemini 3.8 Flash on `hard-v1` (16 truncated).
 - Claude Fable 5.1 ran `v4` on the Anthropic API and the other two suites on Bedrock.
 - `agentic-go-v1` is saturated: it no longer separates models on pass rate, only on cost and time.
   Per-run cost, tool calls and wall time are in `data/agentic/outputs/`.
 
+### Per language (hard-v1, 17 statically typed problems)
+
+The same hard problems solved in five languages. Problems passed out of 17.
+
+| Model | Python | Go | Java | C++ | TypeScript | Total |
+|---|---|---|---|---|---|---|
+| Claude Sonnet 5.5 | 17 | 17 | 17 | 17 | 16 | 84/85 |
+| Gemini 4 Carbon | 16 | 17 | 17 | 16 | 16 | 82/85 |
+| Gemini 4 Argon | 15 | 15 | 17 | 14 | 15 | 76/85 |
+
 ## Run a model
 
 Requires Python 3.12, [uv](https://docs.astral.sh/uv/) and, for the agentic suite, Go 1.22+.
 Put the provider key in a file; it is never read from the command line.
 
+Python answers are graded in `.venv-grader`, an environment with numpy. The prompts never say
+"standard library only", and answers importing numpy used to fail at import and count as wrong.
+
 ```bash
-export CODEBENCH_PYTHON=/opt/homebrew/bin/python3.12   # interpreter that runs the candidates
+uv venv --python 3.12 .venv-grader && uv pip install --python .venv-grader/bin/python numpy   # once
 RUN="uv run --python 3.12 --with requests --with anthropic --with boto3 python -m"
 
 # 1. generate: one answer per problem, saved to data/outputs/<suite>__<tag>.json
@@ -75,6 +90,26 @@ Providers: `openrouter`, `anthropic` (both with `--key-file`) and `bedrock`
 Optional last steps: `codebench.publish` uploads a scored run to the Braintrust project
 `code-benchmarks`, and `codebench.report reports/code-bench-v4.html` renders the v4 readout.
 `reports/` is local output and is not tracked.
+
+### Per-language grading
+
+```bash
+$RUN codebench.multilang.bench --provider openrouter --model google/gemini-4-argon \
+    --tag gemini-4-argon --key-file /tmp/openrouter-key.txt      # python go java cpp typescript
+$RUN codebench.multilang.bench --table                           # pass counts per model and language
+$RUN codebench.multilang.report reports/code-bench-readout.html  # full readout, local
+```
+
+Needs Go, a JDK (`brew install openjdk`), clang++ and Node.js 23.6+ (runs TypeScript directly).
+
+- The hard-suite tests are Python snippets. `codebench.multilang.materialize` runs each case once
+  against the canonical solution and records every call (arguments, returned value or error), so a
+  candidate in any language passes a case when every recorded call returns the recorded value.
+- Signatures are inferred from the recorded values and rendered per language (Go structs, Java
+  records, C++ tuples, TypeScript fixed-length arrays).
+- Scope today: the 17 of 32 hard problems whose values fit static types. The other 15 mix ints,
+  strings and nulls in one list and need a dynamic value type in Go, Java and C++.
+- Known limits: time limits are the Python ones in every language; TypeScript is not type-checked.
 
 ## How grading works
 
@@ -142,9 +177,11 @@ $RUN codebench.agentic verify               # agentic: solutions pass, starting 
 
 ```
 codebench/        generate, score, harness, report, publish, agentic loop, suite builders
+codebench/multilang/  per-language grading: case recorder, type inference, drivers, bench, readout
 data/problems/    problem sets and the hard-suite reference solutions
 data/outputs/     one file per suite and model: answers, scores, metadata
 data/agentic/     agentic outputs and transcripts
+data/multilang/   per-language outputs (one row per problem and language)
 tests/            v4 cases, tests/strict/ and tests/hard/
 agentic/          the Go service and its 18 tasks
 ```

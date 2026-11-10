@@ -28,6 +28,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -59,6 +69,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -90,6 +110,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -121,6 +151,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -152,6 +192,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -185,6 +235,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -218,6 +280,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -251,6 +325,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -282,6 +368,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -313,6 +409,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -344,6 +450,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -375,6 +491,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -406,6 +532,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -437,6 +573,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -468,6 +614,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -499,6 +655,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -530,6 +696,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -561,6 +737,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -592,6 +778,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -623,6 +819,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -654,6 +860,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -685,6 +901,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -716,6 +942,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -747,6 +983,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -778,6 +1024,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -809,6 +1065,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -840,6 +1106,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -871,6 +1147,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -902,6 +1188,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -933,6 +1229,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -964,6 +1270,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -995,6 +1311,20 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 0.9286,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "single_huge: expected {\"value\": 1.0} got {\"ok\": false, \"loaded\": true, \"exc\": \"OverflowError\", \"exc_msg\": \"math range error\"}",
+    "single_negative_huge: expected {\"value\": 1.5} got {\"ok\": false, \"loaded\": true, \"exc\": \"OverflowError\", \"exc_msg\": \"math range error\"}",
+    "two_huge_near_max: expected {\"value\": 1.004987562112089} got {\"ok\": false, \"loaded\": true, \"exc\": \"OverflowError\", \"exc_msg\": \"math range error\"}"
+   ]
   }
  },
  {
@@ -1028,6 +1358,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -1061,6 +1403,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -1094,6 +1448,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -1127,6 +1493,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -1158,6 +1536,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1189,6 +1577,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1222,6 +1620,18 @@
    "checker": 0,
    "tests_ratio": 0.0,
    "pass": 0
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 0,
+    "tests_ratio": 0.0,
+    "pass": 0
+   }
+  },
+  "detail_by_suite": {
+   "strict": [
+    "empty output"
+   ]
   }
  },
  {
@@ -1253,6 +1663,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1284,6 +1704,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1315,6 +1745,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1346,6 +1786,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1377,6 +1827,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1408,6 +1868,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1439,6 +1909,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1470,6 +1950,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  },
  {
@@ -1501,6 +1991,16 @@
    "checker": 1,
    "tests_ratio": 1.0,
    "pass": 1
+  },
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
   }
  }
 ]

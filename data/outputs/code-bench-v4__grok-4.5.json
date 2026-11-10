@@ -23,7 +23,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Exactly-k non-adjacent picks on a circle",
@@ -49,7 +59,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Grid shortest path with one same-label teleport",
@@ -75,7 +95,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Interval scheduling with mandatory cooldown gap",
@@ -101,7 +131,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Lexicographically smallest balanced bracket completion",
@@ -127,7 +167,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Longest repeated substring with enforced spacing",
@@ -153,7 +203,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Palindrome insertions from a restricted alphabet",
@@ -179,7 +239,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Smallest solution of congruences with non-coprime moduli",
@@ -205,7 +275,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Build-order resolver reports phantom dependency cycles",
@@ -231,7 +311,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Ledger balances drift by one cent",
@@ -257,7 +347,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Memoization decorator returns results for the wrong keyword arguments",
@@ -283,7 +383,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Patch applier lands hunks on the wrong lines",
@@ -309,7 +419,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Recursive settings merger drops falsy overrides",
@@ -335,7 +455,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Room booking insert wrongly merges back-to-back reservations",
@@ -361,7 +491,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Session purge crashes and keeps just-expired sessions",
@@ -387,7 +527,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Sliding-window rate limiter admits one extra call",
@@ -413,7 +563,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Counting bag with deterministic most-common ordering",
@@ -439,7 +599,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "LRU cache with TTL and stats",
@@ -465,7 +635,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Leaderboard with competition ranks and stable ties",
@@ -491,7 +671,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Mergeable component ledger with undo",
@@ -517,7 +707,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Normalized integer interval set",
@@ -543,7 +743,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Reprioritizable task scheduler with FIFO ties",
@@ -569,7 +779,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Undoable stack",
@@ -595,7 +815,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Versioned key-value store with rollback",
@@ -621,7 +851,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Competition ranks with ties and NaN guard",
@@ -647,7 +887,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Display-width truncation with combining marks",
@@ -673,7 +923,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Even chunking of arbitrary iterables",
@@ -699,7 +959,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Exact integer k-th root floor",
@@ -725,7 +995,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Largest-remainder integer allocation",
@@ -751,7 +1031,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Lazy round-robin interleaver",
@@ -777,7 +1067,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Lower weighted median with tolerance",
@@ -803,7 +1103,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Overflow-safe Euclidean norm",
@@ -829,7 +1139,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Bounty scheduling with slot capacity",
@@ -855,7 +1175,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Divisible pulse windows with bounded length",
@@ -881,7 +1211,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Longest echoed slice",
@@ -907,7 +1247,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Parity-locked divisible pairs",
@@ -933,7 +1283,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Peak concurrency and its first instant",
@@ -959,7 +1319,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Recurring values over many windows",
@@ -985,7 +1355,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Stable sensor stretches",
@@ -1011,7 +1391,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Triple-dominance pair counting",
@@ -1037,7 +1427,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Category summarizer with indexed validation errors",
@@ -1063,7 +1463,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Clamp list values without min/max",
@@ -1089,7 +1499,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Depth-limited flatten, iteration only",
@@ -1115,7 +1535,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Duration string parser under a no-import contract",
@@ -1141,7 +1571,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Placeholder template renderer with exact error positions",
@@ -1167,7 +1607,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "RPN evaluator with truncating division and indexed errors",
@@ -1193,7 +1643,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Recursive deep_get with loop ban",
@@ -1219,7 +1679,17 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  },
  {
   "title": "Top-k frequent without sorting builtins",
@@ -1245,6 +1715,16 @@
    "empty_output": false,
    "error": null
   },
-  "detail": []
+  "detail": [],
+  "scores_by_suite": {
+   "strict": {
+    "checker": 1,
+    "tests_ratio": 1.0,
+    "pass": 1
+   }
+  },
+  "detail_by_suite": {
+   "strict": []
+  }
  }
 ]

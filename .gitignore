@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 data/runs/
 reports/
+data/cache/
+data/multilang/runs/
+.venv-grader/

@@ -491,9 +491,9 @@
   "entry_point": "budget_purchases",
   "code": "import numpy as np\n\ndef budget_purchases(prices, queries):\n    if not queries:\n        return []\n    n = len(prices)\n    q = len(queries)\n    if n == 0:\n        return [(0, 0)] * q\n    p = np.asarray(prices, dtype=np.int64)\n    qa = np.asarray(queries, dtype=np.int64).reshape(q, 3)\n    l = qa[:, 0].copy()\n    r = qa[:, 1] + 1\n    bud = qa[:, 2].copy()\n\n    order = np.argsort(p, kind='stable')\n    rank = np.empty(n, dtype=np.int64)\n    rank[order] = np.arange(n, dtype=np.int64)\n\n    bits = max(1, (n - 1).bit_length())\n    a = rank\n    cur_p = p\n    count = np.zeros(q, dtype=np.int64)\n    spent = np.zeros(q, dtype=np.int64)\n\n    for b in range(bits - 1, -1, -1):\n        bit = (a >> b) & 1\n        zero = 1 - bit\n        Z = np.zeros(n + 1, dtype=np.int64)\n        np.cumsum(zero, out=Z[1:])\n        S0 = np.zeros(n + 1, dtype=np.int64)\n        np.cumsum(cur_p * zero, out=S0[1:])\n        nz = int(Z[n])\n\n        zl = Z[l]\n        zr = Z[r]\n        cnt0 = zr - zl\n        sz = S0[r] - S0[l]\n        take = sz <= bud\n\n        count += np.where(take, cnt0, 0)\n        spent += np.where(take, sz, 0)\n        bud -= np.where(take, sz, 0)\n\n        new_l = np.where(take, nz + (l - zl), zl)\n        new_r = np.where(take, nz + (r - zr), zr)\n        l, r = new_l, new_r\n\n        # stable partition\n        idx = np.concatenate((np.nonzero(zero)[0], np.nonzero(bit)[0]))\n        a = a[idx]\n        cur_p = cur_p[idx]\n\n    nonempty = r > l\n    li = np.minimum(l, n - 1)\n    pv = cur_p[li]\n    ok = nonempty & (pv <= bud)\n    count += ok\n    spent += np.where(ok, pv, 0)\n\n    return list(zip(count.tolist(), spent.tolist()))",
   "scores": {
-   "checker": 0,
-   "tests_ratio": 0.0,
-   "pass": 0
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
   },
   "metadata": {
    "category": "performance",
@@ -510,9 +510,7 @@
    "error": null,
    "truncated": false
   },
-  "detail": [
-   "import: ModuleNotFoundError: No module named 'numpy'"
-  ]
+  "detail": []
  },
  {
   "title": "Tide-gauge records with a minimum margin over many windows",
@@ -520,9 +518,9 @@
   "entry_point": "count_records",
   "code": "import numpy as np\nfrom bisect import bisect_right\n\ndef count_records(levels: list[int], margin: int, queries: list[tuple[int, int]]) -> list[int]:\n    if not queries:\n        return []\n    n = len(levels)\n    # nxt[i] = smallest j > i with levels[j] >= levels[i] + margin, else n (sentinel)\n    nxt = [n] * (n + 1)\n    negs = []  # negated values, strictly increasing bottom->top\n    idxs = []\n    for i in range(n - 1, -1, -1):\n        a = levels[i]\n        pos = bisect_right(negs, -(a + margin))\n        if pos > 0:\n            nxt[i] = idxs[pos - 1]\n        # push i, keeping chain of strict prefix maxima\n        while negs and negs[-1] >= -a:\n            negs.pop()\n            idxs.pop()\n        negs.append(-a)\n        idxs.append(i)\n    up0 = np.array(nxt, dtype=np.int32)  # up0[n] = n\n    ups = [up0]\n    LOG = max(1, n.bit_length())\n    for k in range(1, LOG):\n        prev = ups[-1]\n        ups.append(prev[prev])\n    q = len(queries)\n    arr = np.array(queries, dtype=np.int64).reshape(q, 2)\n    cur = arr[:, 0].astype(np.int32)\n    r = arr[:, 1].astype(np.int32)\n    cnt = np.ones(q, dtype=np.int64)\n    for k in range(LOG - 1, -1, -1):\n        cand = ups[k][cur]\n        mask = cand <= r\n        cur = np.where(mask, cand, cur)\n        cnt += mask.astype(np.int64) << k\n    return cnt.tolist()",
   "scores": {
-   "checker": 0,
-   "tests_ratio": 0.0,
-   "pass": 0
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
   },
   "metadata": {
    "category": "performance",
@@ -539,9 +537,7 @@
    "error": null,
    "truncated": false
   },
-  "detail": [
-   "import: ModuleNotFoundError: No module named 'numpy'"
-  ]
+  "detail": []
  },
  {
   "title": "Exact-cent loan amortization schedule",

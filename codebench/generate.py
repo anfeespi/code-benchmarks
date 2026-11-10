@@ -81,7 +81,12 @@ def call_bedrock(model, prompt, session):
     always on, so the response can carry reasoningContent blocks alongside
     text; only text blocks go into the extracted answer, same filtering the
     Anthropic path already does for its content blocks."""
-    client = session.client("bedrock-runtime")
+    # botocore's default read timeout is 60 s and it retries on its own: a model
+    # that reasons for minutes before the first byte (Fable 5.2 on the hard
+    # tier) times out again and again and the problem is lost to infrastructure.
+    from botocore.config import Config
+    client = session.client("bedrock-runtime", config=Config(read_timeout=1800, connect_timeout=30,
+                                                              retries={"max_attempts": 1}))
     t0 = time.time()
     try:
         resp = client.converse(modelId=model, messages=[{"role": "user", "content": [{"text": prompt}]}],

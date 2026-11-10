@@ -1,0 +1,866 @@
+[
+ {
+  "title": "Fastest courier route with battery swaps and regenerative roads",
+  "category": "algorithms",
+  "entry_point": "fastest_delivery",
+  "code": "from heapq import heappop, heappush\n\n\ndef fastest_delivery(n, roads, stations, capacity, swap_time, max_swaps, s, t):\n    if s == t:\n        return (0, 0)\n\n    adj = [[] for _ in range(n)]\n    for u, v, minutes, energy in roads:\n        adj[u].append((v, minutes, energy))\n\n    has_station = [False] * n\n    for u in stations:\n        has_station[u] = True\n\n    # dist[k][u][b]: minimum minutes to reach u with charge b,\n    # having used exactly k swaps.\n    inf = float(\"inf\")\n    dist = [\n        [[inf] * (capacity + 1) for _ in range(n)]\n        for _ in range(max_swaps + 1)\n    ]\n    dist[0][s][capacity] = 0\n\n    # Ordered by minutes first, then swaps.\n    heap = [(0, 0, s, capacity)]\n\n    while heap:\n        elapsed, used, u, charge = heappop(heap)\n\n        if elapsed != dist[used][u][charge]:\n            continue\n\n        if u == t:\n            return (elapsed, used)\n\n        # Drive a road.\n        for v, minutes, energy in adj[u]:\n            if energy > charge:\n                continue\n\n            new_charge = min(capacity, charge - energy)\n            new_time = elapsed + minutes\n\n            if new_time < dist[used][v][new_charge]:\n                dist[used][v][new_charge] = new_time\n                heappush(heap, (new_time, used, v, new_charge))\n\n        # Swap, including when the current battery is already full.\n        if has_station[u] and used < max_swaps:\n            new_used = used + 1\n            new_time = elapsed + swap_time\n\n            if new_time < dist[new_used][u][capacity]:\n                dist[new_used][u][capacity] = new_time\n                heappush(heap, (new_time, new_used, u, capacity))\n\n    return None",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Fastest courier route with battery swaps and regenerative roads",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 23.35,
+   "tokens_in": 1040,
+   "tokens_out": 1135,
+   "cost_usd": 0.013809015,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Context window pruning with gap limit, pins and adjacency bonus",
+  "category": "algorithms",
+  "entry_point": "best_context",
+  "code": "def best_context(messages, budget, max_gap, bonus):\n    if budget < 0 or max_gap < 0:\n        raise ValueError(\"budget and max_gap must be nonnegative\")\n\n    n = len(messages)\n    gap_limit = min(max_gap, n)\n\n    # dp[gap][used] is the best score for the processed prefix,\n    # with exactly `used` length and `gap` trailing dropped messages.\n    # None means that state is unreachable.\n    dp = [[None] * (budget + 1)]\n    dp[0][0] = 0\n\n    for i, (length, value, pinned) in enumerate(messages):\n        next_dp = [\n            [None] * (budget + 1)\n            for _ in range(min(gap_limit, i + 1) + 1)\n        ]\n        keep_row = next_dp[0]\n\n        for gap, row in enumerate(dp):\n            # Before processing index i, gap == 0 means index i-1\n            # was kept, except at the start of the conversation.\n            gain = value + (bonus if i > 0 and gap == 0 else 0)\n\n            drop_row = (\n                next_dp[gap + 1]\n                if not pinned and gap < gap_limit\n                else None\n            )\n\n            for used, score in enumerate(row):\n                if score is None:\n                    continue\n\n                # Keep this message.\n                new_used = used + length\n                if new_used <= budget:\n                    candidate = score + gain\n                    old = keep_row[new_used]\n                    if old is None or candidate > old:\n                        keep_row[new_used] = candidate\n\n                # Drop this message, unless pinned or the gap is too long.\n                if drop_row is not None:\n                    old = drop_row[used]\n                    if old is None or score > old:\n                        drop_row[used] = score\n\n        dp = next_dp\n\n    return max(\n        (score for row in dp for score in row if score is not None),\n        default=None,\n    )",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Context window pruning with gap limit, pins and adjacency bonus",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 22.66,
+   "tokens_in": 664,
+   "tokens_out": 986,
+   "cost_usd": 0.01107612,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Cheapest feeder pruning under line capacities with critical loads",
+  "category": "algorithms",
+  "entry_point": "min_pruning_cost",
+  "code": "def min_pruning_cost(parent, demand, cap, cut_cost, critical,\n                     root_cap, penalty):\n    \"\"\"Return the minimum feasible pruning cost, or None.\"\"\"\n    n = len(parent)\n    children = [[] for _ in range(n)]\n    for v in range(1, n):\n        children[parent[v]].append(v)\n\n    # Parent-before-child order, independent of node labels.\n    # Reversing it gives a valid bottom-up processing order.\n    order = [0]\n    for v in order:\n        order.extend(children[v])\n\n    subtree_demand = [0] * n\n    has_critical = [False] * n\n\n    # dp[v] is a sorted list of (retained_load, minimum_cost) pairs,\n    # conditional on v being retained. The cost excludes line v.\n    dp = [[] for _ in range(n)]\n    INF = float(\"inf\")\n\n    for v in reversed(order):\n        subtree_demand[v] = demand[v] + sum(\n            subtree_demand[u] for u in children[v]\n        )\n        has_critical[v] = critical[v] or any(\n            has_critical[u] for u in children[v]\n        )\n\n        limit = root_cap if v == 0 else cap[v]\n        limit = min(limit, subtree_demand[v])\n\n        if demand[v] > limit:\n            # Retaining v itself is impossible.\n            continue\n\n        states = [(demand[v], 0)]\n\n        for u in children[v]:\n            # Keeping line u uses one of the feasible retained states.\n            options = dp[u]\n\n            # Cutting line u is permitted only if its entire subtree\n            # contains no critical node.\n            if not has_critical[u]:\n                drop_cost = (\n                    cut_cost[u] + penalty * subtree_demand[u]\n                )\n\n                # Both keeping and cutting may contribute zero load.\n                # Keep only the cheaper zero-load option.\n                if options and options[0][0] == 0:\n                    if drop_cost < options[0][1]:\n                        options = [(0, drop_cost)] + options[1:]\n                else:\n                    options = [(0, drop_cost)] + options\n\n            if not options:\n                states = []\n                break\n\n            max_load = min(\n                limit, states[-1][0] + options[-1][0]\n            )\n            merged = [INF] * (max_load + 1)\n\n            for current_load, current_cost in states:\n                room = limit - current_load\n\n                for child_load, child_cost in options:\n                    # options is sorted by load.\n                    if child_load > room:\n                        break\n\n                    load = current_load + child_load\n                    cost = current_cost + child_cost\n                    if cost < merged[load]:\n                        merged[load] = cost\n\n            states = [\n                (load, cost)\n                for load, cost in enumerate(merged)\n                if cost != INF\n            ]\n\n            if not states:\n                break\n\n        dp[v] = states\n\n    if not dp[0]:\n        return None\n    return min(cost for _, cost in dp[0])",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Cheapest feeder pruning under line capacities with critical loads",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 47.59,
+   "tokens_in": 1005,
+   "tokens_out": 1910,
+   "cost_usd": 0.0208989,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Earliest timetable arrival with change times and a boarding limit",
+  "category": "algorithms",
+  "entry_point": "earliest_arrival",
+  "code": "from heapq import heappop, heappush\n\n\ndef earliest_arrival(\n    connections, transfer, source, target, start_time, max_boardings\n):\n    if source == target:\n        return start_time\n    if max_boardings == 0:\n        return None\n\n    # All feasible boarding counts are smaller than this sentinel.\n    unreachable = max_boardings + 1\n\n    # At the current scan time, the minimum boardings used by any journey\n    # that is already ready at each station.\n    ready_best = [unreachable] * len(transfer)\n    ready_best[source] = 0\n\n    # Minimum boardings used by a traveler who can remain seated on a trip.\n    onboard_best = {}\n\n    # Future ready events: (ready_time, boardings_used, station).\n    pending = []\n    answer = None\n\n    for trip, u, v, dep, arr in sorted(connections, key=lambda c: c[3]):\n        # The traveler cannot take any connection departing before they start.\n        if dep < start_time:\n            continue\n\n        # Every remaining connection arrives strictly after its departure,\n        # so none can improve this answer.\n        if answer is not None and dep >= answer:\n            break\n\n        # Make all journeys ready by this departure available for boarding.\n        while pending and pending[0][0] <= dep:\n            _, used, station = heappop(pending)\n            if used < ready_best[station]:\n                ready_best[station] = used\n\n        # Either stay seated, or board here using one additional boarding.\n        used = min(\n            onboard_best.get(trip, unreachable),\n            ready_best[u] + 1,\n        )\n        if used > max_boardings:\n            continue\n\n        onboard_best[trip] = used\n\n        # Alighting at the target needs no transfer time.\n        if v == target and (answer is None or arr < answer):\n            answer = arr\n\n        # Alternatively, alight here and become ready for a later boarding.\n        # A count already dominated at this station will remain dominated.\n        if used < ready_best[v]:\n            heappush(pending, (arr + transfer[v], used, v))\n\n    return answer",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "algorithms",
+   "title": "Earliest timetable arrival with change times and a boarding limit",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 43.86,
+   "tokens_in": 971,
+   "tokens_out": 1658,
+   "cost_usd": 0.01833678,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+  "category": "state_machines",
+  "entry_point": "run_kiosk",
+  "code": "from collections import deque\n\n\ndef run_kiosk(levels, threshold, patience, arrivals):\n    # Validate the complete arrival order before starting the simulation.\n    for i in range(1, len(arrivals)):\n        if arrivals[i][0] < arrivals[i - 1][0]:\n            raise ValueError(\"arrival times must be nondecreasing\")\n\n    # A slot with base b has charge min(100, b + t) at time t.\n    # Depositing charge c at time t therefore sets its base to c - t.\n    bases = list(levels)\n    waiting = deque()\n    outcomes = []\n    n = len(arrivals)\n    i = 0\n    t = 0\n\n    def best_slot(now):\n        \"\"\"Return the best eligible slot, or -1 if none is eligible.\"\"\"\n        chosen = -1\n        best_charge = threshold - 1\n\n        for slot, base in enumerate(bases):\n            charge = base + now\n\n            # This is the first fully charged slot, so it wins all ties.\n            if charge >= 100:\n                return slot\n\n            if charge > best_charge:\n                best_charge = charge\n                chosen = slot\n\n        return chosen\n\n    while i < n or waiting:\n        # Jump to the next arrival, deadline, or battery becoming eligible.\n        if i < n:\n            next_t = arrivals[i][0]\n        else:\n            next_t = waiting[0][0] + patience\n\n        if waiting:\n            deadline = waiting[0][0] + patience\n            ready_at = max(t, threshold - max(bases))\n            next_t = min(next_t, deadline, ready_at)\n\n        t = next_t\n\n        # 1. Serve the existing queue.\n        while waiting:\n            slot = best_slot(t)\n            if slot == -1:\n                break\n\n            _, drone, charge = waiting.popleft()\n            bases[slot] = charge - t\n            outcomes.append((drone, \"SWAP\", t, slot))\n\n        # 2. Handle all arrivals at this time, in input order.\n        while i < n and arrivals[i][0] == t:\n            arrival = arrivals[i]\n            _, drone, charge = arrival\n\n            slot = best_slot(t) if not waiting else -1\n            if slot == -1:\n                waiting.append(arrival)\n            else:\n                bases[slot] = charge - t\n                outcomes.append((drone, \"SWAP\", t, slot))\n\n            i += 1\n\n        # 3. Remove expired drones, after they had their chance to swap.\n        # Since patience is fixed and arrivals are ordered, deadlines are\n        # ordered too, so expired drones form a prefix of the queue.\n        while waiting and waiting[0][0] + patience <= t:\n            _, drone, _ = waiting.popleft()\n            outcomes.append((drone, \"LEFT\", t))\n\n    return outcomes",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Drone battery-swap kiosk with charging slots and impatient queue",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 35.27,
+   "tokens_in": 1031,
+   "tokens_out": 1631,
+   "cost_usd": 0.01869714,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+  "category": "state_machines",
+  "entry_point": "run_lock_manager",
+  "code": "def run_lock_manager(ops):\n    \"\"\"\n    Simulate the specified lock manager without modifying ops.\n\n    Uses bitsets for the wait-for graph and maintains a topological order.\n    Deadlock searches are needed only when a new request violates that order.\n    \"\"\"\n    tx_ids = sorted({op[1] for op in ops})\n    n = len(tx_ids)\n    if not n:\n        return []\n\n    tx_index = {tx: j for j, tx in enumerate(tx_ids)}\n    bits = [1 << j for j in range(n)]\n    universe = (1 << n) - 1\n\n    ACTIVE, WAITING, FINISHED = 0, 1, 2\n    state = [ACTIVE] * n\n    held = [{} for _ in range(n)]       # resource name -> mode\n    waiting_on = [None] * n\n\n    # Outgoing graph edges and incoming edges caused by queue position.\n    outgoing = [0] * n\n    behind = [0] * n\n\n    class Resource:\n        __slots__ = (\n            \"name\", \"holders\", \"exclusive\", \"queue\",\n            \"all_waiters\", \"x_waiters\",\n        )\n\n        def __init__(self, name):\n            self.name = name\n            self.holders = {}          # transaction index -> mode\n            self.exclusive = None      # exclusive holder, if any\n            self.queue = []            # (transaction index, mode, upgrade)\n            self.all_waiters = 0\n            self.x_waiters = 0\n\n    resources = {}\n    logs = []\n\n    # A topological order of the graph between operations.\n    # During deadlock resolution, it remains valid after omitting the\n    # transaction whose newly queued request triggered the resolution.\n    order = list(range(n))\n    position = list(range(n))\n\n    # Block masks let us obtain topological prefixes without walking every\n    # transaction. The bits in each block identify its current members.\n    block_size = 64\n    block_count = (n + block_size - 1) // block_size\n    block_masks = []\n    for start in range(0, n, block_size):\n        size = min(block_size, n - start)\n        block_masks.append(((1 << size) - 1) << start)\n\n    def prefix_mask(last):\n        \"\"\"Transactions at topological positions <= last.\"\"\"\n        block, offset = divmod(last + 1, block_size)\n        result = 0\n        for b in range(block):\n            result |= block_masks[b]\n        start = block * block_size\n        for p in range(start, start + offset):\n            result |= bits[order[p]]\n        return result\n\n    def last_position(mask):\n        \"\"\"Largest topological position of a member; -1 for an empty mask.\"\"\"\n        if not mask:\n            return -1\n        for b in range(block_count - 1, -1, -1):\n            if block_masks[b] & mask:\n                start = b * block_size\n                end = min(start + block_size, n)\n                for p in range(end - 1, start - 1, -1):\n                    if bits[order[p]] & mask:\n                        return p\n        return -1\n\n    def refresh(r):\n        \"\"\"Rebuild just this resource's graph rows and queue masks.\"\"\"\n        holders_mask = 0\n        for u in r.holders:\n            holders_mask |= bits[u]\n\n        exclusive_mask = (\n            0 if r.exclusive is None else bits[r.exclusive]\n        )\n\n        all_waiters = 0\n        x_waiters = 0\n        for u, mode, _ in r.queue:\n            all_waiters |= bits[u]\n            if mode == \"X\":\n                x_waiters |= bits[u]\n\n        r.all_waiters = all_waiters\n        r.x_waiters = x_waiters\n\n        ahead = 0\n        for u, mode, _ in r.queue:\n            own = bits[u]\n            incompatible = holders_mask if mode == \"X\" else exclusive_mask\n            outgoing[u] = (incompatible & ~own) | ahead\n            behind[u] = all_waiters & ~(ahead | own)\n            ahead |= own\n\n    def predecessors(u):\n        \"\"\"Incoming graph edges, computed from resource bitsets.\"\"\"\n        result = behind[u]\n        for name, mode in held[u].items():\n            r = resources[name]\n            result |= r.all_waiters if mode == \"X\" else r.x_waiters\n        return result & ~bits[u]\n\n    def reachable(seeds, allowed, reverse=False):\n        \"\"\"Bitset graph traversal restricted to 'allowed' transactions.\"\"\"\n        todo = seeds & allowed\n        seen = 0\n\n        if reverse:\n            while todo:\n                bit = todo & -todo\n                todo ^= bit\n                if seen & bit:\n                    continue\n                seen |= bit\n                u = bit.bit_length() - 1\n                todo |= predecessors(u) & allowed & ~seen\n        else:\n            while todo:\n                bit = todo & -todo\n                todo ^= bit\n                if seen & bit:\n                    continue\n                seen |= bit\n                u = bit.bit_length() - 1\n                todo |= outgoing[u] & allowed & ~seen\n\n        return seen\n\n    def grant(r, u, mode, i):\n        r.holders[u] = mode\n        if mode == \"X\":\n            r.exclusive = u\n        held[u][r.name] = mode\n        state[u] = ACTIVE\n        waiting_on[u] = None\n        outgoing[u] = 0\n        behind[u] = 0\n        logs.append((\"GRANT\", i, tx_ids[u], r.name, mode))\n\n    def release(u, i):\n        affected = set()\n\n        # Remove the queued request first.\n        r = waiting_on[u]\n        if r is not None:\n            for k, entry in enumerate(r.queue):\n                if entry[0] == u:\n                    del r.queue[k]\n                    break\n            affected.add(r.name)\n            waiting_on[u] = None\n\n        outgoing[u] = 0\n        behind[u] = 0\n\n        # Drop all locks before processing any resource's queue.\n        for name in held[u]:\n            r = resources[name]\n            del r.holders[u]\n            if r.exclusive == u:\n                r.exclusive = None\n            affected.add(name)\n        held[u].clear()\n        state[u] = FINISHED\n\n        for name in sorted(affected):\n            r = resources[name]\n            head = 0\n\n            while head < len(r.queue):\n                v, mode, _ = r.queue[head]\n\n                if mode == \"S\":\n                    grantable = (\n                        r.exclusive is None or r.exclusive == v\n                    )\n                else:\n                    grantable = (\n                        not r.holders\n                        or (len(r.holders) == 1 and v in r.holders)\n                    )\n\n                if not grantable:\n                    break\n\n                head += 1\n                grant(r, v, mode, i)\n\n            if head:\n                del r.queue[:head]\n            refresh(r)\n\n    def reorder(u, forward, upper):\n        \"\"\"\n        Move u followed by 'forward' after the unaffected vertices through\n        position 'upper', preserving the relative order within each group.\n        \"\"\"\n        moving = forward | bits[u]\n        lower = position[u]\n\n        rest = forward\n        while rest:\n            bit = rest & -rest\n            rest ^= bit\n            v = bit.bit_length() - 1\n            if position[v] < lower:\n                lower = position[v]\n\n        if lower == upper:\n            return\n\n        segment = order[lower:upper + 1]\n        unchanged = []\n        descendants = []\n\n        for v in segment:\n            if not (bits[v] & moving):\n                unchanged.append(v)\n            elif v != u:\n                descendants.append(v)\n\n        new_segment = unchanged + [u] + descendants\n        order[lower:upper + 1] = new_segment\n\n        for p, v in enumerate(new_segment, lower):\n            position[v] = p\n\n        first_block = lower // block_size\n        last_block = upper // block_size\n        for b in range(first_block, last_block + 1):\n            mask = 0\n            start = b * block_size\n            end = min(start + block_size, n)\n            for p in range(start, end):\n                mask |= bits[order[p]]\n            block_masks[b] = mask\n\n    def resolve_and_reorder(u, i):\n        \"\"\"\n        All newly possible cycles contain u. Detect them, abort the largest\n        member of u's cyclic SCC, and finally restore the topological order.\n        \"\"\"\n        while True:\n            successors = outgoing[u]\n            pred = predecessors(u)\n            old_prefix = prefix_mask(position[u])\n\n            # All edges incident to u already agree with the ordering.\n            if not (successors & old_prefix) and not (pred & ~old_prefix):\n                return\n\n            upper = max(position[u], last_position(pred))\n            allowed = prefix_mask(upper) & ~bits[u]\n\n            # The graph excluding u is still a DAG. A cycle through u exists\n            # exactly when a successor can reach one of its predecessors.\n            forward = reachable(successors, allowed)\n\n            if forward & pred:\n                # Vertices both reachable from u and able to reach u form\n                # precisely u's SCC. Every vertex in this SCC is on a cycle.\n                descendants = reachable(bits[u], universe)\n                component = reachable(bits[u], descendants, reverse=True)\n\n                # Indices were assigned in increasing transaction-id order.\n                victim = component.bit_length() - 1\n                logs.append((\"ABORT\", i, tx_ids[victim]))\n                release(victim, i)\n                continue\n\n            reorder(u, forward, upper)\n            return\n\n    for i, op in enumerate(ops):\n        kind = op[0]\n        tx = op[1]\n        u = tx_index[tx]\n\n        if state[u] != ACTIVE:\n            logs.append((\"IGNORED\", i, tx))\n            continue\n\n        if kind == \"COMMIT\":\n            logs.append((\"COMMIT\", i, tx))\n            release(u, i)\n            continue\n\n        name = op[2]\n        mode = kind\n        r = resources.get(name)\n        if r is None:\n            r = Resource(name)\n            resources[name] = r\n\n        current = held[u].get(name)\n\n        if current == \"X\" or (current == \"S\" and mode == \"S\"):\n            logs.append((\"HELD\", i, tx, name))\n            continue\n\n        upgrade = current == \"S\"   # The remaining mode must be X.\n\n        if upgrade and len(r.holders) == 1:\n            grant(r, u, \"X\", i)\n            refresh(r)\n            continue\n\n        if not upgrade and not r.queue:\n            compatible = (\n                r.exclusive is None if mode == \"S\" else not r.holders\n            )\n            if compatible:\n                grant(r, u, mode, i)\n                continue\n\n        request = (u, mode, upgrade)\n        if upgrade:\n            k = 0\n            while k < len(r.queue) and r.queue[k][2]:\n                k += 1\n            r.queue.insert(k, request)\n        else:\n            r.queue.append(request)\n\n        state[u] = WAITING\n        waiting_on[u] = r\n        logs.append((\"WAIT\", i, tx, name, mode))\n        refresh(r)\n        resolve_and_reorder(u, i)\n\n    return logs",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Lock manager with upgrades, FIFO queues and deadlock victims",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 166.77,
+   "tokens_in": 1501,
+   "tokens_out": 6646,
+   "cost_usd": 0.06950889,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+  "category": "state_machines",
+  "entry_point": "admit_requests",
+  "code": "from collections import deque\n\n\ndef admit_requests(requests, config):\n    # Validate the entire timeline before simulating any request.\n    previous_t = -1\n    for t, _, _, _ in requests:\n        if t < previous_t:\n            raise ValueError(\"Request times must be nondecreasing\")\n        previous_t = t\n\n    cap = config[\"cap\"]\n    period = config[\"period\"]\n    gcap = config[\"gcap\"]\n    gperiod = config[\"gperiod\"]\n    reserve = config[\"reserve\"]\n    strike_limit = config[\"strikes\"]\n    window = config[\"window\"]\n    ban_length = config[\"ban\"]\n\n    global_tokens = gcap\n    global_tick = 0\n\n    # client -> [tokens, last_refill_tick, banned_until, strike_times]\n    clients = {}\n    statuses = []\n\n    for t, client, cost, vip in requests:\n        # Count absolute refill boundaries crossed since the last update.\n        tick = t // gperiod\n        global_tokens = min(\n            gcap, global_tokens + tick - global_tick\n        )\n        global_tick = tick\n\n        client_tick = t // period\n        state = clients.get(client)\n\n        if state is None:\n            # Newly created buckets are full; no earlier refills apply.\n            state = [cap, client_tick, 0, deque()]\n            clients[client] = state\n        else:\n            state[0] = min(cap, state[0] + client_tick - state[1])\n            state[1] = client_tick\n\n        tokens, _, banned_until, strike_times = state\n\n        if t < banned_until:\n            statuses.append(\"BANNED\")\n            continue\n\n        if tokens < cost:\n            # The window is (t - window, t], so equality is excluded.\n            cutoff = t - window\n            while strike_times and strike_times[0] <= cutoff:\n                strike_times.popleft()\n            strike_times.append(t)\n\n            if len(strike_times) >= strike_limit:\n                state[2] = t + ban_length\n                strike_times.clear()\n                statuses.append(\"BAN\")\n            else:\n                statuses.append(\"DENY\")\n            continue\n\n        required_remaining = 0 if vip else reserve\n        if global_tokens - cost < required_remaining:\n            statuses.append(\"BUSY\")\n            continue\n\n        state[0] -= cost\n        global_tokens -= cost\n        statuses.append(\"OK\")\n\n    return statuses",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Rate limiter with absolute refills, VIP reserve, strikes and bans",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 17.17,
+   "tokens_in": 1252,
+   "tokens_out": 815,
+   "cost_usd": 0.011165715,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Vending machine with escrow, greedy change and inactivity return",
+  "category": "state_machines",
+  "entry_point": "simulate_vending",
+  "code": "def simulate_vending(prices, stock, bank, events, timeout):\n    # Validate ordering before running any part of the simulation.\n    previous_t = -1\n    for t, kind, arg in events:\n        if t < previous_t:\n            raise ValueError(\"Event times must be non-decreasing\")\n        previous_t = t\n\n    ascending = (5, 10, 25, 100)\n    descending = (100, 25, 10, 5)\n\n    bank_counts = {d: bank.get(d, 0) for d in ascending}\n    stock_left = stock.copy()\n    escrow = []\n    escrow_total = 0\n    last = None\n    log = []\n\n    for t, kind, arg in events:\n        # A timeout takes precedence over an event at the same time.\n        if escrow and t >= last + timeout:\n            log.append(\n                (\"TIMEOUT\", last + timeout, tuple(sorted(escrow, reverse=True)))\n            )\n            escrow.clear()\n            escrow_total = 0\n\n        if kind == \"coin\":\n            if arg not in bank_counts or len(escrow) == 10:\n                log.append((\"REJECT\", t, arg))\n                continue  # Rejected coins do not update activity time.\n\n            escrow.append(arg)\n            escrow_total += arg\n\n        elif kind == \"select\":\n            if arg not in prices:\n                log.append((\"UNKNOWN\", t, arg))\n\n            elif stock_left[arg] == 0:\n                log.append((\"SOLD_OUT\", t, arg))\n\n            elif escrow_total < prices[arg]:\n                log.append((\"NEED\", t, prices[arg] - escrow_total))\n\n            else:\n                # Work on a tentative bank so failure needs no rollback.\n                tentative = bank_counts.copy()\n                for coin in escrow:\n                    tentative[coin] += 1\n\n                remaining = escrow_total - prices[arg]\n                change_coins = []\n\n                for d in descending:\n                    count = min(tentative[d], remaining // d)\n                    tentative[d] -= count\n                    remaining -= count * d\n                    change_coins.extend([d] * count)\n\n                if remaining:\n                    log.append((\"EXACT_ONLY\", t, arg))\n                else:\n                    bank_counts = tentative\n                    stock_left[arg] -= 1\n                    escrow.clear()\n                    escrow_total = 0\n                    log.append((\"VEND\", t, arg, tuple(change_coins)))\n\n        elif kind == \"cancel\":\n            if escrow:\n                log.append((\"RETURN\", t, tuple(sorted(escrow, reverse=True))))\n                escrow.clear()\n                escrow_total = 0\n\n        else:\n            raise ValueError(f\"Unknown event kind: {kind!r}\")\n\n        # Every select/cancel and every accepted coin is an activity.\n        last = t\n\n    if escrow:\n        log.append(\n            (\"TIMEOUT\", last + timeout, tuple(sorted(escrow, reverse=True)))\n        )\n\n    final_bank = tuple(bank_counts[d] for d in ascending)\n    return log, final_bank",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "state_machines",
+   "title": "Vending machine with escrow, greedy change and inactivity return",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 16.69,
+   "tokens_in": 1476,
+   "tokens_out": 905,
+   "cost_usd": 0.012611115,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Path-pattern access policy with specificity and deny precedence",
+  "category": "spec_compliance",
+  "entry_point": "evaluate_access",
+  "code": "import re\n\n\ndef evaluate_access(rules, requests) -> list[str]:\n    name_re = re.compile(r\"[a-z0-9_]+\")\n    word_re = re.compile(r\"[a-z]+\")\n    principal_re = re.compile(r\"(?:\\*|(?:user|group):[a-z0-9_]+)\")\n    action_re = re.compile(r\"(?:\\*|[a-z]+(?:,[a-z]+)*)\")\n\n    resource_segment = r\"(?:\\*\\*|\\*|[a-z0-9._-]+)\"\n    resource_re = re.compile(\n        rf\"/(?:{resource_segment}(?:/{resource_segment})*)?\"\n    )\n    path_re = re.compile(r\"/(?:[a-z0-9._-]+(?:/[a-z0-9._-]+)*)?\")\n\n    def valid_string(pattern, value):\n        return isinstance(value, str) and pattern.fullmatch(value) is not None\n\n    def segments(path):\n        return [] if path == \"/\" else path[1:].split(\"/\")\n\n    # Validate all input before performing any access evaluation.\n    if not isinstance(rules, list):\n        raise TypeError(\"rules must be a list\")\n    if not isinstance(requests, list):\n        raise TypeError(\"requests must be a list\")\n\n    parsed_rules = []\n    for i, rule in enumerate(rules):\n        if not isinstance(rule, str):\n            raise TypeError(f\"rule {i}: not a str\")\n\n        fields = rule.split()\n        if len(fields) != 4:\n            raise ValueError(\n                f\"rule {i}: expected 4 fields, got {len(fields)}\"\n            )\n\n        effect, principal, action, resource = fields\n        if effect not in (\"ALLOW\", \"DENY\"):\n            raise ValueError(f\"rule {i}: bad effect {effect!r}\")\n        if principal_re.fullmatch(principal) is None:\n            raise ValueError(f\"rule {i}: bad principal {principal!r}\")\n        if action_re.fullmatch(action) is None:\n            raise ValueError(f\"rule {i}: bad action {action!r}\")\n        if resource_re.fullmatch(resource) is None:\n            raise ValueError(f\"rule {i}: bad resource {resource!r}\")\n\n        parsed_rules.append((effect, principal, action, resource))\n\n    for j, request in enumerate(requests):\n        if not isinstance(request, tuple) or len(request) != 4:\n            raise TypeError(f\"request {j}: expected 4-tuple\")\n\n        user, groups, action, path = request\n        if not valid_string(name_re, user):\n            raise ValueError(f\"request {j}: bad user {user!r}\")\n        if (\n            not isinstance(groups, list)\n            or any(not valid_string(name_re, group) for group in groups)\n        ):\n            raise ValueError(f\"request {j}: bad groups\")\n        if not valid_string(word_re, action):\n            raise ValueError(f\"request {j}: bad action {action!r}\")\n        if not valid_string(path_re, path):\n            raise ValueError(f\"request {j}: bad path {path!r}\")\n\n    compiled = []\n    for i, (effect, principal, action, resource) in enumerate(parsed_rules):\n        tokens = segments(resource)\n        literal_count = sum(token not in (\"*\", \"**\") for token in tokens)\n        principal_score = (\n            0 if principal == \"*\" else 2 if principal.startswith(\"user:\") else 1\n        )\n        actions = None if action == \"*\" else frozenset(action.split(\",\"))\n\n        # First matching rule in this order is the winning rule:\n        # specificity, then DENY, then smallest original index.\n        rank = (\n            literal_count,\n            principal_score,\n            int(actions is not None),\n            int(effect == \"DENY\"),\n            -i,\n        )\n\n        # Consecutive \"**\" tokens are equivalent to a single \"**\".\n        # Collapsing them makes epsilon closure a single bit operation.\n        collapsed = []\n        for token in tokens:\n            if token == \"**\" and collapsed and collapsed[-1] == \"**\":\n                continue\n            collapsed.append(token)\n\n        # Bit k represents the state immediately before token k.\n        literal_masks = {}\n        one_mask = 0\n        many_mask = 0\n        for k, token in enumerate(collapsed):\n            bit = 1 << k\n            if token == \"*\":\n                one_mask |= bit\n            elif token == \"**\":\n                many_mask |= bit\n            else:\n                literal_masks[token] = literal_masks.get(token, 0) | bit\n\n        initial = 1\n        initial |= (initial & many_mask) << 1\n        accept = 1 << len(collapsed)\n\n        compiled.append((\n            rank, i, effect, principal, actions,\n            literal_masks, one_mask, many_mask, initial, accept,\n        ))\n\n    compiled.sort(key=lambda rule: rule[0], reverse=True)\n\n    decisions = []\n    for user, groups, action, path in requests:\n        group_set = set(groups)\n        path_segments = segments(path)\n        decision = \"DENY by default\"\n\n        for (\n            _, i, effect, principal, actions,\n            literal_masks, one_mask, many_mask, initial, accept,\n        ) in compiled:\n            if principal != \"*\":\n                if principal.startswith(\"user:\"):\n                    if principal[5:] != user:\n                        continue\n                elif principal[6:] not in group_set:\n                    continue\n\n            if actions is not None and action not in actions:\n                continue\n\n            states = initial\n            for segment in path_segments:\n                # Literals and \"*\" advance; \"**\" can consume and stay.\n                advancing = one_mask | literal_masks.get(segment, 0)\n                states = (\n                    ((states & advancing) << 1)\n                    | (states & many_mask)\n                )\n\n                # \"**\" may also consume zero segments.\n                states |= (states & many_mask) << 1\n                if not states:\n                    break\n\n            if states & accept:\n                decision = f\"{effect} by rule {i}\"\n                break\n\n        decisions.append(decision)\n\n    return decisions",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Path-pattern access policy with specificity and deny precedence",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 35.58,
+   "tokens_in": 1387,
+   "tokens_out": 1881,
+   "cost_usd": 0.02205324,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Layered config merge with delete/append directives and JSON paths",
+  "category": "spec_compliance",
+  "entry_point": "merge_layers",
+  "code": "import json\nimport re\nfrom copy import deepcopy\n\n\ndef merge_layers(layers) -> tuple[dict, list[str]]:\n    if not isinstance(layers, list):\n        raise TypeError(\"layers must be a list\")\n\n    merged = {}\n    warnings = []\n    identifier = re.compile(r\"[A-Za-z_][A-Za-z0-9_]*\")\n\n    def type_name(value):\n        # Check bool separately because bool is a subclass of int.\n        if value is None:\n            return \"null\"\n        if isinstance(value, bool):\n            return \"bool\"\n        if isinstance(value, dict):\n            return \"dict\"\n        if isinstance(value, list):\n            return \"list\"\n        if isinstance(value, str):\n            return \"str\"\n        if isinstance(value, int):\n            return \"int\"\n        if isinstance(value, float):\n            return \"float\"\n        raise TypeError(\"unsupported non-JSON value\")\n\n    def child_path(path, name):\n        if identifier.fullmatch(name):\n            return path + \".\" + name\n        return path + \"[\" + json.dumps(name, ensure_ascii=False) + \"]\"\n\n    def merge_into(target, overlay, path, layer_index):\n        for key, value in overlay.items():\n            if not isinstance(key, str):\n                raise TypeError(\n                    f\"layer {layer_index}: non-string key at {path}\"\n                )\n\n            if key.startswith(\"-\"):\n                directive, name = \"delete\", key[1:]\n            elif key.endswith(\"+\"):\n                directive, name = \"append\", key[:-1]\n            else:\n                directive, name = \"set\", key\n\n            if not name:\n                raise ValueError(\n                    f\"layer {layer_index}: empty key name at {path}\"\n                )\n\n            location = child_path(path, name)\n\n            if directive == \"delete\":\n                if value is not None:\n                    raise ValueError(\n                        f\"layer {layer_index}: delete directive needs null \"\n                        f\"at {location}\"\n                    )\n                if name in target:\n                    del target[name]\n                else:\n                    warnings.append(\n                        f\"layer {layer_index}: delete of missing key \"\n                        f\"at {location}\"\n                    )\n\n            elif directive == \"append\":\n                if not isinstance(value, list):\n                    raise ValueError(\n                        f\"layer {layer_index}: append directive needs a list \"\n                        f\"at {location}\"\n                    )\n                if name not in target:\n                    target[name] = deepcopy(value)\n                elif isinstance(target[name], list):\n                    target[name].extend(deepcopy(value))\n                else:\n                    raise ValueError(\n                        f\"layer {layer_index}: cannot append to \"\n                        f\"{type_name(target[name])} at {location}\"\n                    )\n\n            else:\n                if name in target:\n                    old_type = type_name(target[name])\n                    new_type = type_name(value)\n                    if old_type != new_type:\n                        warnings.append(\n                            f\"layer {layer_index}: type change at {location}: \"\n                            f\"{old_type} -> {new_type}\"\n                        )\n\n                if isinstance(value, dict):\n                    if name not in target or not isinstance(target[name], dict):\n                        target[name] = {}\n                    merge_into(target[name], value, location, layer_index)\n                else:\n                    # Lists are copied without interpreting nested directives.\n                    target[name] = deepcopy(value)\n\n    for layer_index, layer in enumerate(layers):\n        if not isinstance(layer, dict):\n            raise TypeError(f\"layer {layer_index} is not a dict\")\n        merge_into(merged, layer, \"$\", layer_index)\n\n    return merged, warnings",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Layered config merge with delete/append directives and JSON paths",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 17.13,
+   "tokens_in": 1195,
+   "tokens_out": 893,
+   "cost_usd": 0.01179684,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Account statement renderer with automatic overdraft fees",
+  "category": "spec_compliance",
+  "entry_point": "render_statement",
+  "code": "import re\nfrom datetime import date as calendar_date\n\n\ndef render_statement(opening, entries) -> list[str]:\n    opening_pattern = r\"-?(0|[1-9][0-9]{0,8})\\.[0-9]{2}\"\n    amount_pattern = r\"(0|[1-9][0-9]{0,8})(\\.[0-9]{1,2})?\"\n    date_pattern = r\"[0-9]{4}-[0-9]{2}-[0-9]{2}\"\n\n    def to_cents(text: str) -> int:\n        negative = text.startswith(\"-\")\n        unsigned = text[1:] if negative else text\n        whole, _, fraction = unsigned.partition(\".\")\n        cents = int(whole) * 100 + int(fraction.ljust(2, \"0\"))\n        return -cents if negative else cents\n\n    def money(cents: int) -> str:\n        whole, fraction = divmod(abs(cents), 100)\n        sign = \"-\" if cents < 0 else \"\"\n        return f\"{sign}{whole:,}.{fraction:02d}\"\n\n    # Validate everything before constructing any output lines.\n    if not isinstance(opening, str):\n        raise TypeError(\"opening must be a str\")\n    if re.fullmatch(opening_pattern, opening) is None:\n        raise ValueError(\"opening: bad amount \" + repr(opening))\n    if not isinstance(entries, list):\n        raise TypeError(\"entries must be a list\")\n\n    validated = []\n    previous_date = None\n\n    for i, entry in enumerate(entries):\n        if not isinstance(entry, tuple) or len(entry) != 4:\n            raise TypeError(f\"entry {i}: expected 4-tuple\")\n\n        date, kind, amount, memo = entry\n\n        if (\n            not isinstance(date, str)\n            or re.fullmatch(date_pattern, date) is None\n        ):\n            raise ValueError(f\"entry {i}: bad date {date!r}\")\n\n        year, month, day = map(int, date.split(\"-\"))\n        try:\n            parsed_date = calendar_date(year, month, day)\n        except ValueError:\n            raise ValueError(f\"entry {i}: bad date {date!r}\") from None\n\n        if not 1900 <= year <= 2999:\n            raise ValueError(f\"entry {i}: bad date {date!r}\")\n\n        if previous_date is not None and parsed_date < previous_date:\n            raise ValueError(f\"entry {i}: date out of order\")\n\n        if not isinstance(kind, str) or kind not in (\"credit\", \"debit\", \"fee\"):\n            raise ValueError(f\"entry {i}: bad kind {kind!r}\")\n\n        if (\n            not isinstance(amount, str)\n            or re.fullmatch(amount_pattern, amount) is None\n        ):\n            raise ValueError(f\"entry {i}: bad amount {amount!r}\")\n\n        amount_cents = to_cents(amount)\n        if amount_cents == 0:\n            raise ValueError(f\"entry {i}: bad amount {amount!r}\")\n\n        if (\n            not isinstance(memo, str)\n            or not memo.split()\n            or any(ord(char) < 32 or ord(char) == 127 for char in memo)\n        ):\n            raise ValueError(f\"entry {i}: bad memo\")\n\n        normalized_memo = \" \".join(memo.split())\n        validated.append((date, kind, amount_cents, normalized_memo))\n        previous_date = parsed_date\n\n    balance = to_cents(opening)\n    lines = [\"Opening balance: \" + money(balance)]\n    counts = {\"credit\": 0, \"debit\": 0, \"fee\": 0}\n    automatic_fee_dates = set()\n\n    def apply_entry(date: str, kind: str, amount: int, memo: str) -> None:\n        nonlocal balance\n\n        sign = \"+\" if kind == \"credit\" else \"-\"\n        balance += amount if kind == \"credit\" else -amount\n        counts[kind] += 1\n\n        if len(memo) > 20:\n            memo = memo[:19] + \"~\"\n\n        memo_column = memo.ljust(20)\n        amount_column = (sign + money(amount)).rjust(14)\n        balance_column = money(balance).rjust(15)\n        flag = \" OD\" if balance < 0 else \"\"\n\n        lines.append(\n            f\"{date}  {memo_column}  {amount_column}  {balance_column}{flag}\"\n        )\n\n    for date, kind, amount, memo in validated:\n        apply_entry(date, kind, amount, memo)\n\n        if (\n            kind == \"debit\"\n            and balance < 0\n            and date not in automatic_fee_dates\n        ):\n            automatic_fee_dates.add(date)\n            apply_entry(date, \"fee\", 2500, \"OVERDRAFT FEE\")\n\n    lines.append(\"Closing balance: \" + money(balance))\n    lines.append(\n        f\"Credits: {counts['credit']}  \"\n        f\"Debits: {counts['debit']}  \"\n        f\"Fees: {counts['fee']}\"\n    )\n    return lines",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Account statement renderer with automatic overdraft fees",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 18.79,
+   "tokens_in": 1444,
+   "tokens_out": 1219,
+   "cost_usd": 0.015640515,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Version picker for a custom constraint language with release candidates",
+  "category": "spec_compliance",
+  "entry_point": "pick_version",
+  "code": "import operator\nimport re\n\n_PART = r\"(?:0|[1-9][0-9]*)\"\n_VERSION = re.compile(\n    rf\"({_PART})\\.({_PART})\\.({_PART})(?:~rc([1-9][0-9]*))?\"\n)\n_WILDCARD = re.compile(rf\"({_PART})(?:\\.({_PART}))?\\.\\*\")\n_AT = re.compile(rf\"@({_PART})\\.({_PART})\")\n_COMPARISON = re.compile(r\"(>=|<=|!=|=|>|<)?(.+)\")\n\n_COMPARATORS = {\n    \"=\": operator.eq,\n    \"!=\": operator.ne,\n    \">\": operator.gt,\n    \">=\": operator.ge,\n    \"<\": operator.lt,\n    \"<=\": operator.le,\n}\n\n\ndef _number_key(text):\n    # Canonical decimal strings compare numerically by length, then text.\n    # This also handles integers beyond Python's int-conversion digit limit.\n    return len(text), text\n\n\ndef _version_key(text):\n    match = _VERSION.fullmatch(text)\n    if match is None:\n        return None\n\n    major, minor, patch, rc = match.groups()\n    return (\n        _number_key(major),\n        _number_key(minor),\n        _number_key(patch),\n        rc is None,  # A plain release sorts after all its release candidates.\n        _number_key(rc) if rc is not None else (0, \"\"),\n    )\n\n\ndef _parse_clause(clause):\n    if clause == \"*\":\n        return \"*\", None\n\n    match = _WILDCARD.fullmatch(clause)\n    if match is not None:\n        major, minor = match.groups()\n        if minor is None:\n            return \"major\", _number_key(major)\n        return \"minor\", (_number_key(major), _number_key(minor))\n\n    match = _AT.fullmatch(clause)\n    if match is not None:\n        major, minor = match.groups()\n        return \"@\", (_number_key(major), _number_key(minor))\n\n    match = _COMPARISON.fullmatch(clause)\n    if match is not None:\n        op, version = match.groups()\n        key = _version_key(version)\n        if key is not None:\n            return op or \"=\", key\n\n    return None\n\n\ndef _matches_clause(key, clause):\n    op, target = clause\n\n    if op == \"*\":\n        return True\n    if op == \"major\":\n        return key[0] == target\n    if op == \"minor\":\n        return key[:2] == target\n    if op == \"@\":\n        return key[0] == target[0] and key[1] >= target[1]\n\n    return _COMPARATORS[op](key, target)\n\n\ndef pick_version(available, constraint) -> str | None:\n    if not isinstance(available, list):\n        raise TypeError(\"available must be a list\")\n\n    versions = []\n    for i, element in enumerate(available):\n        key = _version_key(element) if isinstance(element, str) else None\n        if key is None:\n            raise ValueError(f\"invalid version at index {i}: {element!r}\")\n        versions.append((key, element))\n\n    if not isinstance(constraint, str):\n        raise TypeError(\"constraint must be a str\")\n    if constraint.strip(\" \") == \"\":\n        raise ValueError(\"empty constraint\")\n\n    # Fully validate and compile the constraint before matching anything.\n    alternatives = []\n    for a, text in enumerate(constraint.split(\"|\"), start=1):\n        text = text.strip(\" \")\n        allows_rc = text.startswith(\"?\")\n        if allows_rc:\n            text = text[1:].strip(\" \")\n\n        if text == \"\":\n            raise ValueError(f\"alternative {a} is empty\")\n\n        clauses = []\n        for c, clause in enumerate(text.split(\",\"), start=1):\n            clause = clause.strip(\" \")\n            parsed = _parse_clause(clause)\n            if parsed is None:\n                raise ValueError(\n                    f\"alternative {a}, clause {c}: invalid clause {clause!r}\"\n                )\n            clauses.append(parsed)\n\n        alternatives.append((allows_rc, clauses))\n\n    best_key = None\n    best_version = None\n\n    for key, version in versions:\n        matches = any(\n            (key[3] or allows_rc)\n            and all(_matches_clause(key, clause) for clause in clauses)\n            for allows_rc, clauses in alternatives\n        )\n        if matches and (best_key is None or key > best_key):\n            best_key = key\n            best_version = version\n\n    return best_version",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "spec_compliance",
+   "title": "Version picker for a custom constraint language with release candidates",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 40.13,
+   "tokens_in": 971,
+   "tokens_out": 1465,
+   "cost_usd": 0.01642608,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Indentation outline config parser with line-exact errors",
+  "category": "parsing",
+  "entry_point": "parse_outline",
+  "code": "def parse_outline(text: str) -> tuple:\n    import re\n\n    key_pattern = re.compile(r\"[A-Za-z_][A-Za-z0-9_-]*\")\n    int_pattern = re.compile(r\"-?(?:0|[1-9][0-9]*)\")\n    escapes = {\"\\\\\": \"\\\\\", '\"': '\"', \"n\": \"\\n\", \"t\": \"\\t\"}\n\n    def parse_scalar(s):\n        # Returns (error_message_or_None, value).\n        if s.startswith('\"'):\n            chars = []\n            i = 1\n            while i < len(s):\n                c = s[i]\n                if c == \"\\\\\":\n                    i += 1\n                    if i == len(s) or s[i] not in escapes:\n                        return \"bad escape\", None\n                    chars.append(escapes[s[i]])\n                elif c == '\"':\n                    if i != len(s) - 1:\n                        return \"bad string\", None\n                    return None, \"\".join(chars)\n                else:\n                    chars.append(c)\n                i += 1\n            return \"bad string\", None\n\n        if s == \"true\":\n            return None, True\n        if s == \"false\":\n            return None, False\n        if s == \"null\":\n            return None, None\n\n        if int_pattern.fullmatch(s):\n            try:\n                return None, int(s)\n            except ValueError:\n                # Avoid Python's configurable limit on decimal int conversion.\n                # Each chunk is below the minimum nonzero limit.\n                negative = s.startswith(\"-\")\n                digits = s[1:] if negative else s\n                value = 0\n                chunk_size = 500\n                first_size = len(digits) % chunk_size or chunk_size\n                value = int(digits[:first_size])\n                for i in range(first_size, len(digits), chunk_size):\n                    value = value * (10 ** chunk_size) + int(\n                        digits[i:i + chunk_size]\n                    )\n                return None, -value if negative else value\n\n        return None, s\n\n    # Frames are (indent, kind, container), where kind is \"key\" or \"item\".\n    stack = []\n    root = None\n\n    # A pending opener is (parent_container, key_or_list_index, indent).\n    # Its value is initially None, and is replaced if a child block follows.\n    pending = None\n\n    for line_number, line in enumerate(text.split(\"\\n\"), 1):\n        rest = line.lstrip(\" \\t\")\n        if not rest or rest.startswith(\"#\"):\n            continue\n\n        indent = len(line) - len(rest)\n        if \"\\t\" in line[:indent]:\n            return \"error\", line_number, \"tab in indentation\"\n\n        # Fully validate this line's syntax before checking structure.\n        if rest == \"-\" or rest.startswith(\"- \"):\n            kind = \"item\"\n            key = None\n            scalar_text = rest[2:].strip(\" \")\n            opener = not scalar_text\n        else:\n            kind = \"key\"\n            colon = rest.find(\":\")\n            if colon < 0:\n                return \"error\", line_number, \"invalid entry\"\n\n            key = rest[:colon]\n            if not key_pattern.fullmatch(key):\n                return \"error\", line_number, \"invalid entry\"\n\n            after = rest[colon + 1:]\n            scalar_text = after.strip(\" \")\n            opener = not scalar_text\n            if not opener and not after.startswith(\" \"):\n                return \"error\", line_number, \"invalid entry\"\n\n        value = None\n        if not opener:\n            error, value = parse_scalar(scalar_text)\n            if error is not None:\n                return \"error\", line_number, error\n\n        if not stack:\n            if indent != 0:\n                return \"error\", line_number, \"unexpected indent\"\n            root = {} if kind == \"key\" else []\n            stack.append((indent, kind, root))\n\n        elif pending is not None and indent > pending[2]:\n            child = {} if kind == \"key\" else []\n            parent, slot, _ = pending\n            parent[slot] = child\n            stack.append((indent, kind, child))\n\n        else:\n            if indent > stack[-1][0]:\n                return \"error\", line_number, \"unexpected indent\"\n\n            while stack and indent < stack[-1][0]:\n                stack.pop()\n\n            if not stack or indent != stack[-1][0]:\n                return \"error\", line_number, \"inconsistent dedent\"\n\n        pending = None\n        _, block_kind, container = stack[-1]\n\n        if kind != block_kind:\n            return \"error\", line_number, \"mixed block\"\n\n        if kind == \"key\":\n            if key in container:\n                return \"error\", line_number, f\"duplicate key '{key}'\"\n            container[key] = value\n            slot = key\n        else:\n            slot = len(container)\n            container.append(value)\n\n        if opener:\n            pending = (container, slot, indent)\n\n    return \"ok\", root",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Indentation outline config parser with line-exact errors",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 36.74,
+   "tokens_in": 1396,
+   "tokens_out": 1455,
+   "cost_usd": 0.017858115,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Pile stack-language interpreter with quotations and step limit",
+  "category": "parsing",
+  "entry_point": "run_pile",
+  "code": "import re\n\n\ndef run_pile(src: str, max_steps: int) -> tuple:\n    # Only these four characters are whitespace.\n    tokens = re.findall(r\"[^\\x20\\t\\n\\r\\[\\]]+|[\\[\\]]\", src)\n    is_int = re.compile(r\"-?[0-9]+\").fullmatch\n    n = len(tokens)\n\n    builtin_names = (\n        \"dup\", \"drop\", \"swap\", \"over\", \"rot\",\n        \"+\", \"-\", \"*\", \"/\", \"%\", \"<\", \"=\",\n        \"if\", \"times\", \"while\", \"call\", \"dip\",\n    )\n    builtin_codes = {\n        name: code for code, name in enumerate(builtin_names, 4)\n    }\n\n    # Opcodes: 0 = user word, 1 = integer, 2 = quotation,\n    #          3 = definition, 4..20 = builtins.\n    code = bytearray(n)\n    close = [0] * n\n    opens = []\n\n    # Complete structural validation before any execution.\n    i = 0\n    while i < n:\n        token = tokens[i]\n\n        if token == \"[\":\n            code[i] = 2\n            opens.append(i)\n\n        elif token == \"]\":\n            if not opens or tokens[opens[-1]] != \"[\":\n                return (\"error\", i, \"unmatched ]\")\n            close[opens.pop()] = i\n\n        elif token == \":\":\n            if opens:\n                return (\"error\", i, \"misplaced :\")\n            if i + 1 == n:\n                return (\"error\", i, \"unclosed :\")\n\n            name = tokens[i + 1]\n            if (\n                name in (\"[\", \"]\", \":\", \";\")\n                or name in builtin_codes\n                or is_int(name) is not None\n            ):\n                return (\"error\", i + 1, \"bad name\")\n\n            code[i] = 3\n            opens.append(i)\n            i += 1  # Consume NAME without scanning it as a construct.\n\n        elif token == \";\":\n            if not opens or tokens[opens[-1]] != \":\":\n                return (\"error\", i, \"unmatched ;\")\n            close[opens.pop()] = i\n\n        else:\n            op = builtin_codes.get(token)\n            if op is not None:\n                code[i] = op\n            elif is_int(token) is not None:\n                code[i] = 1\n\n        i += 1\n\n    if opens:\n        first = opens[0]\n        message = \"unclosed [\" if tokens[first] == \"[\" else \"unclosed :\"\n        return (\"error\", first, message)\n\n    class Quote:\n        __slots__ = (\"start\", \"end\")\n\n        def __init__(self, start, end):\n            self.start = start\n            self.end = end\n\n    def parse_integer(text):\n        # Chunking avoids Python's configurable decimal-string digit limit.\n        if len(text) <= 18:\n            return int(text)\n\n        negative = text[0] == \"-\"\n        digits = text[1:] if negative else text\n        first_size = len(digits) % 18 or 18\n        value = int(digits[:first_size])\n        for pos in range(first_size, len(digits), 18):\n            value = value * 10**18 + int(digits[pos:pos + 18])\n        return -value if negative else value\n\n    integer_cache = {}\n    quote_cache = {}\n    definitions = {}\n    stack = []\n    steps = 0\n\n    arity = (\n        0, 0, 0, 0,\n        1, 1, 2, 2, 3,       # dup drop swap over rot\n        2, 2, 2, 2, 2, 2, 2, # arithmetic and comparisons\n        3, 2, 2, 1, 2,       # if times while call dip\n    )\n\n    # Explicit execution frames:\n    #   [0, next_token, end]           sequence\n    #   [1, quote, remaining]          times\n    #   [2, condition, body, index, phase]  while\n    #   [3, saved_value]               dip restoration\n    frames = [[0, 0, n]]\n\n    while frames:\n        frame = frames[-1]\n        kind = frame[0]\n\n        if kind == 1:\n            if frame[2] == 0:\n                frames.pop()\n            else:\n                frame[2] -= 1\n                q = frame[1]\n                frames.append([0, q.start, q.end])\n            continue\n\n        if kind == 2:\n            condition, body, while_index = frame[1:4]\n\n            if frame[4] == 0:\n                frame[4] = 1\n                if condition.start != condition.end:\n                    frames.append([0, condition.start, condition.end])\n            else:\n                if not stack:\n                    return (\"error\", while_index, \"stack underflow\")\n                value = stack.pop()\n                if type(value) is not int:\n                    return (\"error\", while_index, \"type error\")\n\n                if value == 0:\n                    frames.pop()\n                else:\n                    frame[4] = 0\n                    if body.start != body.end:\n                        frames.append([0, body.start, body.end])\n            continue\n\n        if kind == 3:\n            stack.append(frame[1])\n            frames.pop()\n            continue\n\n        i, end = frame[1], frame[2]\n        if i == end:\n            frames.pop()\n            continue\n\n        if steps >= max_steps:\n            return (\"error\", i, \"step limit exceeded\")\n        steps += 1\n\n        op = code[i]\n        frame[1] = i + 1\n\n        if op == 1:\n            value = integer_cache.get(i)\n            if value is None:\n                value = parse_integer(tokens[i])\n                integer_cache[i] = value\n            stack.append(value)\n            continue\n\n        if op == 2:\n            frame[1] = close[i] + 1\n            q = quote_cache.get(i)\n            if q is None:\n                q = Quote(i + 1, close[i])\n                quote_cache[i] = q\n            stack.append(q)\n            continue\n\n        if op == 3:\n            frame[1] = close[i] + 1\n            definitions[tokens[i + 1]] = (i + 2, close[i])\n            continue\n\n        if op == 0:\n            body = definitions.get(tokens[i])\n            if body is None:\n                return (\"error\", i, f\"unknown word '{tokens[i]}'\")\n            if body[0] != body[1]:\n                frames.append([0, body[0], body[1]])\n            continue\n\n        # Check arity first, then types, then exceptional operand values.\n        if len(stack) < arity[op]:\n            return (\"error\", i, \"stack underflow\")\n\n        if 9 <= op <= 15:\n            a, b = stack[-2], stack[-1]\n            if type(a) is not int or type(b) is not int:\n                return (\"error\", i, \"type error\")\n            if op in (12, 13) and b == 0:\n                return (\"error\", i, \"division by zero\")\n\n        elif op == 16:  # if\n            c, t, f = stack[-3], stack[-2], stack[-1]\n            if (\n                type(c) is not int\n                or type(t) is not Quote\n                or type(f) is not Quote\n            ):\n                return (\"error\", i, \"type error\")\n\n        elif op == 17:  # times\n            q, count = stack[-2], stack[-1]\n            if type(q) is not Quote or type(count) is not int:\n                return (\"error\", i, \"type error\")\n            if count < 0:\n                return (\"error\", i, \"negative count\")\n\n        elif op == 18:  # while\n            condition, body = stack[-2], stack[-1]\n            if type(condition) is not Quote or type(body) is not Quote:\n                return (\"error\", i, \"type error\")\n\n        elif op in (19, 20):  # call, dip\n            if type(stack[-1]) is not Quote:\n                return (\"error\", i, \"type error\")\n\n        if op == 4:  # dup\n            stack.append(stack[-1])\n\n        elif op == 5:  # drop\n            stack.pop()\n\n        elif op == 6:  # swap\n            stack[-2], stack[-1] = stack[-1], stack[-2]\n\n        elif op == 7:  # over\n            stack.append(stack[-2])\n\n        elif op == 8:  # rot\n            stack[-3], stack[-2], stack[-1] = (\n                stack[-2], stack[-1], stack[-3]\n            )\n\n        elif 9 <= op <= 15:\n            stack.pop()\n            if op == 9:\n                result = a + b\n            elif op == 10:\n                result = a - b\n            elif op == 11:\n                result = a * b\n            elif op == 12:\n                result = a // b\n            elif op == 13:\n                result = a % b\n            elif op == 14:\n                result = int(a < b)\n            else:\n                result = int(a == b)\n            stack[-1] = result\n\n        elif op == 16:  # if\n            del stack[-3:]\n            q = t if c != 0 else f\n            if q.start != q.end:\n                frames.append([0, q.start, q.end])\n\n        elif op == 17:  # times\n            del stack[-2:]\n            # An empty quotation takes no steps, regardless of count.\n            if count and q.start != q.end:\n                frames.append([1, q, count])\n\n        elif op == 18:  # while\n            del stack[-2:]\n            frames.append([2, condition, body, i, 0])\n\n        elif op == 19:  # call\n            q = stack.pop()\n            if q.start != q.end:\n                frames.append([0, q.start, q.end])\n\n        else:  # dip\n            q = stack.pop()\n            saved = stack.pop()\n            if q.start == q.end:\n                stack.append(saved)\n            else:\n                frames.append([3, saved])\n                frames.append([0, q.start, q.end])\n\n    # Render quotations iteratively. Memoization also avoids repeatedly\n    # rendering the same quotation when it occurs multiple times on the stack.\n    rendered = {}\n\n    def render_quote(q):\n        opening = q.start - 1\n        existing = rendered.get(opening)\n        if existing is not None:\n            return existing\n\n        result = []\n        rendered[opening] = result\n        work = [[q.start, q.end, result]]\n\n        while work:\n            item = work[-1]\n            pos, end, output = item\n\n            if pos == end:\n                work.pop()\n                continue\n\n            if tokens[pos] == \"[\":\n                item[0] = close[pos] + 1\n                child = rendered.get(pos)\n                if child is None:\n                    child = []\n                    rendered[pos] = child\n                    output.append(child)\n                    work.append([pos + 1, close[pos], child])\n                else:\n                    output.append(child)\n            else:\n                output.append(tokens[pos])\n                item[0] = pos + 1\n\n        return result\n\n    return (\n        \"ok\",\n        [\n            value if type(value) is int else render_quote(value)\n            for value in stack\n        ],\n    )",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Pile stack-language interpreter with quotations and step limit",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 108.87,
+   "tokens_in": 1672,
+   "tokens_out": 4629,
+   "cost_usd": 0.049963815,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Sieve record query language with three-valued logic",
+  "category": "parsing",
+  "entry_point": "filter_records",
+  "code": "def filter_records(query: str, records: list[dict]) -> tuple:\n    # Token: (kind, start_position, end_position, decoded_value)\n    tokens = []\n    n = len(query)\n    i = 0\n\n    def is_digit(c):\n        return \"0\" <= c <= \"9\"\n\n    def is_letter(c):\n        return \"a\" <= c <= \"z\" or \"A\" <= c <= \"Z\"\n\n    def parse_integer(text):\n        # Chunked conversion avoids Python's decimal-string conversion limit.\n        negative = text[0] == \"-\"\n        start = 1 if negative else 0\n        value = 0\n        while start < len(text):\n            chunk = text[start:start + 9]\n            value = value * (10 ** len(chunk)) + int(chunk)\n            start += len(chunk)\n        return -value if negative else value\n\n    keywords = {\"and\", \"or\", \"not\", \"in\", \"has\"}\n\n    # STEP 1: Lex the entire query before attempting to parse it.\n    while i < n:\n        c = query[i]\n\n        if c in \" \\t\\n\":\n            i += 1\n            continue\n\n        start = i\n\n        if c in \"()[],\":\n            i += 1\n            tokens.append((c, start, i, None))\n            continue\n\n        two = query[i:i + 2]\n        if two in (\"!=\", \"<=\", \">=\"):\n            i += 2\n            tokens.append((two, start, i, None))\n            continue\n\n        if c in \"=<>\":\n            i += 1\n            tokens.append((c, start, i, None))\n            continue\n\n        if c == '\"':\n            i += 1\n            chars = []\n\n            while i < n:\n                c = query[i]\n\n                if c == '\"':\n                    i += 1\n                    tokens.append((\"STRING\", start, i, \"\".join(chars)))\n                    break\n\n                if c == \"\\\\\":\n                    if i + 1 >= n or query[i + 1] not in ('\"', \"\\\\\"):\n                        return (\"error\", i, \"bad escape\")\n                    chars.append(query[i + 1])\n                    i += 2\n                else:\n                    chars.append(c)\n                    i += 1\n            else:\n                return (\"error\", start, \"unterminated string\")\n\n            continue\n\n        if is_digit(c) or (\n            c == \"-\" and i + 1 < n and is_digit(query[i + 1])\n        ):\n            if c == \"-\":\n                i += 1\n            while i < n and is_digit(query[i]):\n                i += 1\n            value = parse_integer(query[start:i])\n            tokens.append((\"INT\", start, i, value))\n            continue\n\n        if is_letter(c) or c == \"_\":\n            i += 1\n            while i < n:\n                c = query[i]\n                if is_letter(c) or is_digit(c) or c in \"_.\":\n                    i += 1\n                else:\n                    break\n            word = query[start:i]\n            kind = word if word in keywords else \"FIELD\"\n            tokens.append((kind, start, i, word))\n            continue\n\n        return (\"error\", i, f\"unexpected character '{c}'\")\n\n    tokens.append((\"END\", n, n, None))\n\n    # STEP 2: Compile to postfix instructions using an iterative parser.\n    class ParseFailure(Exception):\n        pass\n\n    index = 0\n    code = []\n    operators = []\n    precedence = {\"or\": 1, \"and\": 2, \"not\": 3}\n    comparisons = {\"=\", \"!=\", \"<\", \"<=\", \">\", \">=\"}\n\n    def fail():\n        kind, start, end, _ = tokens[index]\n        if kind == \"END\":\n            message = \"unexpected end of input\"\n        else:\n            message = f\"unexpected token '{query[start:end]}'\"\n        raise ParseFailure(start, message)\n\n    def take(kind):\n        nonlocal index\n        if tokens[index][0] != kind:\n            fail()\n        value = tokens[index][3]\n        index += 1\n        return value\n\n    def take_literal():\n        nonlocal index\n        if tokens[index][0] not in (\"INT\", \"STRING\"):\n            fail()\n        value = tokens[index][3]\n        index += 1\n        return value\n\n    expecting_operand = True\n\n    try:\n        while True:\n            kind = tokens[index][0]\n\n            if expecting_operand:\n                if kind == \"not\":\n                    operators.append(\"not\")\n                    index += 1\n                    continue\n\n                if kind == \"(\":\n                    operators.append(\"(\")\n                    index += 1\n                    continue\n\n                if kind == \"has\":\n                    index += 1\n                    field = take(\"FIELD\")\n                    code.append((\"has\", field))\n\n                elif kind == \"FIELD\":\n                    field = take(\"FIELD\")\n                    kind = tokens[index][0]\n\n                    if kind in comparisons:\n                        index += 1\n                        literal = take_literal()\n                        code.append((\"cmp\", field, kind, literal))\n\n                    elif kind == \"in\":\n                        index += 1\n                        take(\"[\")\n                        literals = [take_literal()]\n\n                        while tokens[index][0] == \",\":\n                            index += 1\n                            literals.append(take_literal())\n\n                        take(\"]\")\n\n                        # Partition by type, preserving typed membership.\n                        integers = set()\n                        strings = set()\n                        for literal in literals:\n                            if type(literal) is int:\n                                integers.add(literal)\n                            else:\n                                strings.add(literal)\n\n                        code.append((\"in\", field, integers, strings))\n\n                    else:\n                        fail()\n                else:\n                    fail()\n\n                expecting_operand = False\n                continue\n\n            # An operand has just finished.\n            if kind in (\"and\", \"or\"):\n                while (\n                    operators\n                    and operators[-1] != \"(\"\n                    and precedence[operators[-1]] >= precedence[kind]\n                ):\n                    code.append((operators.pop(),))\n\n                operators.append(kind)\n                index += 1\n                expecting_operand = True\n                continue\n\n            if kind == \")\":\n                while operators and operators[-1] != \"(\":\n                    code.append((operators.pop(),))\n\n                if not operators:\n                    fail()\n\n                operators.pop()  # Matching '('.\n                index += 1\n                continue\n\n            if kind == \"END\":\n                while operators:\n                    if operators[-1] == \"(\":\n                        fail()\n                    code.append((operators.pop(),))\n                break\n\n            fail()\n\n    except ParseFailure as exc:\n        pos, message = exc.args\n        return (\"error\", pos, message)\n\n    # STEP 3: Evaluate postfix instructions.\n    # Ordering FALSE < UNKNOWN < TRUE makes AND=min and OR=max.\n    FALSE, UNKNOWN, TRUE = 0, 1, 2\n    missing = object()\n    selected = []\n\n    for record_index, record in enumerate(records):\n        stack = []\n\n        for instruction in code:\n            operation = instruction[0]\n\n            if operation == \"has\":\n                stack.append(TRUE if instruction[1] in record else FALSE)\n\n            elif operation == \"cmp\":\n                _, field, comparison, literal = instruction\n                value = record.get(field, missing)\n\n                if value is missing:\n                    result = UNKNOWN\n\n                elif type(value) is not type(literal):\n                    if comparison == \"=\":\n                        result = FALSE\n                    elif comparison == \"!=\":\n                        result = TRUE\n                    else:\n                        result = UNKNOWN\n\n                else:\n                    if comparison == \"=\":\n                        matched = value == literal\n                    elif comparison == \"!=\":\n                        matched = value != literal\n                    elif comparison == \"<\":\n                        matched = value < literal\n                    elif comparison == \"<=\":\n                        matched = value <= literal\n                    elif comparison == \">\":\n                        matched = value > literal\n                    else:\n                        matched = value >= literal\n\n                    result = TRUE if matched else FALSE\n\n                stack.append(result)\n\n            elif operation == \"in\":\n                _, field, integers, strings = instruction\n                value = record.get(field, missing)\n\n                if value is missing:\n                    result = UNKNOWN\n                else:\n                    candidates = integers if type(value) is int else strings\n                    result = TRUE if value in candidates else FALSE\n\n                stack.append(result)\n\n            elif operation == \"not\":\n                stack[-1] = 2 - stack[-1]\n\n            elif operation == \"and\":\n                right = stack.pop()\n                left = stack[-1]\n                stack[-1] = left if left < right else right\n\n            else:  # \"or\"\n                right = stack.pop()\n                left = stack[-1]\n                stack[-1] = left if left > right else right\n\n        if stack[0] == TRUE:\n            selected.append(record_index)\n\n    return (\"ok\", selected)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Sieve record query language with three-valued logic",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 45.43,
+   "tokens_in": 1325,
+   "tokens_out": 2437,
+   "cost_usd": 0.02740419,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tally expression evaluator with exact error positions",
+  "category": "parsing",
+  "entry_point": "evaluate",
+  "code": "def evaluate(src: str, env: dict) -> tuple:\n    # Token: (kind, exact_text, start_position)\n    tokens = []\n    n = len(src)\n    i = 0\n\n    two_char_ops = {\"<=\", \">=\", \"==\", \"!=\"}\n    one_char_ops = set(\"+-*/%^()?:<>\")\n\n    while i < n:\n        c = src[i]\n\n        if c == \" \":\n            i += 1\n            continue\n\n        start = i\n\n        if \"0\" <= c <= \"9\":\n            i += 1\n            while i < n and \"0\" <= src[i] <= \"9\":\n                i += 1\n            tokens.append((\"INT\", src[start:i], start))\n\n        elif \"a\" <= c <= \"z\" or c == \"_\":\n            i += 1\n            while i < n:\n                c = src[i]\n                if not (\"a\" <= c <= \"z\" or \"0\" <= c <= \"9\" or c == \"_\"):\n                    break\n                i += 1\n            tokens.append((\"NAME\", src[start:i], start))\n\n        elif src[i:i + 2] in two_char_ops:\n            text = src[i:i + 2]\n            tokens.append((text, text, i))\n            i += 2\n\n        elif c in one_char_ops:\n            tokens.append((c, c, i))\n            i += 1\n\n        else:\n            tokens.append((\"INVALID\", c, i))\n            i += 1\n\n    tokens.append((\"END\", \"\", n))\n\n    def syntax_error(token):\n        kind, text, pos = token\n        if kind == \"END\":\n            message = \"unexpected end of input\"\n        elif kind == \"INVALID\":\n            message = f\"unexpected character '{text}'\"\n        else:\n            message = f\"unexpected token '{text}'\"\n        return (\"error\", pos, message)\n\n    # Flat AST: children are indices, not recursively nested Python objects.\n    #\n    # (\"int\", text, pos)\n    # (\"name\", text, pos)\n    # (\"neg\", child)\n    # (\"bin\", operator, pos, left, right)\n    # (\"if\", condition, true_branch, false_branch)\n    nodes = []\n    results = []\n\n    def add_node(node):\n        results.append(len(nodes))\n        nodes.append(node)\n\n    # Explicit recursive-descent continuations.\n    # Each task is (action, argument).\n    tasks = [(\"expect\", \"END\"), (\"cond\", None)]\n    p = 0\n    cmp_ops = {\"<\", \"<=\", \">\", \">=\", \"==\", \"!=\"}\n\n    while tasks:\n        action, arg = tasks.pop()\n        token = tokens[p]\n        kind, text, pos = token\n\n        if action == \"expect\":\n            if kind != arg:\n                return syntax_error(token)\n            p += 1\n\n        elif action == \"cond\":\n            tasks.append((\"cond_tail\", None))\n            tasks.append((\"cmp\", None))\n\n        elif action == \"cond_tail\":\n            if kind == \"?\":\n                p += 1\n                # Execute: cond, ':', cond, then build the ternary.\n                tasks.append((\"make_if\", None))\n                tasks.append((\"cond\", None))\n                tasks.append((\"expect\", \":\"))\n                tasks.append((\"cond\", None))\n\n        elif action == \"cmp\":\n            tasks.append((\"cmp_tail\", None))\n            tasks.append((\"sum\", None))\n\n        elif action == \"cmp_tail\":\n            if kind in cmp_ops:\n                p += 1\n                # No subsequent cmp_tail: comparisons are non-associative.\n                tasks.append((\"make_bin\", (kind, pos)))\n                tasks.append((\"sum\", None))\n\n        elif action == \"sum\":\n            tasks.append((\"sum_tail\", None))\n            tasks.append((\"term\", None))\n\n        elif action == \"sum_tail\":\n            if kind in (\"+\", \"-\"):\n                p += 1\n                tasks.append((\"sum_tail\", None))\n                tasks.append((\"make_bin\", (kind, pos)))\n                tasks.append((\"term\", None))\n\n        elif action == \"term\":\n            tasks.append((\"term_tail\", None))\n            tasks.append((\"unary\", None))\n\n        elif action == \"term_tail\":\n            if kind in (\"*\", \"/\", \"%\"):\n                p += 1\n                tasks.append((\"term_tail\", None))\n                tasks.append((\"make_bin\", (kind, pos)))\n                tasks.append((\"unary\", None))\n\n        elif action == \"unary\":\n            if kind == \"-\":\n                p += 1\n                tasks.append((\"make_neg\", None))\n                tasks.append((\"unary\", None))\n            else:\n                tasks.append((\"power\", None))\n\n        elif action == \"power\":\n            tasks.append((\"power_tail\", None))\n            tasks.append((\"atom\", None))\n\n        elif action == \"power_tail\":\n            if kind == \"^\":\n                p += 1\n                tasks.append((\"make_bin\", (kind, pos)))\n                tasks.append((\"unary\", None))\n\n        elif action == \"atom\":\n            if kind == \"INT\":\n                add_node((\"int\", text, pos))\n                p += 1\n            elif kind == \"NAME\":\n                add_node((\"name\", text, pos))\n                p += 1\n            elif kind == \"(\":\n                p += 1\n                tasks.append((\"expect\", \")\"))\n                tasks.append((\"cond\", None))\n            else:\n                return syntax_error(token)\n\n        elif action == \"make_neg\":\n            child = results.pop()\n            add_node((\"neg\", child))\n\n        elif action == \"make_bin\":\n            right = results.pop()\n            left = results.pop()\n            op, op_pos = arg\n            add_node((\"bin\", op, op_pos, left, right))\n\n        elif action == \"make_if\":\n            false_branch = results.pop()\n            true_branch = results.pop()\n            condition = results.pop()\n            add_node((\"if\", condition, true_branch, false_branch))\n\n    root = results.pop()\n\n    # These are no longer needed during evaluation.\n    del tokens, results, tasks\n\n    def decimal_int(text):\n        \"\"\"Convert arbitrary-length ASCII decimal without changing global limits.\"\"\"\n        if len(text) <= 600:\n            # Below Python's minimum configurable decimal-conversion limit.\n            return int(text)\n\n        # Balanced combination avoids both the decimal-conversion limit and\n        # repeatedly multiplying an ever-growing integer by a small base.\n        parts = [\n            (int(text[j:j + 9]), len(text[j:j + 9]))\n            for j in range(0, len(text), 9)\n        ]\n        powers = {}\n\n        while len(parts) > 1:\n            combined = []\n            end = len(parts) - 1\n\n            for j in range(0, end, 2):\n                left, left_width = parts[j]\n                right, right_width = parts[j + 1]\n\n                scale = powers.get(right_width)\n                if scale is None:\n                    scale = 10 ** right_width\n                    powers[right_width] = scale\n\n                combined.append((\n                    left * scale + right,\n                    left_width + right_width,\n                ))\n\n            if len(parts) % 2:\n                combined.append(parts[-1])\n\n            parts = combined\n\n        return parts[0][0]\n\n    # Evaluation continuations and value stack.\n    work = [(\"visit\", root)]\n    values = []\n\n    while work:\n        action, index = work.pop()\n        node = nodes[index]\n        kind = node[0]\n\n        if action == \"visit\":\n            if kind == \"int\":\n                values.append(decimal_int(node[1]))\n\n            elif kind == \"name\":\n                name, pos = node[1], node[2]\n                try:\n                    value = env[name]\n                except KeyError:\n                    return (\"error\", pos, f\"unknown name '{name}'\")\n                values.append(value)\n\n            elif kind == \"neg\":\n                work.append((\"apply\", index))\n                work.append((\"visit\", node[1]))\n\n            elif kind == \"bin\":\n                work.append((\"apply\", index))\n                # LIFO order: evaluate left completely before right.\n                work.append((\"visit\", node[4]))\n                work.append((\"visit\", node[3]))\n\n            else:  # kind == \"if\"\n                work.append((\"choose\", index))\n                work.append((\"visit\", node[1]))\n\n        elif action == \"choose\":\n            condition = values.pop()\n            branch = node[2] if condition != 0 else node[3]\n            work.append((\"visit\", branch))\n\n        else:  # action == \"apply\"\n            if kind == \"neg\":\n                values.append(-values.pop())\n                continue\n\n            right = values.pop()\n            left = values.pop()\n            op, pos = node[1], node[2]\n\n            if op == \"+\":\n                value = left + right\n            elif op == \"-\":\n                value = left - right\n            elif op == \"*\":\n                value = left * right\n            elif op == \"/\":\n                if right == 0:\n                    return (\"error\", pos, \"division by zero\")\n                value = left // right\n            elif op == \"%\":\n                if right == 0:\n                    return (\"error\", pos, \"division by zero\")\n                value = left % right\n            elif op == \"^\":\n                if right < 0:\n                    return (\"error\", pos, \"negative exponent\")\n                if right > 256:\n                    return (\"error\", pos, \"exponent too large\")\n                value = left ** right\n            elif op == \"<\":\n                value = int(left < right)\n            elif op == \"<=\":\n                value = int(left <= right)\n            elif op == \">\":\n                value = int(left > right)\n            elif op == \">=\":\n                value = int(left >= right)\n            elif op == \"==\":\n                value = int(left == right)\n            else:  # op == \"!=\"\n                value = int(left != right)\n\n            values.append(value)\n\n    return (\"ok\", values.pop())",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "parsing",
+   "title": "Tally expression evaluator with exact error positions",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 63.43,
+   "tokens_in": 1282,
+   "tokens_out": 3271,
+   "cost_usd": 0.035554365,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fence repainting with run-structure reports",
+  "category": "performance",
+  "entry_point": "fence_report",
+  "code": "def fence_report(\n    colors: list[int], operations: list[tuple]\n) -> list[tuple[int, int]]:\n    n = len(colors)\n    if not n or not operations:\n        return []\n\n    size = 1 << (n - 1).bit_length()\n    height = size.bit_length() - 1\n    capacity = 2 * size\n\n    length = [0] * capacity\n    first = [None] * capacity\n    last = [None] * capacity\n    prefix = [0] * capacity\n    suffix = [0] * capacity\n    longest = [0] * capacity\n    runs = [0] * capacity\n\n    # None means no pending repaint. Every actual color is an int.\n    lazy = [None] * capacity\n\n    for i, color in enumerate(colors, size):\n        length[i] = 1\n        first[i] = last[i] = color\n        prefix[i] = suffix[i] = longest[i] = runs[i] = 1\n\n    summary_arrays = (first, last, prefix, suffix, longest, runs)\n\n    def pull(p):\n        \"\"\"Recompute p from its children.\"\"\"\n        a = p << 1\n        b = a | 1\n\n        if length[a] == 0:\n            for field in summary_arrays:\n                field[p] = field[b]\n            return\n        if length[b] == 0:\n            for field in summary_arrays:\n                field[p] = field[a]\n            return\n\n        joins = last[a] == first[b]\n        first[p] = first[a]\n        last[p] = last[b]\n        runs[p] = runs[a] + runs[b] - int(joins)\n\n        prefix[p] = prefix[a]\n        suffix[p] = suffix[b]\n        longest[p] = max(longest[a], longest[b])\n\n        if joins:\n            longest[p] = max(longest[p], suffix[a] + prefix[b])\n            if prefix[a] == length[a]:\n                prefix[p] += prefix[b]\n            if suffix[b] == length[b]:\n                suffix[p] += suffix[a]\n\n    for p in range(size - 1, 0, -1):\n        length[p] = length[p << 1] + length[p << 1 | 1]\n        pull(p)\n\n    def apply(p, color):\n        first[p] = last[p] = color\n        prefix[p] = suffix[p] = longest[p] = length[p]\n        runs[p] = 1\n        lazy[p] = color\n\n    def push(p):\n        color = lazy[p]\n        if color is not None:\n            apply(p << 1, color)\n            apply(p << 1 | 1, color)\n            lazy[p] = None\n\n    def expose_boundaries(l, r):\n        \"\"\"Push pending paints along the boundaries of [l, r).\"\"\"\n        for h in range(height, 0, -1):\n            if ((l >> h) << h) != l:\n                push(l >> h)\n            if ((r >> h) << h) != r:\n                push((r - 1) >> h)\n\n    def snapshot(p):\n        return (\n            length[p], runs[p], longest[p],\n            first[p], last[p], prefix[p], suffix[p],\n        )\n\n    def merge(a, b):\n        \"\"\"Merge summaries in left-to-right order; None is empty.\"\"\"\n        if a is None:\n            return b\n        if b is None:\n            return a\n\n        na, ra, ba, fa, la, pa, sa = a\n        nb, rb, bb, fb, lb, pb, sb = b\n        joins = la == fb\n\n        return (\n            na + nb,\n            ra + rb - int(joins),\n            max(ba, bb, sa + pb) if joins else max(ba, bb),\n            fa,\n            lb,\n            pa + pb if joins and pa == na else pa,\n            sb + sa if joins and sb == nb else sb,\n        )\n\n    answers = []\n\n    for operation in operations:\n        kind, l, r = operation[:3]\n        l += size\n        r += size + 1  # Convert inclusive [l, r] to half-open.\n\n        expose_boundaries(l, r)\n\n        if kind == \"paint\":\n            color = operation[3]\n            l0, r0 = l, r\n\n            while l < r:\n                if l & 1:\n                    apply(l, color)\n                    l += 1\n                if r & 1:\n                    r -= 1\n                    apply(r, color)\n                l >>= 1\n                r >>= 1\n\n            # Rebuild only partially covered ancestors. Fully covered\n            # nodes must retain their freshly applied lazy assignment.\n            for h in range(1, height + 1):\n                if ((l0 >> h) << h) != l0:\n                    pull(l0 >> h)\n                if ((r0 >> h) << h) != r0:\n                    pull((r0 - 1) >> h)\n\n        else:  # \"query\"\n            left_summary = None\n            right_summary = None\n\n            while l < r:\n                if l & 1:\n                    left_summary = merge(left_summary, snapshot(l))\n                    l += 1\n                if r & 1:\n                    r -= 1\n                    right_summary = merge(snapshot(r), right_summary)\n                l >>= 1\n                r >>= 1\n\n            result = merge(left_summary, right_summary)\n            answers.append((result[1], result[2]))\n\n    return answers",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Fence repainting with run-structure reports",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 64.42,
+   "tokens_in": 662,
+   "tokens_out": 2368,
+   "cost_usd": 0.02475396,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Leaderboard rank after every submission",
+  "category": "performance",
+  "entry_point": "leaderboard_ranks",
+  "code": "def leaderboard_ranks(submissions: list[tuple[str, int]]) -> list[int]:\n    n = len(submissions)\n    if n == 0:\n        return []\n\n    # Compress every possible (BEST descending, BEST TIME ascending) key.\n    # Position 1 is the highest-ranked possible key.\n    ordered = sorted(\n        range(n),\n        key=lambda i: (-submissions[i][1], i),\n    )\n    position = [0] * n\n    for pos, i in enumerate(ordered, start=1):\n        position[i] = pos\n    del ordered\n\n    # Fenwick tree: each active player's current key contributes 1.\n    tree = [0] * (n + 1)\n\n    def add(pos: int, delta: int) -> None:\n        while pos <= n:\n            tree[pos] += delta\n            pos += pos & -pos\n\n    def prefix_sum(pos: int) -> int:\n        total = 0\n        while pos > 0:\n            total += tree[pos]\n            pos -= pos & -pos\n        return total\n\n    # player -> (current BEST, compressed position of its BEST TIME)\n    current: dict[str, tuple[int, int]] = {}\n    result: list[int] = []\n\n    for i, (player, score) in enumerate(submissions):\n        previous = current.get(player)\n\n        if previous is None:\n            pos = position[i]\n            current[player] = (score, pos)\n            add(pos, 1)\n        else:\n            best, pos = previous\n            if score > best:\n                add(pos, -1)\n                pos = position[i]\n                current[player] = (score, pos)\n                add(pos, 1)\n            # Equal or lower scores retain both BEST and BEST TIME.\n\n        # Counts everyone ahead of this player, plus the player itself.\n        result.append(prefix_sum(pos))\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Leaderboard rank after every submission",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 27.13,
+   "tokens_in": 572,
+   "tokens_out": 847,
+   "cost_usd": 0.00951786,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Budget shopping sprees over shelf ranges",
+  "category": "performance",
+  "entry_point": "budget_purchases",
+  "code": "from array import array\n\n\ndef budget_purchases(\n    prices: list[int],\n    queries: list[tuple[int, int, int]],\n) -> list[tuple[int, int]]:\n    if not queries:\n        return []\n\n    # Coordinate compression: leaves are distinct prices in ascending order.\n    values = sorted(set(prices))\n    rank_of = {value: i for i, value in enumerate(values)}\n    m = len(values)\n\n    # Persistent segment tree, stored in parallel packed arrays.\n    # Node 0 represents an empty subtree.\n    left = array(\"I\", [0])\n    right = array(\"I\", [0])\n    counts = array(\"I\", [0])\n    sums = array(\"Q\", [0])\n\n    # roots[i] represents the multiset prices[:i].\n    roots = [0]\n\n    # Bind append methods once, since construction creates many nodes.\n    append_left = left.append\n    append_right = right.append\n    append_count = counts.append\n    append_sum = sums.append\n\n    for price in prices:\n        rank = rank_of[price]\n        old = roots[-1]\n        new = len(counts)\n        roots.append(new)\n        lo, hi = 0, m - 1\n\n        # Copy the root-to-leaf path, sharing all other subtrees.\n        while True:\n            append_left(left[old])\n            append_right(right[old])\n            append_count(counts[old] + 1)\n            append_sum(sums[old] + price)\n\n            if lo == hi:\n                break\n\n            mid = (lo + hi) // 2\n            if rank <= mid:\n                left[new] = new + 1\n                old = left[old]\n                hi = mid\n            else:\n                right[new] = new + 1\n                old = right[old]\n                lo = mid + 1\n\n            new += 1\n\n    del rank_of\n\n    answers = []\n    for l, r, budget in queries:\n        # Subtract prefix l from prefix r + 1.\n        a = roots[l]\n        b = roots[r + 1]\n        total = sums[b] - sums[a]\n\n        if total <= budget:\n            answers.append((r - l + 1, total))\n            continue\n        if budget == 0:\n            answers.append((0, 0))\n            continue\n\n        remaining = budget\n        bought = 0\n        lo, hi = 0, m - 1\n\n        while lo < hi and remaining:\n            mid = (lo + hi) // 2\n            al = left[a]\n            bl = left[b]\n            cheaper_cost = sums[bl] - sums[al]\n\n            if cheaper_cost <= remaining:\n                # Buy every item in the cheaper half.\n                bought += counts[bl] - counts[al]\n                remaining -= cheaper_cost\n                a = right[a]\n                b = right[b]\n                lo = mid + 1\n            else:\n                # The budget runs out within the cheaper half.\n                a = al\n                b = bl\n                hi = mid\n\n        if remaining:\n            # At a leaf, all available items have the same price.\n            price = values[lo]\n            take = min(counts[b] - counts[a], remaining // price)\n            bought += take\n            remaining -= take * price\n\n        answers.append((bought, budget - remaining))\n\n    return answers",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Budget shopping sprees over shelf ranges",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 40.74,
+   "tokens_in": 595,
+   "tokens_out": 1920,
+   "cost_usd": 0.0201861,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Tide-gauge records with a minimum margin over many windows",
+  "category": "performance",
+  "entry_point": "count_records",
+  "code": "from array import array\nfrom bisect import bisect_right\n\n\ndef count_records(\n    levels: list[int],\n    margin: int,\n    queries: list[tuple[int, int]],\n) -> list[int]:\n    if not queries:\n        return []\n\n    n = len(levels)\n\n    # nxt[i]: first j > i with levels[j] >= levels[i] + margin.\n    # n is the sentinel meaning \"no such position\".\n    nxt = array(\"I\", [n]) * (n + 1)\n\n    # The retained suffix positions have strictly decreasing readings,\n    # so their negated readings are strictly increasing.\n    neg_values: list[int] = []\n    positions: list[int] = []\n\n    for i in range(n - 1, -1, -1):\n        value = levels[i]\n\n        # The rightmost qualifying retained position is the nearest one.\n        p = bisect_right(neg_values, -(value + margin)) - 1\n        if p >= 0:\n            nxt[i] = positions[p]\n\n        # Position i dominates later positions with readings <= value.\n        # Do this AFTER finding nxt[i], so equal readings count when\n        # margin == 0.\n        neg_value = -value\n        while neg_values and neg_values[-1] >= neg_value:\n            neg_values.pop()\n            positions.pop()\n\n        neg_values.append(neg_value)\n        positions.append(i)\n\n    del neg_values, positions\n\n    # jump[k][i] follows 2**k record-to-record transitions from i.\n    # The sentinel points to itself.\n    jump = [nxt]\n    for _ in range(1, n.bit_length()):\n        previous = jump[-1]\n        jump.append(\n            array(\"I\", (previous[previous[i]] for i in range(n + 1)))\n        )\n\n    lifting = [\n        (jump[k], 1 << k)\n        for k in range(len(jump) - 1, -1, -1)\n    ]\n\n    answers: list[int] = []\n    for l, r in queries:\n        position = l\n        count = 1  # The first reading is always a record.\n\n        for table, step in lifting:\n            destination = table[position]\n            if destination <= r:\n                position = destination\n                count += step\n\n        answers.append(count)\n\n    return answers",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "performance",
+   "title": "Tide-gauge records with a minimum margin over many windows",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 46.38,
+   "tokens_in": 593,
+   "tokens_out": 1955,
+   "cost_usd": 0.02052864,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Exact-cent loan amortization schedule",
+  "category": "numeric",
+  "entry_point": "amortize",
+  "code": "import re\nfrom math import gcd\n\n\n_PRINCIPAL_RE = re.compile(r\"[0-9]+(?:\\.[0-9]{1,2})?\")\n_RATE_RE = re.compile(r\"[0-9]+(?:\\.[0-9]{1,6})?\")\n\n\ndef amortize(\n    principal: str, annual_rate_pct: str, months: int\n) -> list[tuple[str, str, str]]:\n    if not isinstance(principal, str) or not _PRINCIPAL_RE.fullmatch(principal):\n        raise ValueError(\"Invalid principal\")\n    if not isinstance(annual_rate_pct, str) or not _RATE_RE.fullmatch(annual_rate_pct):\n        raise ValueError(\"Invalid annual rate\")\n    if (\n        not isinstance(months, int)\n        or isinstance(months, bool)\n        or not 1 <= months <= 1200\n    ):\n        raise ValueError(\"months must be an integer from 1 through 1200\")\n\n    def decimal_parts(text: str) -> tuple[int, int]:\n        \"\"\"Return the exact numerator and denominator of a decimal string.\"\"\"\n        whole, _, fraction = text.partition(\".\")\n        # Strip leading zeros before int(), including for very long rate strings.\n        numerator = int((whole + fraction).lstrip(\"0\") or \"0\")\n        return numerator, 10 ** len(fraction)\n\n    p_num, p_den = decimal_parts(principal)\n    if p_num == 0:\n        raise ValueError(\"principal must be positive\")\n    balance = p_num * (100 // p_den)  # Integer cents.\n\n    rate_num, rate_den = decimal_parts(annual_rate_pct)\n    if rate_num > 100 * rate_den:\n        raise ValueError(\"annual rate must not exceed 100 percent\")\n\n    # Monthly rate = a / b, reduced to keep the powers small.\n    a = rate_num\n    b = rate_den * 1200\n    common = gcd(a, b)\n    a //= common\n    b //= common\n\n    if a == 0:\n        pay = (balance + months - 1) // months\n    else:\n        growth_power = pow(a + b, months)\n        base_power = pow(b, months)\n\n        # Exact level payment in cents:\n        # balance * a * (a+b)^n / (b * ((a+b)^n - b^n)).\n        numerator = balance * a * growth_power\n        denominator = b * (growth_power - base_power)\n        pay = (numerator + denominator - 1) // denominator\n\n    def money(cents: int) -> str:\n        whole, fraction = divmod(cents, 100)\n        return f\"{whole}.{fraction:02d}\"\n\n    rows: list[tuple[str, str, str]] = []\n\n    for month in range(1, months + 1):\n        interest, remainder = divmod(balance * a, b)\n\n        # Round to nearest cent; an exact tie goes to the even cent.\n        twice_remainder = 2 * remainder\n        if twice_remainder > b or (\n            twice_remainder == b and interest % 2 == 1\n        ):\n            interest += 1\n\n        due = balance + interest\n        if month == months or due <= pay:\n            rows.append((money(due), money(interest), \"0.00\"))\n            break\n\n        balance = due - pay\n        rows.append((money(pay), money(interest), money(balance)))\n\n    return rows",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Exact-cent loan amortization schedule",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 30.91,
+   "tokens_in": 840,
+   "tokens_out": 1445,
+   "cost_usd": 0.0159687,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fraction to base-b string with half-even rounding at k digits",
+  "category": "numeric",
+  "entry_point": "format_base",
+  "code": "def format_base(p: int, q: int, base: int, k: int) -> str:\n    if q == 0:\n        raise ValueError(\"q must be nonzero\")\n    if not 2 <= base <= 36:\n        raise ValueError(\"base must be in 2..36\")\n    if k < 0:\n        raise ValueError(\"k must be nonnegative\")\n\n    digits = \"0123456789abcdefghijklmnopqrstuvwxyz\"\n    negative = (p < 0) != (q < 0)\n    p, q = abs(p), abs(q)\n\n    def encode(n: int) -> str:\n        # Decimal conversions here are always small enough to avoid\n        # Python's default int-to-str digit limit.\n        if base == 10:\n            return str(n)\n        if n == 0:\n            return \"0\"\n        chars = []\n        while n:\n            n, d = divmod(n, base)\n            chars.append(digits[d])\n        return \"\".join(reversed(chars))\n\n    integer, remainder = divmod(p, q)\n\n    # Parity of floor(|x| * base**digits_generated).\n    parity = integer & 1\n    fraction = []\n\n    # Generate small blocks by long division, never constructing base**k\n    # or the potentially enormous scaled integer.\n    block_width = 32\n    block_radix = base ** block_width\n    remaining = k\n\n    while remaining and remainder:\n        width = min(block_width, remaining)\n        radix = block_radix if width == block_width else base ** width\n\n        block, remainder = divmod(remainder * radix, q)\n        fraction.extend(encode(block).zfill(width))\n        parity = (parity * (radix & 1) + block) & 1\n        remaining -= width\n\n    # If generation stopped early, the expansion is exact and the\n    # omitted digits are all zero, so no rounding is needed.\n    twice_remainder = remainder * 2\n    round_up = (\n        twice_remainder > q\n        or (twice_remainder == q and parity == 1)\n    )\n\n    if round_up:\n        # A carried-over suffix becomes zeros, which would be removed\n        # from the output anyway; discard it directly.\n        largest_digit = digits[base - 1]\n        while fraction and fraction[-1] == largest_digit:\n            fraction.pop()\n\n        if fraction:\n            fraction[-1] = digits[digits.index(fraction[-1]) + 1]\n        else:\n            integer += 1\n\n    while fraction and fraction[-1] == \"0\":\n        fraction.pop()\n\n    if integer == 0 and not fraction:\n        return \"0\"\n\n    result = encode(integer)\n    if fraction:\n        result += \".\" + \"\".join(fraction)\n    return \"-\" + result if negative else result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Fraction to base-b string with half-even rounding at k digits",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 61.45,
+   "tokens_in": 749,
+   "tokens_out": 1722,
+   "cost_usd": 0.01853082,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Closest fraction under numerator and denominator bounds",
+  "category": "numeric",
+  "entry_point": "closest_fraction",
+  "code": "import re\nfrom math import gcd\n\n_DECIMAL_LITERAL = re.compile(\n    r\"[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)\"\n    r\"(?:[eE][+-]?[0-9]+)?\"\n)\n\n\ndef closest_fraction(x: str, max_num: int, max_den: int) -> str:\n    if max_num < 0 or max_den < 1:\n        raise ValueError(\"invalid numerator or denominator bound\")\n    if _DECIMAL_LITERAL.fullmatch(x) is None:\n        raise ValueError(\"invalid decimal literal\")\n\n    negative = x.startswith(\"-\")\n    unsigned = x[1:] if x.startswith((\"+\", \"-\")) else x\n\n    parts = re.split(r\"[eE]\", unsigned, maxsplit=1)\n    mantissa = parts[0]\n\n    exponent = 0\n    if len(parts) == 2:\n        exp_text = parts[1]\n        exp_negative = exp_text.startswith(\"-\")\n        # Remove leading zeros before int(), including arbitrarily many\n        # leading zeros in an otherwise small exponent.\n        exp_digits = exp_text.lstrip(\"+-\").lstrip(\"0\")\n        exponent = int(exp_digits or \"0\")\n        if exp_negative:\n            exponent = -exponent\n\n    whole, _, fractional = mantissa.partition(\".\")\n    n = int(whole + fractional)\n\n    if n == 0 or max_num == 0:\n        return \"0/1\"\n\n    # The exact absolute value of x is n/d.\n    scale = len(fractional) - exponent\n    if scale >= 0:\n        d = 10 ** scale\n    else:\n        n *= 10 ** (-scale)\n        d = 1\n\n    common = gcd(n, d)\n    n //= common\n    d //= common\n\n    def render(a: int, b: int) -> str:\n        # All fractions produced by the search are already reduced.\n        if negative and a:\n            a = -a\n        return f\"{a}/{b}\"\n\n    # No feasible positive value exceeds max_num.\n    if n >= max_num * d:\n        return render(max_num, 1)\n\n    # Stern–Brocot neighbors L = la/lb and R = ra/rb.\n    # Initially R = 1/0 represents positive infinity.\n    la, lb = 0, 1\n    ra, rb = 1, 0\n\n    while True:\n        ma, mb = la + ra, lb + rb\n\n        if ma > max_num or mb > max_den:\n            break\n\n        # Positive distances from the target, with denominators omitted:\n        # n/d - L = alpha / (d*lb)\n        # R - n/d = beta / (d*rb), when rb != 0.\n        alpha = n * lb - d * la\n        beta = d * ra - n * rb\n\n        if alpha == beta:\n            # The mediant equals the target exactly.\n            return render(ma, mb)\n\n        if alpha > beta:\n            # Move L to L + k*R, using pair arithmetic.\n            k = alpha // beta\n            k = min(k, (max_num - la) // ra)\n            if rb:\n                k = min(k, (max_den - lb) // rb)\n\n            la += k * ra\n            lb += k * rb\n\n            if n * lb == d * la:\n                return render(la, lb)\n        else:\n            # Move R to R + k*L.\n            k = beta // alpha\n            if la:\n                k = min(k, (max_num - ra) // la)\n            k = min(k, (max_den - rb) // lb)\n\n            ra += k * la\n            rb += k * lb\n\n            if n * rb == d * ra:\n                return render(ra, rb)\n\n    # Only the two bracketing endpoints can be optimal.\n    if rb == 0:\n        return render(la, lb)\n\n    # Compare exact errors by cross multiplication.\n    left_error = (n * lb - d * la) * rb\n    right_error = (d * ra - n * rb) * lb\n\n    if left_error < right_error:\n        return render(la, lb)\n    if right_error < left_error:\n        return render(ra, rb)\n\n    # Equal errors: smaller reduced denominator wins.\n    if lb < rb:\n        return render(la, lb)\n    if rb < lb:\n        return render(ra, rb)\n\n    # Equal denominators too: L has smaller absolute value.\n    return render(la, lb)",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Closest fraction under numerator and denominator bounds",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 47.63,
+   "tokens_in": 689,
+   "tokens_out": 2204,
+   "cost_usd": 0.02318382,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Correctly rounded decimal string to binary16 bits",
+  "category": "numeric",
+  "entry_point": "decimal_to_half_bits",
+  "code": "import re\n\n_HALF_LITERAL = re.compile(\n    r\"([+-]?)([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)\"\n    r\"(?:[eE]([+-]?[0-9]+))?\"\n)\n\n\ndef decimal_to_half_bits(s: str) -> int:\n    if not isinstance(s, str):\n        raise ValueError(\"invalid decimal literal\")\n\n    match = _HALF_LITERAL.fullmatch(s)\n    if match is None:\n        raise ValueError(\"invalid decimal literal\")\n\n    sign_text, mantissa, exponent_text = match.groups()\n    sign_bit = 0x8000 if sign_text == \"-\" else 0\n\n    dot = mantissa.find(\".\")\n    fractional_digits = 0 if dot < 0 else len(mantissa) - dot - 1\n    significant = mantissa.replace(\".\", \"\").lstrip(\"0\")\n\n    if not significant:\n        return sign_bit\n\n    # Parse only a bounded exponent. Beyond this bound its magnitude\n    # dominates every possible decimal-point position in this input.\n    exponent = 0\n    if exponent_text is not None:\n        negative = exponent_text.startswith(\"-\")\n        exponent_digits = exponent_text.lstrip(\"+-\").lstrip(\"0\")\n        cap = len(s) + 100\n\n        if len(exponent_digits) > len(str(cap)):\n            exponent = cap\n        else:\n            exponent = min(int(exponent_digits or \"0\"), cap)\n\n        if negative:\n            exponent = -exponent\n\n    # The exact positive value lies in [10**(order-1), 10**order).\n    order = len(significant) + exponent - fractional_digits\n\n    if order < -7:\n        return sign_bit\n    if order > 5:\n        return sign_bit | 0x7C00\n\n    # All binary16 rounding boundaries have at most 25 fractional\n    # decimal places. In the remaining range, 32 significant digits\n    # therefore suffice, provided we remember whether the tail is nonzero.\n    kept = significant[:32]\n    sticky = bool(significant[32:].strip(\"0\"))\n    coefficient = int(kept)\n    decimal_shift = order - len(kept)\n\n    # The retained prefix, expressed in units of 2**-25, is num / den.\n    num = coefficient << 25\n    if decimal_shift >= 0:\n        num *= 10 ** decimal_shift\n        den = 1\n    else:\n        den = 10 ** (-decimal_shift)\n\n    def units(bits: int) -> int:\n        \"\"\"Candidate value in units of 2**-25.\n\n        0x7C00 is treated as the extended candidate 65536.\n        \"\"\"\n        e = bits >> 10\n        f = bits & 0x3FF\n        if e == 0:\n            return f << 1\n        return (1024 + f) << e\n\n    # Search the ordered candidates, including the extended 65536 candidate.\n    lo, hi = 0, 0x7C00\n    while lo < hi:\n        mid = (lo + hi) // 2\n\n        # Adjacent candidates have an integer midpoint in these units.\n        boundary = (units(mid) + units(mid + 1)) // 2\n        rhs = boundary * den\n\n        if num < rhs:\n            hi = mid\n        elif num > rhs or sticky:\n            lo = mid + 1\n        elif mid & 1:\n            # Exact tie: mid + 1 has the even pattern.\n            lo = mid + 1\n        else:\n            hi = mid\n\n    return sign_bit | lo",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "numeric",
+   "title": "Correctly rounded decimal string to binary16 bits",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 45.42,
+   "tokens_in": 860,
+   "tokens_out": 2278,
+   "cost_usd": 0.024255,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Branching version store with range and rank queries",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from array import array\nfrom bisect import bisect_left, bisect_right\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    # Only keys appearing in \"set\" can ever become present.\n    keys = sorted({op[2] for op in ops if op[0] == \"set\"})\n    positions = {key: i for i, key in enumerate(keys)}\n    n = len(keys)\n\n    # Node 0 represents an empty subtree of any size.\n    # Parallel arrays avoid allocating a Python object for every node.\n    left = array(\"I\", [0])\n    right = array(\"I\", [0])\n    count = array(\"I\", [0])\n    total = array(\"q\", [0])\n\n    append_left = left.append\n    append_right = right.append\n    append_count = count.append\n    append_total = total.append\n\n    # roots[v] is the segment-tree root for version v.\n    roots = [0]\n    answers = []\n\n    def find_leaf(root, pos):\n        lo, hi = 0, n\n        node = root\n\n        while node and hi - lo > 1:\n            mid = (lo + hi) // 2\n            if pos < mid:\n                node = left[node]\n                hi = mid\n            else:\n                node = right[node]\n                lo = mid\n\n        return node\n\n    def change(root, pos, value, deleting=False):\n        \"\"\"Return the new root, or -1 for deletion of an absent key.\"\"\"\n        lo, hi = 0, n\n        node = root\n        path = []\n\n        while hi - lo > 1:\n            mid = (lo + hi) // 2\n            go_right = pos >= mid\n            path.append((node, go_right))\n\n            if go_right:\n                node = right[node]\n                lo = mid\n            else:\n                node = left[node]\n                hi = mid\n\n        if deleting:\n            if node == 0:\n                return -1\n            new_node = 0\n        else:\n            new_node = len(count)\n            append_left(0)\n            append_right(0)\n            append_count(1)\n            append_total(value)\n\n        # Rebuild only the ancestors of the changed leaf.\n        for old_node, went_right in reversed(path):\n            if went_right:\n                a, b = left[old_node], new_node\n            else:\n                a, b = new_node, right[old_node]\n\n            size = count[a] + count[b]\n            if size == 0:\n                new_node = 0\n            else:\n                new_node = len(count)\n                append_left(a)\n                append_right(b)\n                append_count(size)\n                append_total(total[a] + total[b])\n\n        return new_node\n\n    def prefix(root, stop, weights):\n        \"\"\"Aggregate compressed positions in [0, stop).\"\"\"\n        if root == 0 or stop <= 0:\n            return 0\n        if stop >= n:\n            return weights[root]\n\n        result = 0\n        lo, hi = 0, n\n        node = root\n\n        while node and hi - lo > 1:\n            mid = (lo + hi) // 2\n            if stop <= mid:\n                node = left[node]\n                hi = mid\n            else:\n                result += weights[left[node]]\n                node = right[node]\n                lo = mid\n\n        if node and lo < stop:\n            result += weights[node]\n\n        return result\n\n    for op in ops:\n        name, v = op[0], op[1]\n\n        # Check this before interpreting any operation-specific arguments.\n        if v < 0 or v >= len(roots):\n            answers.append(\"BADVER\")\n            continue\n\n        root = roots[v]\n\n        if name == \"set\":\n            pos = positions[op[2]]\n            new_root = change(root, pos, op[3])\n            roots.append(new_root)\n            answers.append(len(roots) - 1)\n\n        elif name == \"del\":\n            pos = positions.get(op[2])\n            if pos is None:\n                answers.append(\"NOKEY\")\n                continue\n\n            new_root = change(root, pos, 0, deleting=True)\n            if new_root == -1:\n                answers.append(\"NOKEY\")\n            else:\n                roots.append(new_root)\n                answers.append(len(roots) - 1)\n\n        elif name == \"get\":\n            pos = positions.get(op[2])\n            leaf = 0 if pos is None else find_leaf(root, pos)\n            answers.append(total[leaf] if leaf else None)\n\n        elif name == \"count\" or name == \"sum\":\n            lo, hi = op[2], op[3]\n\n            if lo > hi or root == 0:\n                answers.append(0)\n                continue\n\n            start = bisect_left(keys, lo)\n            stop = bisect_right(keys, hi)\n\n            if start >= stop:\n                answers.append(0)\n            else:\n                weights = count if name == \"count\" else total\n                answers.append(\n                    prefix(root, stop, weights)\n                    - prefix(root, start, weights)\n                )\n\n        else:  # \"kth\"\n            k = op[2]\n            if k < 1 or k > count[root]:\n                answers.append(None)\n                continue\n\n            node = root\n            lo, hi = 0, n\n\n            while hi - lo > 1:\n                mid = (lo + hi) // 2\n                left_node = left[node]\n                left_size = count[left_node]\n\n                if k <= left_size:\n                    node = left_node\n                    hi = mid\n                else:\n                    k -= left_size\n                    node = right[node]\n                    lo = mid\n\n            answers.append(keys[lo])\n\n    return answers",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Branching version store with range and rank queries",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 49.12,
+   "tokens_in": 865,
+   "tokens_out": 2343,
+   "cost_usd": 0.0249084,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Checkpoint and rollback multiset with order statistics",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "def run_ops(ops: list[tuple]) -> list:\n    # Coordinate compression includes all values used by value-based operations.\n    values = sorted({\n        op[1]\n        for op in ops\n        if op[0] in (\"add\", \"remove\", \"count_less\")\n    })\n    m = len(values)\n    rank = {x: i + 1 for i, x in enumerate(values)}\n\n    # Both arrays use 1-based indexing.\n    counts = [0] * (m + 1)\n    tree = [0] * (m + 1)\n\n    size = 0\n    distinct = 0\n\n    # A positive index records an add; a negative index records a remove.\n    history = []\n\n    # marks[c] is checkpoint c's history length, or -1 if invalid.\n    # Entries are never deleted, so checkpoint IDs are never reused.\n    marks = [-1]\n    active = []\n\n    result = []\n    top_bit = 1 << (m.bit_length() - 1) if m else 0\n\n    def change(i, delta):\n        nonlocal size, distinct\n\n        old = counts[i]\n        new = old + delta\n        counts[i] = new\n\n        if old == 0:\n            distinct += 1\n        elif new == 0:\n            distinct -= 1\n\n        size += delta\n\n        while i <= m:\n            tree[i] += delta\n            i += i & -i\n\n    for op in ops:\n        name = op[0]\n\n        if name == \"add\":\n            i = rank[op[1]]\n            change(i, 1)\n            history.append(i)\n            result.append(size)\n\n        elif name == \"remove\":\n            i = rank[op[1]]\n            if counts[i] == 0:\n                result.append(False)\n            else:\n                change(i, -1)\n                history.append(-i)\n                result.append(True)\n\n        elif name == \"checkpoint\":\n            c = len(marks)\n            marks.append(len(history))\n            active.append(c)\n            result.append(c)\n\n        elif name == \"rollback\":\n            c = op[1]\n            if c <= 0 or c >= len(marks) or marks[c] == -1:\n                result.append(\"BADCP\")\n                continue\n\n            target = marks[c]\n\n            # Undo modifications in reverse order.\n            while len(history) > target:\n                entry = history.pop()\n                if entry > 0:\n                    change(entry, -1)\n                else:\n                    change(-entry, 1)\n\n            # Checkpoint c stays valid; every later active checkpoint does not.\n            while active[-1] > c:\n                marks[active.pop()] = -1\n\n            result.append(size)\n\n        elif name == \"median\":\n            if size == 0:\n                result.append(None)\n                continue\n\n            k = (size + 1) // 2\n\n            # Fenwick binary lifting: find the largest prefix with count < k.\n            i = 0\n            step = top_bit\n            while step:\n                j = i + step\n                if j <= m and tree[j] < k:\n                    k -= tree[j]\n                    i = j\n                step >>= 1\n\n            # The selected compressed index is i + 1.\n            result.append(values[i])\n\n        elif name == \"count_less\":\n            i = rank[op[1]] - 1\n            total = 0\n            while i:\n                total += tree[i]\n                i -= i & -i\n            result.append(total)\n\n        elif name == \"distinct\":\n            result.append(distinct)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Checkpoint and rollback multiset with order statistics",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 57.45,
+   "tokens_in": 766,
+   "tokens_out": 1810,
+   "cost_usd": 0.01943568,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Room booking calendar with first-fit gap search",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "from array import array\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    if not ops:\n        return []\n\n    # Include every time used as a boundary, but not first_fit's duration.\n    points = {0}\n    max_duration = 1\n\n    for op in ops:\n        kind = op[0]\n        if kind == \"cancel\":\n            points.add(op[1])\n        elif kind == \"first_fit\":\n            points.add(op[1])\n            max_duration = max(max_duration, op[2])\n        else:  # book or free_between\n            points.add(op[1])\n            points.add(op[2])\n\n    # No booking extends beyond the largest input boundary. This extra\n    # interval is long enough to answer every first_fit query.\n    right = max(points) + max_duration\n    points.add(right)\n\n    xs = sorted(points)\n    index = {x: i for i, x in enumerate(xs)}\n    n = len(xs) - 1  # Leaves represent [xs[i], xs[i + 1]).\n\n    size = 4 * n + 8\n    occupied = array(\"q\", [0]) * size\n    prefix = array(\"q\", [0]) * size\n    suffix = array(\"q\", [0]) * size\n    longest = array(\"q\", [0]) * size\n\n    # Tags: 0 = mixed, 1 = entirely occupied, 2 = entirely free.\n    tag = bytearray(size)\n\n    def paint(v, lo, hi, busy):\n        length = xs[hi] - xs[lo]\n        if busy:\n            occupied[v] = length\n            prefix[v] = suffix[v] = longest[v] = 0\n            tag[v] = 1\n        else:\n            occupied[v] = 0\n            prefix[v] = suffix[v] = longest[v] = length\n            tag[v] = 2\n\n    def push(v, lo, mid, hi):\n        state = tag[v]\n        if state:\n            busy = state == 1\n            paint(v * 2, lo, mid, busy)\n            paint(v * 2 + 1, mid, hi, busy)\n            tag[v] = 0\n\n    def pull(v, lo, mid, hi):\n        left = v * 2\n        right_child = left + 1\n        left_length = xs[mid] - xs[lo]\n        right_length = xs[hi] - xs[mid]\n\n        occupied[v] = occupied[left] + occupied[right_child]\n\n        p = prefix[left]\n        if p == left_length:\n            p += prefix[right_child]\n        prefix[v] = p\n\n        s = suffix[right_child]\n        if s == right_length:\n            s += suffix[left]\n        suffix[v] = s\n\n        longest[v] = max(\n            longest[left],\n            longest[right_child],\n            suffix[left] + prefix[right_child],\n        )\n\n    def assign(v, lo, hi, qlo, qhi, busy):\n        if qlo <= lo and hi <= qhi:\n            paint(v, lo, hi, busy)\n            return\n\n        mid = (lo + hi) // 2\n        push(v, lo, mid, hi)\n\n        if qlo < mid:\n            assign(v * 2, lo, mid, qlo, qhi, busy)\n        if qhi > mid:\n            assign(v * 2 + 1, mid, hi, qlo, qhi, busy)\n\n        pull(v, lo, mid, hi)\n\n    def occupied_between(v, lo, hi, qlo, qhi):\n        # All calls have a nonempty intersection with the query.\n        state = tag[v]\n        if state == 2:\n            return 0\n        if state == 1:\n            return xs[min(hi, qhi)] - xs[max(lo, qlo)]\n\n        if qlo <= lo and hi <= qhi:\n            return occupied[v]\n\n        mid = (lo + hi) // 2\n        total = 0\n        if qlo < mid:\n            total += occupied_between(v * 2, lo, mid, qlo, qhi)\n        if qhi > mid:\n            total += occupied_between(v * 2 + 1, mid, hi, qlo, qhi)\n        return total\n\n    def first_fit(qlo, duration):\n        # Free suffix length of the portion already examined.\n        carry = 0\n\n        def search(v, lo, hi):\n            nonlocal carry\n\n            if hi <= qlo:\n                return -1\n\n            if qlo <= lo:\n                # The earliest fit might cross into this node.\n                if carry + prefix[v] >= duration:\n                    return xs[lo] - carry\n\n                # No fit inside this node: skip it in constant time.\n                if longest[v] < duration:\n                    length = xs[hi] - xs[lo]\n                    if suffix[v] == length:\n                        carry += length\n                    else:\n                        carry = suffix[v]\n                    return -1\n\n            # Either the query starts inside this node, or a fit exists\n            # somewhere inside it. Search left before right.\n            mid = (lo + hi) // 2\n            push(v, lo, mid, hi)\n\n            answer = search(v * 2, lo, mid)\n            if answer != -1:\n                return answer\n            return search(v * 2 + 1, mid, hi)\n\n        return search(1, 0, n)\n\n    # Initialize lazily: descendants are initialized only when needed.\n    paint(1, 0, n, False)\n\n    bookings = {}  # start -> end\n    result = []\n\n    for op in ops:\n        kind = op[0]\n\n        if kind == \"book\":\n            _, start, end = op\n            if start >= end:\n                result.append(\"INVALID\")\n                continue\n\n            lo, hi = index[start], index[end]\n            if occupied_between(1, 0, n, lo, hi):\n                result.append(\"CONFLICT\")\n            else:\n                assign(1, 0, n, lo, hi, True)\n                bookings[start] = end\n                result.append(True)\n\n        elif kind == \"cancel\":\n            start = op[1]\n            end = bookings.pop(start, None)\n            if end is None:\n                result.append(0)\n            else:\n                assign(1, 0, n, index[start], index[end], False)\n                result.append(end - start)\n\n        elif kind == \"first_fit\":\n            _, time, duration = op\n            result.append(first_fit(index[time], duration))\n\n        else:  # free_between\n            _, start, end = op\n            if start >= end:\n                result.append(0)\n            else:\n                busy = occupied_between(\n                    1, 0, n, index[start], index[end]\n                )\n                result.append(end - start - busy)\n\n    return result",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Room booking calendar with first-fit gap search",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 89.06,
+   "tokens_in": 703,
+   "tokens_out": 3152,
+   "cost_usd": 0.03259674,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Segment painter with run merging and change counts",
+  "category": "data_structures",
+  "entry_point": "run_ops",
+  "code": "def run_ops(ops: list[tuple]) -> list:\n    from random import Random\n\n    randbits = Random().getrandbits\n\n    class Node:\n        __slots__ = (\"lo\", \"hi\", \"label\", \"priority\", \"left\", \"right\")\n\n        def __init__(self, lo, hi, label):\n            self.lo = lo\n            self.hi = hi\n            self.label = label\n            self.priority = randbits(64)\n            self.left = None\n            self.right = None\n\n    # All keys in a must precede all keys in b.\n    def merge(a, b):\n        if a is None:\n            return b\n        if b is None:\n            return a\n        if a.priority >= b.priority:\n            a.right = merge(a.right, b)\n            return a\n        b.left = merge(a, b.left)\n        return b\n\n    # Split by run start: keys < x versus keys >= x.\n    def split(t, x):\n        if t is None:\n            return None, None\n        if t.lo < x:\n            a, b = split(t.right, x)\n            t.right = a\n            return t, b\n        a, b = split(t.left, x)\n        t.left = b\n        return a, t\n\n    def first(t):\n        while t.left is not None:\n            t = t.left\n        return t\n\n    def last(t):\n        while t.right is not None:\n            t = t.right\n        return t\n\n    def pop_first(t):\n        if t.left is None:\n            return t.right\n        t.left = pop_first(t.left)\n        return t\n\n    def pop_last(t):\n        if t.right is None:\n            return t.left\n        t.right = pop_last(t.right)\n        return t\n\n    root = None\n    run_count = 0\n    totals = {}\n    answer = []\n\n    # Unlike split(), this also cuts a run that straddles x.\n    # It does not change any painted positions or label totals.\n    def cut(t, x):\n        nonlocal run_count\n\n        a, b = split(t, x)\n        if a is not None:\n            tail = last(a)\n            if tail.hi > x:\n                fragment = Node(x, tail.hi, tail.label)\n                tail.hi = x\n                b = merge(fragment, b)\n                run_count += 1\n        return a, b\n\n    for op in ops:\n        kind = op[0]\n\n        if kind == \"runs\":\n            answer.append(run_count)\n            continue\n\n        if kind == \"total\":\n            answer.append(totals.get(op[1], 0))\n            continue\n\n        if kind == \"at\" or kind == \"next_change\":\n            p = op[1]\n            t = root\n            predecessor = None\n            successor = None\n\n            while t is not None:\n                if p < t.lo:\n                    successor = t\n                    t = t.left\n                else:\n                    predecessor = t\n                    t = t.right\n\n            if predecessor is not None and p < predecessor.hi:\n                if kind == \"at\":\n                    answer.append(predecessor.label)\n                else:\n                    answer.append(predecessor.hi)\n            elif kind == \"at\":\n                answer.append(None)\n            else:\n                answer.append(\n                    successor.lo if successor is not None else None\n                )\n            continue\n\n        # The remaining operations are paint and erase.\n        l, r = op[1], op[2]\n        if l >= r:\n            answer.append(0)\n            continue\n\n        painting = kind == \"paint\"\n        label = op[3] if painting else None\n\n        left, rest = cut(root, l)\n        middle, right = cut(rest, r)\n\n        # Remove all covered runs and update their label totals.\n        # A paint changes every covered position except those already\n        # carrying its label. An erase changes only painted positions.\n        changed = r - l if painting else 0\n        stack = [middle] if middle is not None else []\n\n        while stack:\n            node = stack.pop()\n            length = node.hi - node.lo\n\n            totals[node.label] -= length\n            run_count -= 1\n\n            if painting:\n                if node.label == label:\n                    changed -= length\n            else:\n                changed += length\n\n            if node.left is not None:\n                stack.append(node.left)\n            if node.right is not None:\n                stack.append(node.right)\n\n        if painting:\n            totals[label] = totals.get(label, 0) + (r - l)\n            lo, hi = l, r\n\n            # Coalesce with matching adjacent runs.\n            if left is not None:\n                neighbor = last(left)\n                if neighbor.hi == l and neighbor.label == label:\n                    lo = neighbor.lo\n                    left = pop_last(left)\n                    run_count -= 1\n\n            if right is not None:\n                neighbor = first(right)\n                if neighbor.lo == r and neighbor.label == label:\n                    hi = neighbor.hi\n                    right = pop_first(right)\n                    run_count -= 1\n\n            replacement = Node(lo, hi, label)\n            root = merge(merge(left, replacement), right)\n            run_count += 1\n        else:\n            root = merge(left, right)\n\n        answer.append(changed)\n\n    return answer",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "data_structures",
+   "title": "Segment painter with run merging and change counts",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 59.0,
+   "tokens_in": 817,
+   "tokens_out": 2707,
+   "cost_usd": 0.02841696,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the LRU cache with per-entry TTL replay",
+  "category": "bug_fixing",
+  "entry_point": "run_cache",
+  "code": "from collections import OrderedDict\nfrom heapq import heapify, heappop, heappush\n\n\ndef run_cache(capacity, ops):\n    if not isinstance(capacity, int) or capacity < 1:\n        raise ValueError(\"capacity must be a positive int\")\n\n    # Oldest use first; key -> (value, expires_at, version).\n    store = OrderedDict()\n\n    # (expires_at, unique_version, key).\n    # Unique versions ensure heap comparisons never compare keys.\n    expiry_heap = []\n\n    out = []\n    last_t = None\n\n    for version, op in enumerate(ops):\n        kind, t = op[0], op[1]\n\n        if not isinstance(t, int):\n            raise ValueError(\"timestamp must be an int\")\n        if last_t is not None and t < last_t:\n            raise ValueError(\n                \"operations must have non-decreasing timestamps\"\n            )\n        last_t = t\n\n        # Expired entries must not exist for any operation, including size.\n        while expiry_heap and expiry_heap[0][0] <= t:\n            _, expired_version, key = heappop(expiry_heap)\n            entry = store.get(key)\n            if entry is not None and entry[2] == expired_version:\n                del store[key]\n\n        if kind == \"put\":\n            _, _, key, value, ttl = op\n            if ttl is not None and (\n                not isinstance(ttl, int) or ttl < 1\n            ):\n                raise ValueError(\"ttl must be None or a positive int\")\n\n            expires_at = None if ttl is None else t + ttl\n\n            if key not in store and len(store) >= capacity:\n                store.popitem(last=False)\n\n            store[key] = (value, expires_at, version)\n            store.move_to_end(key)  # Every put is a use, including updates.\n\n            if expires_at is not None:\n                heappush(expiry_heap, (expires_at, version, key))\n\n        elif kind == \"get\":\n            key = op[2]\n            entry = store.get(key)\n            if entry is None:\n                out.append(None)\n            else:\n                store.move_to_end(key)\n                out.append(entry[0])\n\n        elif kind == \"size\":\n            out.append(len(store))\n\n        else:\n            raise ValueError(\"unknown operation %r\" % (kind,))\n\n        # Rewrites and evictions leave stale heap records. Rebuild only\n        # when enough have accumulated to amortize the rebuilding cost.\n        if len(expiry_heap) > 2 * len(store) + 1024:\n            expiry_heap = [\n                (entry[1], entry[2], key)\n                for key, entry in store.items()\n                if entry[1] is not None\n            ]\n            heapify(expiry_heap)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the LRU cache with per-entry TTL replay",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 30.57,
+   "tokens_in": 1264,
+   "tokens_out": 1061,
+   "cost_usd": 0.013630815,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the priority job scheduler with release times and deadlines",
+  "category": "bug_fixing",
+  "entry_point": "schedule",
+  "code": "def schedule(jobs):\n    \"\"\"Single-machine, non-preemptive priority scheduler with optional deadlines.\"\"\"\n    import heapq\n\n    # Validate every job in input order before sorting or scheduling.\n    seen = set()\n    for job in jobs:\n        if not isinstance(job, tuple) or len(job) != 5:\n            raise ValueError(\"each job must be a 5-tuple\")\n        job_id, release, duration, priority, deadline = job\n        if job_id in seen:\n            raise ValueError(\"duplicate job id %r\" % (job_id,))\n        seen.add(job_id)\n        if release < 0:\n            raise ValueError(\"job %r has a negative release time\" % (job_id,))\n        if duration < 1:\n            raise ValueError(\"job %r has a non-positive duration\" % (job_id,))\n\n    # Sort a copy, leaving the caller's list unchanged.\n    pending = sorted(jobs, key=lambda job: job[1])\n\n    runs = []\n    dropped = []\n    ready = []\n    clock = 0\n    nxt = 0\n    count = len(pending)\n\n    while nxt < count or ready:\n        if not ready:\n            # The loop condition guarantees a pending job exists here.\n            clock = max(clock, pending[nxt][1])\n\n        # Admit ALL jobs eligible at this time, including exact-time releases.\n        while nxt < count and pending[nxt][1] <= clock:\n            job_id, release, duration, priority, deadline = pending[nxt]\n            heapq.heappush(\n                ready,\n                (-priority, release, job_id, duration, deadline),\n            )\n            nxt += 1\n\n        # Unique job IDs ensure heap comparisons never reach duration/deadline.\n        _, _, job_id, duration, deadline = heapq.heappop(ready)\n        end = clock + duration\n\n        if deadline is not None and end > deadline:\n            dropped.append(job_id)\n            # Dropping consumes no machine time.\n            continue\n\n        runs.append((job_id, clock, end))\n        clock = end\n\n    return runs, dropped",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the priority job scheduler with release times and deadlines",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 10.69,
+   "tokens_in": 1264,
+   "tokens_out": 604,
+   "cost_usd": 0.009106515,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the sliding-window median with missing readings",
+  "category": "bug_fixing",
+  "entry_point": "window_medians",
+  "code": "import heapq\n\n\ndef window_medians(readings, k):\n    if not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive int\")\n\n    low = []     # Max-heap via negation\n    high = []    # Min-heap\n    delayed = {} # Value -> pending deletion count\n    sizes = {\"low\": 0, \"high\": 0}\n    out = []\n\n    def prune(heap, sign):\n        while heap:\n            value = sign * heap[0]\n            count = delayed.get(value, 0)\n            if not count:\n                break\n\n            heapq.heappop(heap)\n            if count == 1:\n                del delayed[value]\n            else:\n                delayed[value] = count - 1\n\n    def rebalance():\n        # Never move a logically deleted heap top.\n        prune(low, -1)\n        prune(high, 1)\n\n        # low contains the extra element when the live count is odd.\n        while sizes[\"low\"] > sizes[\"high\"] + 1:\n            heapq.heappush(high, -heapq.heappop(low))\n            sizes[\"low\"] -= 1\n            sizes[\"high\"] += 1\n            prune(low, -1)\n\n        while sizes[\"low\"] < sizes[\"high\"]:\n            heapq.heappush(low, -heapq.heappop(high))\n            sizes[\"high\"] -= 1\n            sizes[\"low\"] += 1\n            prune(high, 1)\n\n    def add(x):\n        if not low or x <= -low[0]:\n            heapq.heappush(low, -x)\n            sizes[\"low\"] += 1\n        else:\n            heapq.heappush(high, x)\n            sizes[\"high\"] += 1\n        rebalance()\n\n    def remove(x):\n        # Both heap tops are clean here. Equal-valued copies are\n        # interchangeable, so charge boundary values to low.\n        from_low = x <= -low[0]\n        delayed[x] = delayed.get(x, 0) + 1\n\n        if from_low:\n            sizes[\"low\"] -= 1\n        else:\n            sizes[\"high\"] -= 1\n\n        rebalance()\n\n    for i, x in enumerate(readings):\n        # Expire the old tick even if this tick contains None.\n        if i >= k:\n            old = readings[i - k]\n            if old is not None:\n                remove(old)\n\n        if x is not None:\n            add(x)\n\n        # Bound physical heap storage, including buried tombstones.\n        # Each rebuild requires at least k subsequent insertions before\n        # another rebuild can be needed, amortizing its sorting cost.\n        if len(low) + len(high) > 2 * k:\n            start = max(0, i - k + 1)\n            values = sorted(\n                value\n                for value in readings[start:i + 1]\n                if value is not None\n            )\n            split = (len(values) + 1) // 2\n\n            low = [-value for value in values[:split]]\n            high = values[split:]\n            heapq.heapify(low)\n            heapq.heapify(high)\n\n            sizes[\"low\"] = split\n            sizes[\"high\"] = len(values) - split\n            delayed.clear()\n\n        out.append(-low[0] if sizes[\"low\"] else None)\n\n    return out",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the sliding-window median with missing readings",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 36.37,
+   "tokens_in": 1005,
+   "tokens_out": 1444,
+   "cost_usd": 0.0162855,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ },
+ {
+  "title": "Fix the expression tokenizer with positions, escapes and exponents",
+  "category": "bug_fixing",
+  "entry_point": "tokenize",
+  "code": "TWO_CHAR_OPS = (\"==\", \"!=\", \"<=\", \">=\", \"->\")\nONE_CHAR_OPS = \"<>=+-*/(),\"\nESCAPES = {'\"': '\"', \"\\\\\": \"\\\\\", \"n\": \"\\n\", \"t\": \"\\t\"}\n\n\ndef _is_digit(ch):\n    return \"0\" <= ch <= \"9\"\n\n\ndef _is_ident_start(ch):\n    return ch == \"_\" or \"a\" <= ch <= \"z\" or \"A\" <= ch <= \"Z\"\n\n\ndef _is_ident_char(ch):\n    return _is_ident_start(ch) or _is_digit(ch)\n\n\ndef tokenize(src):\n    tokens = []\n    n = len(src)\n    i, line, col = 0, 1, 1\n\n    def fail(at_line, at_col, message):\n        raise ValueError(\"line %d col %d: %s\" % (at_line, at_col, message))\n\n    while i < n:\n        ch = src[i]\n\n        if ch == \"\\n\":\n            i += 1\n            line += 1\n            col = 1\n            continue\n\n        if ch == \" \" or ch == \"\\t\":\n            i += 1\n            col += 1\n            continue\n\n        if ch == \"#\":\n            end = src.find(\"\\n\", i)\n            if end == -1:\n                end = n\n            # Leave the newline for the normal newline-handling branch.\n            col += end - i\n            i = end\n            continue\n\n        if _is_digit(ch):\n            j = i\n            while j < n and _is_digit(src[j]):\n                j += 1\n\n            is_float = False\n\n            # Consume a fraction only if it contains at least one digit.\n            if j + 1 < n and src[j] == \".\" and _is_digit(src[j + 1]):\n                j += 2\n                while j < n and _is_digit(src[j]):\n                    j += 1\n                is_float = True\n\n            # Probe the exponent without committing until its shape is valid.\n            if j < n and src[j] in \"eE\":\n                k = j + 1\n                if k < n and src[k] in \"+-\":\n                    k += 1\n                if k < n and _is_digit(src[k]):\n                    k += 1\n                    while k < n and _is_digit(src[k]):\n                        k += 1\n                    j = k\n                    is_float = True\n\n            text = src[i:j]\n            value = float(text) if is_float else int(text)\n            tokens.append((\"NUMBER\", value, line, col))\n            col += j - i\n            i = j\n            continue\n\n        if _is_ident_start(ch):\n            j = i + 1\n            while j < n and _is_ident_char(src[j]):\n                j += 1\n            tokens.append((\"IDENT\", src[i:j], line, col))\n            col += j - i\n            i = j\n            continue\n\n        if ch == '\"':\n            j = i + 1\n            chars = []\n            while True:\n                if j >= n or src[j] == \"\\n\":\n                    fail(line, col, \"unterminated string\")\n\n                c = src[j]\n                if c == '\"':\n                    j += 1\n                    break\n\n                if c == \"\\\\\":\n                    if j + 1 >= n or src[j + 1] == \"\\n\":\n                        fail(line, col, \"unterminated string\")\n                    if src[j + 1] not in ESCAPES:\n                        fail(line, col + (j - i), \"bad escape\")\n                    chars.append(ESCAPES[src[j + 1]])\n                    j += 2\n                    continue\n\n                chars.append(c)\n                j += 1\n\n            tokens.append((\"STRING\", \"\".join(chars), line, col))\n            col += j - i\n            i = j\n            continue\n\n        if src[i:i + 2] in TWO_CHAR_OPS:\n            tokens.append((\"OP\", src[i:i + 2], line, col))\n            i += 2\n            col += 2\n            continue\n\n        if ch in ONE_CHAR_OPS:\n            tokens.append((\"OP\", ch, line, col))\n            i += 1\n            col += 1\n            continue\n\n        fail(line, col, \"unexpected character %r\" % ch)\n\n    return tokens",
+  "scores": {
+   "checker": 1,
+   "tests_ratio": 1.0,
+   "pass": 1
+  },
+  "metadata": {
+   "category": "bug_fixing",
+   "title": "Fix the expression tokenizer with positions, escapes and exponents",
+   "model": "openai/gpt-6.1-sol",
+   "provider": "openrouter",
+   "latency_s": 13.25,
+   "tokens_in": 1917,
+   "tokens_out": 936,
+   "cost_usd": 0.01400949,
+   "stop_reason": "stop",
+   "refused": false,
+   "empty_output": false,
+   "error": null,
+   "truncated": false
+  },
+  "detail": []
+ }
+]

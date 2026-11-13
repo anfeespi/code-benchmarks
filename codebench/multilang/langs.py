@@ -211,10 +211,12 @@ FENCES = {"java": ("java",), "go": ("go", "golang"), "cpp": ("cpp", "c++", "cc",
 
 
 def extract_code(lang, text):
+    """The longest block fenced in the language, as the Python harness does: an answer
+    to a bug-fixing problem may quote short snippets before the full solution."""
     blocks = re.findall(r"```([A-Za-z+]*)[ \t]*\n(.*?)```", text or "", re.S)
-    for tag, body in blocks:
-        if tag.lower() in FENCES[lang]:
-            return body
+    mine = [body for tag, body in blocks if tag.lower() in FENCES[lang]]
+    if mine:
+        return max(mine, key=len)
     return blocks[0][1] if blocks else (text or "")
 
 

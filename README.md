@@ -99,8 +99,17 @@ computed from list prices in `GOOGLE_PRICES`), all with `--key-file`, and `bedro
 (`--aws-profile`, `--region`, model given as an inference profile id such as
 `global.anthropic.claude-sonnet-5-5`).
 
-Optional last steps: `codebench.publish` uploads a scored run to the Braintrust project
-`code-benchmarks`, and `codebench.report reports/code-bench-v4.html` renders the v4 readout.
+Optional last steps: `codebench.report reports/code-bench-v4.html` renders the v4 readout, and
+`codebench.publish` puts the benchmark in the Braintrust project `code-benchmarks`:
+
+```bash
+$RUN codebench.publish dataset --suite v4        # dataset code-bench-v4: prompt, reference, tests and strict tests
+$RUN codebench.publish dataset --suite hard-v1   # dataset code-bench-hard-v1
+$RUN codebench.publish run data/outputs/code-bench-hard-v1__gemini-4-argon.json   # experiment linked to its dataset
+```
+
+Dataset rows are keyed by problem slug, so a re-upload updates them in place. An experiment name
+already taken is refused (pass `--name`). The agentic suite is a Go service, not rows, and stays here.
 `reports/` is local output and is not tracked.
 
 ### Per-language grading

@@ -22,9 +22,11 @@ counts as a failure. `v4 strict` is the same 48 problems under a larger test set
 | Claude Fable 5.2 | 48/48 | 48/48 | 32/32 | 18/18 |
 | Claude Sonnet 5.5 | 48/48 | 48/48 | 32/32 | 18/18 |
 | Gemini 4 Carbon | 48/48 | 48/48 | 31/32 | 18/18 |
+| Gemini 4 Hydrogen (Google API) | 48/48 | 48/48 | 30/32 | not run |
 | Grok 4.5 | 48/48 | 48/48 | 25/32 | 18/18 |
 | Gemini 3.8 Flash | 48/48 | 48/48 | 14/32 | 17/18 |
 | GPT 6.1 Sol | 47/48 | 46/48 | 32/32 | 18/18 |
+| Gemini 4 Hydrogen (OpenRouter) | 47/48 | 47/48 | 32/32 | 18/18 |
 | Claude Opus 5.5 | 46/48 | 46/48 | 31/32 | 18/18 |
 | Gemini 4 Argon | 46/48 | 46/48 | 27/32 | 18/18 |
 | Claude Fable 5.1 | 40/48 | 39/48 | 31/32 | 18/18 |
@@ -39,6 +41,11 @@ Reading notes:
 - Gemini 4 Carbon's only miss on `hard-v1` is a provider error (503 after about eight minutes) on
   `lock-manager-deadlock-victims`, not a refusal or a wrong answer; repeated, the calls that complete
   pass. It is slow: a median of 224 s per hard problem.
+- Gemini 4 Hydrogen was run twice, through OpenRouter and on the Gemini API directly (`--provider google`),
+  with the same prompts and output limits. The scores differ by a problem or two each way (79/80 and
+  78/80 on `v4` plus `hard-v1`), which reads as run-to-run variance. The Gemini API was faster
+  (median 16 s against 26 s per `v4` problem, 62 s against 86 s on `hard-v1`) and nothing was cut off;
+  through OpenRouter one `v4` answer hit the 16,384-token limit.
 - Kimi K3 and GLM 5.2 lose problems to empty or truncated answers at the provider's output limit.
   The same happens to Gemini 3.8 Flash on `hard-v1` (16 truncated).
 - Claude Fable 5.1 ran `v4` on the Anthropic API and the other two suites on Bedrock.
@@ -52,7 +59,9 @@ The same hard problems solved in five languages. Problems passed out of 17.
 | Model | Python | Go | Java | C++ | TypeScript | Total |
 |---|---|---|---|---|---|---|
 | Claude Sonnet 5.5 | 17 | 17 | 17 | 17 | 16 | 84/85 |
+| Gemini 4 Hydrogen (OpenRouter) | 17 | 17 | 17 | 15 | 16 | 82/85 |
 | Gemini 4 Carbon | 16 | 17 | 17 | 16 | 16 | 82/85 |
+| Gemini 4 Hydrogen (Google API) | 17 | 17 | 16 | 15 | 14 | 79/85 |
 | Gemini 4 Argon | 15 | 15 | 17 | 14 | 15 | 76/85 |
 
 ## Run a model
@@ -85,7 +94,8 @@ $RUN codebench.agentic run --provider openrouter --model google/gemini-4-argon \
     --tag gemini-4-argon --key-file /tmp/openrouter-key.txt
 ```
 
-Providers: `openrouter`, `anthropic` (both with `--key-file`) and `bedrock`
+Providers: `openrouter`, `anthropic`, `google` (the Gemini API with a Google AI Studio key; cost is
+computed from list prices in `GOOGLE_PRICES`), all with `--key-file`, and `bedrock`
 (`--aws-profile`, `--region`, model given as an inference profile id such as
 `global.anthropic.claude-sonnet-5-5`).
 
@@ -158,7 +168,7 @@ Needs Go, a JDK (`brew install openjdk`), clang++ and Node.js 23.6+ (runs TypeSc
 - A task passes when `go test -race -count=1 ./...` passes with the hidden tests, no visible
   test was broken, and `go vet` and `gofmt` are clean.
 - Outputs: `data/agentic/outputs/agentic-go-v1__<tag>.json` (per-task result, tokens, cost, time)
-  and `data/agentic/runs/<tag>/<task>.jsonl` (full transcripts).
+  and `data/agentic/runs/<tag>/<task>.jsonl` (full transcripts, local only, not tracked).
 
 ## Maintaining the suites
 
@@ -182,7 +192,7 @@ codebench/        generate, score, harness, report, publish, agentic loop, suite
 codebench/multilang/  per-language grading: case recorder, type inference, drivers, bench, readout
 data/problems/    problem sets and the hard-suite reference solutions
 data/outputs/     one file per suite and model: answers, scores, metadata
-data/agentic/     agentic outputs and transcripts
+data/agentic/     agentic outputs (transcripts stay local)
 data/multilang/   per-language outputs (one row per problem and language)
 tests/            v4 cases, tests/strict/ and tests/hard/
 agentic/          the Go service and its 18 tasks

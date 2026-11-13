@@ -13,10 +13,14 @@ from .. import harness
 from . import langs, typesys
 
 ROOT = harness.ROOT
+# The model the readout is about: its rows are highlighted.
+FOCUS = "Gemini 4 Hydrogen"
+
 MODELS = [  # tag stem, display name, [v4 tag, hard tag, agentic tag, multilang tag]
     ("Claude Fable 5.2", "fable-5.2-bedrock", "fable-5.2-bedrock", "fable-5.2-bedrock", None),
     ("Claude Sonnet 5.5", "sonnet-5.5-bedrock", "sonnet-5.5-bedrock", "sonnet-5.5-bedrock", "sonnet-5.5"),
     ("GPT 6.1 Sol", "gpt-6.1-sol", "gpt-6.1-sol", "gpt-6.1-sol", None),
+    ("Gemini 4 Hydrogen", "gemini-4-hydrogen", "gemini-4-hydrogen", "gemini-4-hydrogen", "gemini-4-hydrogen"),
     ("Gemini 4 Carbon", "gemini-4-carbon", "gemini-4-carbon", "gemini-4-carbon", "gemini-4-carbon"),
     ("Claude Opus 5.5", "opus-5.5-bedrock", "opus-5.5-bedrock", "opus-5.5-bedrock", None),
     ("Claude Fable 5.1", "fable-5.1", "fable-5.1-bedrock", "fable-5.1-bedrock", None),
@@ -77,22 +81,27 @@ def main(out):
         sh = suite_stats(load("data/outputs/code-bench-hard-v1__%s.json" % hard))
         a = load("data/agentic/outputs/agentic-go-v1__%s.json" % ag)
         at = a["totals"] if a else None
-        ac = ("<td class=na>running</td>" if name == "Gemini 4 Carbon" else "<td class=na>not run</td>") if not at else \
+        ac = ("<td class=na>running</td>" if name == FOCUS else "<td class=na>not run</td>") if not at else \
             "<td%s>%d/%d</td>" % (" class=top" if at["passed"] == at["tasks"] else "", at["passed"], at["tasks"])
         rows_html.append("<tr%s><th>%s</th>%s%s%s%s</tr>" % (
-            " class=focus" if name == "Gemini 4 Carbon" else "", e(name), cell(s4), cell(ss), cell(sh), ac))
+            " class=focus" if name == FOCUS else "", e(name), cell(s4), cell(ss), cell(sh), ac))
         if sh:
             hard_rows.append("<tr%s><th>%s</th><td>%d/%d</td><td>%d</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
-                " class=focus" if name == "Gemini 4 Carbon" else "", e(name), sh["pass"], sh["n"], sh["refused"], sh["truncated"],
+                " class=focus" if name == FOCUS else "", e(name), sh["pass"], sh["n"], sh["refused"], sh["truncated"],
                 money(sh["cost"]), "%.0f s" % sh["p50"] if sh["p50"] else "n/a",
                 ("%s, %.0f min" % (money(at["cost_usd"]), at["wall_s"] / 60)) if at else "n/a"))
 
     lang_rows, fails = [], []
+    # Every model is graded on the same problems: the ones that fit static
+    # types (a run may also hold Python answers to the dynamic ones).
+    harness.use_suite("hard-v1")
+    static = {json.loads(p.read_text())["slug"] for p in (ROOT / "data" / "cache" / "neutral").glob("*.json")
+              if not typesys.has_dynamic(json.loads(p.read_text())["signature"])}
     for name, _, _, _, ml in MODELS:
         rows = load("data/multilang/outputs/hard-v1__%s.json" % ml) if ml else None
         if not rows:
             continue
-        rows = [r for r in rows if r.get("supported")]
+        rows = [r for r in rows if r.get("supported") and r["slug"] in static]
         cells = []
         for l in langs.LANGS:
             mine = [r for r in rows if r["lang"] == l]
@@ -145,13 +154,13 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
     doc = """<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>Code benchmark readout</title><style>%(css)s</style></head><body><main>
 <h1>Code benchmark readout</h1>
-<p class=sub>Gemini 4 Carbon across the suites, and the first per-language grading. %(date)s.</p>
+<p class=sub>Gemini 4 Hydrogen across the suites, against the models already measured. %(date)s.</p>
 
 <div class=key><b>What this says</b><ul>
-<li><b>Gemini 4 Carbon is a top-tier coding model on these suites.</b> 48/48 on v4 (also under the strict tests), 31/32 on the hard suite and 18/18 on the agentic Go suite. Its only miss anywhere is one call the provider failed; every answer it returned passed.</li>
-<li><b>It is slow and not cheap.</b> Median 224 s per hard problem against 18 s for Claude Sonnet 5.5, and it cost more than three times Sonnet on the per-language run.</li>
-<li><b>Per-language grading works and separates models.</b> On the 17 problems with static types, in five languages: Sonnet 5.5 84/85, Carbon 82/85, Argon 76/85.</li>
-<li><b>A grading bug was hiding real passes.</b> Python answers that import numpy failed at import. With numpy installed, Sonnet 5.5 goes from 30 to 32/32 on the hard suite and Opus 5.5 from 30 to 31/32.</li>
+<li><b>Gemini 4 Hydrogen is a top-tier coding model on these suites.</b> 32/32 on the hard suite, the full score only GPT 6.1 Sol, Claude Sonnet 5.5 and Claude Fable 5.2 reach, plus 47/48 on v4 (also under the strict tests) and 18/18 on the agentic Go suite.</li>
+<li><b>It never returned a wrong answer on v4 or the hard suite.</b> Its one v4 miss is an answer cut off at the 16,384-token output limit before any code (<span class=mono>mergeable-component-ledger-with-undo</span>).</li>
+<li><b>It is the best Gemini so far, but not the cheapest top model.</b> It beats Gemini 4 Carbon on the hard suite (32 against 31) and is 2.6 times faster per hard problem (median 86 s against 224 s), at a lower price per token. It reasons at length, so a hard run cost $4.29 against $0.69 for GPT 6.1 Sol.</li>
+<li><b>Per language it ties Carbon for second.</b> On the 17 problems with static types, in five languages: Sonnet 5.5 84/85, Hydrogen 82/85, Carbon 82/85, Argon 76/85.</li>
 </ul></div>
 
 <h2>1. All suites</h2>
@@ -164,14 +173,14 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
 <li><b>agentic-go-v1 is saturated too.</b> Every model that finished passes 17 or 18 of 18 tasks; it only separates on cost and time.</li>
 </ul>
 
-<h2>2. Gemini 4 Carbon on the hard suite</h2>
+<h2>2. Gemini 4 Hydrogen on the hard suite</h2>
 <div class=wrap><table><thead><tr><th>Model</th><th>Passed</th><th>Refused</th><th>Truncated</th><th>Cost of the run</th><th>Median time per problem</th><th>Agentic run (cost, summed task time)</th></tr></thead>
 <tbody>%(hard)s</tbody></table></div>
 <ul>
-<li>Carbon gains 4 problems over Gemini 4 Argon (27 to 31) and ties Claude Opus 5.5 and Claude Fable 5.1.</li>
-<li>Its one failure is not a wrong answer and not a refusal. On <span class=mono>lock-manager-deadlock-victims</span> the provider returned an error (503, provider overloaded) after about eight minutes with no output. The problem was repeated 8 times: 5 calls failed the same way and 3 completed, each after more than 490 s and 42,000 to 53,000 output tokens. The 2 completed answers that were graded both pass every test. The official score stays 31/32 because every model gets one run, but the miss is about availability on a very long generation, not about capability.</li>
-<li>It writes long answers: a median of about 14,700 output tokens per hard problem, against about 2,500 for Sonnet 5.5. That is where the time and the cost come from.</li>
-<li>On the agentic Go suite Carbon passes 18/18 tasks and all 52 hidden tests, for $6.81. It used 581 tool calls, the most of any model, and hit the 40-call budget on 4 tasks that it still passed.</li>
+<li>Hydrogen passes all 32 with no refusal and no truncation. It gains 5 problems over Gemini 4 Argon (27 to 32) and 1 over Gemini 4 Carbon.</li>
+<li>Most of its output is reasoning: a median of about 13,400 output tokens per hard problem (Carbon about 14,700, Sonnet 5.5 about 2,500), while the code it returns is the same size as the others'. That is where the cost comes from, even at $1.50 / $7.50 per million tokens.</li>
+<li>On v4 the pattern is the same: a median of 3,700 output tokens per problem, about 440 of them visible, for $1.81 a run (Carbon $2.07, Argon $0.40).</li>
+<li>On the agentic Go suite Hydrogen passes 18/18 tasks and all 52 hidden tests, for $3.46, with 479 tool calls and no task at the 40-call budget (Carbon: $6.81, 581 calls).</li>
 <li>Cost is "n/a" for models run on Amazon Bedrock, which does not report it per call.</li>
 </ul>
 
@@ -180,10 +189,11 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
 <div class=wrap><table><thead><tr><th>Model</th>%(lhead)s<th>Total</th><th>Cost</th></tr></thead><tbody>%(langs)s</tbody></table></div>
 <ul>
 <li><b>Sonnet 5.5 is near perfect everywhere</b>: one miss in 85.</li>
+<li><b>Hydrogen scores 17/17 in Go and Java</b>. It loses two problems in C++ to wrong answers (one case each) and the shared TypeScript case below. A Python answer first read as an indentation error was a grading bug: the per-language grader took the first Python block, a short snippet quoted while explaining the fix, instead of the full solution after it. It now takes the longest block, as the Python harness always did; regraded from the stored answers, no other model changes. On these 17 problems it cost $7.71, below Carbon and about three times Sonnet 5.5.</li>
 <li><b>Carbon is even across languages</b>: one miss each in Python, C++ and TypeScript.</li>
 <li><b>Argon varies the most by language</b>: full marks in Java, but it loses problems to code that does not compile in Go and C++ and to a crash in TypeScript.</li>
-<li><b>One failure is about the language, not the model.</b> All three models fail the same TypeScript case in <span class=mono>version-constraint-picker</span>: version numbers too large for a JavaScript number. Python handles them natively; in TypeScript the model has to compare them as text, and none did.</li>
-<li><b>Java is the only language where all three models score 17/17.</b></li>
+<li><b>One failure is about the language, not the model.</b> All four models fail the same TypeScript case in <span class=mono>version-constraint-picker</span>: version numbers too large for a JavaScript number. Python handles them natively; in TypeScript the model has to compare them as text, and none did.</li>
+<li><b>Java is the only language where every model scores 17/17.</b></li>
 </ul>
 <h3>Every failure</h3>
 <div class="wrap left"><table><thead><tr><th>Model</th><th>Language</th><th>Problem</th><th>Kind</th><th>Cases passed</th></tr></thead><tbody>%(fails)s</tbody></table></div>
@@ -216,7 +226,7 @@ tr.focus th,tr.focus td,thead th{-webkit-print-color-adjust:exact;print-color-ad
 <li><b>15 hard problems are out of scope for now.</b> They mix integers, text and nulls in one list, such as operation logs. Go, Java and C++ need a dynamic value type for them.</li>
 <li><b>Time limits are not calibrated per language.</b> The Python limits are used everywhere, so a slow solution can pass a performance problem in Go or C++.</li>
 <li><b>TypeScript is not type-checked.</b> Node runs it by stripping the types, so a type error that still runs is not caught.</li>
-<li><b>Three models so far.</b> Claude Fable 5.2, Claude Opus 5.5 and GPT 6.1 Sol have not been run per language yet.</li>
+<li><b>Four models so far.</b> Claude Fable 5.2, Claude Opus 5.5 and GPT 6.1 Sol have not been run per language yet.</li>
 <li><b>One run per model and language.</b> Differences of one problem are within run-to-run noise.</li>
 <li><b>The agentic suite needs harder tasks</b> to rank models again.</li>
 </ul>

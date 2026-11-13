@@ -74,6 +74,41 @@ def call_openrouter(model, prompt, key):
             "tokens_in": usage.get("prompt_tokens"), "tokens_out": usage.get("completion_tokens"), "cost_usd": usage.get("cost")}
 
 
+# Gemini API list prices, USD per million tokens (input, output); output includes
+# thinking tokens. The API reports no cost, so it is computed from these.
+GOOGLE_PRICES = {"gemini-4-hydrogen": (1.5, 7.5), "gemini-4-carbon": (2.0, 10.0), "gemini-4-argon": (2.0, 10.0)}
+GOOGLE_STOPS = {"STOP": "stop", "MAX_TOKENS": "length", "SAFETY": "refusal", "PROHIBITED_CONTENT": "refusal",
+                "RECITATION": "refusal", "BLOCKLIST": "refusal", "SPII": "refusal"}
+
+
+def call_google(model, prompt, key):
+    """Gemini API (Google AI Studio key), straight to Google instead of through
+    OpenRouter. Thought parts are reasoning, not the answer, and are left out."""
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": MAX_TOKENS}}
+    t0 = time.time()
+    status, resp = _post("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model,
+                         {"x-goog-api-key": key}, body, timeout=1800)
+    lat = time.time() - t0
+    if status != 200:
+        return {"error": "%s %s" % (status, json.dumps(resp)[:300]), "latency_s": lat}
+    cands = resp.get("candidates") or []
+    if not cands:
+        # A prompt blocked before generation has no candidate, only promptFeedback.
+        block = (resp.get("promptFeedback") or {}).get("blockReason")
+        return {"text": "", "stop_reason": "refusal" if block else None, "latency_s": lat, "tokens_in": None,
+                "tokens_out": 0, "cost_usd": None}
+    c = cands[0]
+    text = "".join(pt.get("text", "") for pt in (c.get("content") or {}).get("parts", []) if not pt.get("thought"))
+    u = resp.get("usageMetadata", {})
+    tin = u.get("promptTokenCount") or 0
+    tout = (u.get("candidatesTokenCount") or 0) + (u.get("thoughtsTokenCount") or 0)
+    price = GOOGLE_PRICES.get(model)
+    cost = (tin * price[0] + tout * price[1]) / 1e6 if price else None
+    return {"text": text, "stop_reason": GOOGLE_STOPS.get(c.get("finishReason"), c.get("finishReason")), "latency_s": lat,
+            "tokens_in": tin, "tokens_out": tout, "cost_usd": cost}
+
+
 def call_bedrock(model, prompt, session):
     """Bedrock converse API. `model` is the inference-profile id
     (e.g. us.anthropic.claude-opus-5-5) -- the bare model id is rejected for
@@ -110,7 +145,7 @@ def call_bedrock(model, prompt, session):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--provider", choices=["anthropic", "openrouter", "bedrock"], required=True)
+    ap.add_argument("--provider", choices=["anthropic", "openrouter", "bedrock", "google"], required=True)
     ap.add_argument("--model", required=True)
     ap.add_argument("--tag", required=True, help="suffix for data/outputs/code-bench-v4__<tag>.json")
     ap.add_argument("--key-file")
@@ -132,11 +167,11 @@ def main():
         call = lambda model, prompt, _key: call_bedrock(model, prompt, session)
         key = "bedrock"  # placeholder; real auth is the boto3 session's credential chain
     else:
-        env = "ANTHROPIC_API_KEY" if a.provider == "anthropic" else "OPENROUTER_API_KEY"
+        env = {"anthropic": "ANTHROPIC_API_KEY", "google": "GEMINI_API_KEY"}.get(a.provider, "OPENROUTER_API_KEY")
         key = open(a.key_file).read().strip() if a.key_file else os.environ.get(env)
         if not key:
             raise SystemExit("missing %s (or --key-file)" % env)
-        call = call_anthropic if a.provider == "anthropic" else call_openrouter
+        call = {"anthropic": call_anthropic, "google": call_google}.get(a.provider, call_openrouter)
     cache = suite["runs"] / a.tag
     cache.mkdir(parents=True, exist_ok=True)
     rows = []

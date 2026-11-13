@@ -27,6 +27,8 @@ def ask(a, key, session, text):
         return generate.call_openrouter(a.model, text, key)
     if a.provider == "anthropic":
         return generate.call_anthropic(a.model, text, key)
+    if a.provider == "google":
+        return generate.call_google(a.model, text, key)
     return generate.call_bedrock(a.model, text, session)
 
 
@@ -68,7 +70,7 @@ def table():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--provider", choices=["anthropic", "openrouter", "bedrock"])
+    ap.add_argument("--provider", choices=["anthropic", "openrouter", "bedrock", "google"])
     ap.add_argument("--model")
     ap.add_argument("--tag")
     ap.add_argument("--key-file")

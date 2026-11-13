@@ -6,3 +6,6 @@ reports/
 data/cache/
 data/multilang/runs/
 .venv-grader/
+data/agentic/runs/
+.DS_Store
+.claude/
